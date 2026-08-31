@@ -3,7 +3,7 @@ module github.com/camalot/xget
 go 1.27.0
 
 require (
-	github.com/gobwas/glob v0.2.3
+	github.com/gobwas/glob v1.0.0
 	github.com/klauspost/compress v1.19.2
 	github.com/schollz/progressbar/v3 v3.19.1
 	github.com/spf13/cobra v1.10.2
