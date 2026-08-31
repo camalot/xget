@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/gobwas/glob v0.2.3
 	github.com/jessevdk/go-flags v1.5.0
-	github.com/klauspost/compress v1.15.15
+	github.com/klauspost/compress v1.19.2
 	github.com/schollz/progressbar/v3 v3.8.2
 	github.com/ulikunitz/xz v0.5.10
 )
