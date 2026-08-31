@@ -15,3 +15,8 @@ tasks:
       - go vet ./...
       - gofmt -l .
       - go test ./...
+
+
+  ironstate:
+    cmds:
+      - .\dist\xget_windows_amd64_v1\xget.exe tacocontent/ironstate --to=./bin --verify-sha256 --ignore-asset=.sbom.json
