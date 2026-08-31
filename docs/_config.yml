@@ -1,0 +1,14 @@
+---
+title: xget
+description: xget is the best way to easily get pre-built binaries for your favorite tools. It downloads and extracts pre-built binaries from releases on GitHub.
+logo: /assets/images/logo.png
+logo_svg: /assets/images/logo.svg
+github_username: camalot
+github_repo: xget
+github_image_docs_url: https://raw.githubusercontent.com/camalot/xget/refs/heads/main/docs/assets/images/docs
+github_images_url: https://raw.githubusercontent.com/camalot/xget/refs/heads/main/docs/assets/images
+version: 2.0.0
+# Aux links (top nav)
+aux_links:
+  "GitHub":
+    - "https://github.com/camalot/xget"

@@ -99,7 +99,13 @@ header: xget Manual
 
   `-a, --asset=`
 
-:    Download a specific asset containing the given string. If there is an exact match with an asset, that asset is used regardless (except when using `^`). If the argument begins with a `^`, then any asset that does not match the argument is a candidate. This option can be specified multiple times for additional filtering. Example: **`xget --asset nvim.appimage neovim/neovim`**. Example **`xget --download-only --asset amd64.deb --asset musl sharkdp/bat`**. If the assets are filterable using the `--system` detector (i.e., if applying the detector does not remove all candidates), the system detector is applied. Use `--system all` to always consider all assets.
+:    Filter assets by matcher. Literal values prefer exact basename match first, then contains matching. Regex prefixes: `~`, `=~`, and `re:`. Negative prefixes: `^` and `not:`. Use `~~` or `^^` to escape a leading `~` or `^`, or use `text:` to force literal mode. This option can be specified multiple times for additional filtering. Example: **`xget --asset nvim.appimage neovim/neovim`**. Example: **`xget --asset '~^tool_.*\.zip$' --asset 'not:re:.*\.sbom\.json$' owner/repo`**. If the assets are filterable using the `--system` detector (i.e., if applying the detector does not remove all candidates), the system detector is applied. Use `--system all` to always consider all assets.
+
+  `--ignore=`
+
+:    Exclude assets by matcher. Accepts literal contains matching and regex matching via `~`, `=~`, or `re:`. Negative prefixes `^` and `not:` are also supported and invert the ignore behavior. Use `~~` or `text:` when a literal begins with `~`. This option can be specified multiple times. Example: **`xget --asset '~\.zip$' --ignore '~\.zip\.sbom\.json$' tacocontent/ironstate`**.
+
+  Patterns beginning with `~` are parsed as regex, and patterns beginning with `^` are parsed as negative by default. Use `~~`, `^^`, or `text:` for literal prefixes.
 
   `--sha256`
 
@@ -130,8 +136,19 @@ header: xget Manual
 :    Show a help message.
 
 # CONFIGURATION
-  xget can be configured using a TOML file located at `~/.xget.toml`. Alternatively,
-  the configuration file can be located in the same directory as the xget binary.
+  xget checks for configuration in this order:
+
+  1. `--config` if specified.
+  2. `XGET_CONFIG` if set.
+  3. `EGET_CONFIG` if set for compatibility with original eget.
+  4. `./.xget.toml`, `./.xget.yml`, and `./.xget.yaml`.
+  5. `~/.xget.toml`, `~/.xget.yml`, and `~/.xget.yaml`.
+  6. `~/.config/xget/.xget.toml`, `~/.config/xget/.xget.yml`, and `~/.config/xget/.xget.yaml`.
+  7. On Windows, `%LOCALAPPDATA%/xget/.xget.toml`, `%LOCALAPPDATA%/xget/.xget.yml`, and `%LOCALAPPDATA%/xget/.xget.yaml`.
+
+  xget also supports the legacy eget-compatible filename `.eget.toml` in those same locations, and accepts `.eget.yml` / `.eget.yaml` if present.
+
+  The previous documentation used `./xget.<ext>` and `xget/xget.<ext>` instead of the dot-prefixed `.xget.<ext>` paths, which were incorrect.
 
   Both global settings can be configured, as well as setting on a per-repository basis.
 
@@ -155,17 +172,16 @@ header: xget Manual
 
 ```toml
 [global]
-    github_token = "ghp_1234567890"
-    quiet = false
-    show_hash = false
-    upgrade_only = true
-    target = "./test"
+  quiet = false
+  show_hash = false
+  upgrade_only = true
+  target = "./test"
 
 ["zyedidia/micro"]
-    upgrade_only = false
-    show_hash = true
-    asset_filters = [ "static", ".tar.gz" ]
-    target = "~/.local/bin/micro"
+  upgrade_only = false
+  show_hash = true
+  asset_filters = [ "static", ".tar.gz" ]
+  target = "~/.local/bin/micro"
 ```
 
   By using the configuration above, you could run the following command to download
@@ -183,7 +199,11 @@ header: xget Manual
 
   `asset_filters`
 
-:    An array of partial asset names to filter the available assets for download.
+:    An array of asset matchers. Literal values prefer exact basename match then contains matching. Regex prefixes: `~`, `=~`, and `re:`. Negative prefixes: `^` and `not:`. Use `~~`/`^^` or `text:` to force literal matching.
+
+  `ignore`
+
+:    An array of asset matchers to exclude. Supports the same matcher syntax as `asset_filters`.
 
   `download_only`
 

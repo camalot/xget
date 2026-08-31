@@ -19,6 +19,7 @@ type Finder interface {
 type GithubRelease struct {
 	Assets []struct {
 		DownloadURL string `json:"browser_download_url"`
+		Digest      string `json:"digest"`
 	} `json:"assets"`
 
 	Prerelease bool      `json:"prerelease"`
@@ -54,6 +55,7 @@ type GithubAssetFinder struct {
 	Tag        string
 	Prerelease bool
 	MinTime    time.Time // release must be after MinTime to be found
+	Digests    map[string]string
 }
 
 var ErrNoUpgrade = errors.New("requested release is not more recent than current version")
@@ -114,8 +116,14 @@ func (f *GithubAssetFinder) Find() ([]string, error) {
 
 	// accumulate all assets from the json into a slice
 	assets := make([]string, 0, len(release.Assets))
+	if f.Digests == nil {
+		f.Digests = map[string]string{}
+	}
 	for _, a := range release.Assets {
 		assets = append(assets, a.DownloadURL)
+		if strings.HasPrefix(a.Digest, "sha256:") {
+			f.Digests[a.DownloadURL] = strings.TrimPrefix(a.Digest, "sha256:")
+		}
 	}
 
 	return assets, nil
@@ -169,8 +177,14 @@ func (f *GithubAssetFinder) FindMatch() ([]string, error) {
 			if strings.Contains(r.Tag, tag) && !r.CreatedAt.Before(f.MinTime) {
 				// we have a winner
 				assets := make([]string, 0, len(r.Assets))
+				if f.Digests == nil {
+					f.Digests = map[string]string{}
+				}
 				for _, a := range r.Assets {
 					assets = append(assets, a.DownloadURL)
+					if strings.HasPrefix(a.Digest, "sha256:") {
+						f.Digests[a.DownloadURL] = strings.TrimPrefix(a.Digest, "sha256:")
+					}
 				}
 				return assets, nil
 			}

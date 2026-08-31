@@ -148,11 +148,20 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 	return finder, tool, nil
 }
 
-func getVerifier(sumAsset string, opts *options.Flags) (verifier Verifier, err error) {
+func getVerifier(sumAsset, githubDigest string, opts *options.Flags) (verifier Verifier, err error) {
 	if opts.Verify != "" {
-		verifier, err = NewSha256Verifier(opts.Verify)
+		if opts.Verify == "auto" {
+			if githubDigest == "" {
+				return nil, fmt.Errorf("no SHA256 digest available for this asset")
+			}
+			verifier, err = NewSha256Verifier(githubDigest)
+		} else {
+			verifier, err = NewSha256Verifier(opts.Verify)
+		}
 	} else if sumAsset != "" {
 		verifier = &Sha256AssetVerifier{AssetURL: sumAsset}
+	} else if githubDigest != "" {
+		verifier, err = NewSha256Verifier(githubDigest)
 	} else if opts.Hash {
 		verifier = &Sha256Printer{}
 	} else {
@@ -179,20 +188,82 @@ func getDetector(opts *options.Flags) (detector Detector, err error) {
 		return nil, err
 	}
 
-	if len(opts.Asset) >= 1 {
-		detectors := make([]Detector, len(opts.Asset))
-		for i, a := range opts.Asset {
-			anti := strings.HasPrefix(a, "^")
-			if anti {
-				a = a[1:]
-			}
-			detectors[i] = &SingleAssetDetector{Asset: a, Anti: anti}
+	var detectors []Detector
+
+	for _, raw := range opts.Ignore {
+		asset, anti, rx, perr := parseAssetMatcher(raw)
+		if perr != nil {
+			return nil, fmt.Errorf("invalid ignore matcher %q: %w", raw, perr)
 		}
-		detector = &DetectorChain{detectors: detectors, system: system}
-	} else {
-		detector = system
+		// ignore excludes matches by default; negative ignore matchers invert this.
+		detectors = append(detectors, &SingleAssetDetector{Asset: asset, Anti: !anti, Regex: rx})
 	}
-	return detector, nil
+
+	for _, raw := range opts.Asset {
+		asset, anti, rx, perr := parseAssetMatcher(raw)
+		if perr != nil {
+			return nil, fmt.Errorf("invalid asset matcher %q: %w", raw, perr)
+		}
+		detectors = append(detectors, &SingleAssetDetector{Asset: asset, Anti: anti, Regex: rx})
+	}
+
+	if len(detectors) == 0 {
+		return system, nil
+	}
+
+	return &DetectorChain{detectors: detectors, system: system}, nil
+}
+
+func parseAssetMatcher(raw string) (asset string, anti bool, rx *regexp.Regexp, err error) {
+	asset = raw
+
+	if strings.HasPrefix(asset, "^^") {
+		asset = asset[1:]
+	} else if strings.HasPrefix(asset, "not:") {
+		anti = true
+		asset = strings.TrimPrefix(asset, "not:")
+	} else if strings.HasPrefix(asset, "^") {
+		anti = true
+		asset = asset[1:]
+	}
+
+	if strings.TrimSpace(asset) == "" {
+		return "", anti, nil, fmt.Errorf("matcher cannot be empty")
+	}
+
+	if strings.HasPrefix(asset, "text:") {
+		literal := strings.TrimPrefix(asset, "text:")
+		if strings.TrimSpace(literal) == "" {
+			return "", anti, nil, fmt.Errorf("text matcher cannot be empty")
+		}
+		return literal, anti, nil, nil
+	}
+
+	if strings.HasPrefix(asset, "~~") {
+		asset = asset[1:]
+		return asset, anti, nil, nil
+	}
+
+	if strings.HasPrefix(asset, "~") || strings.HasPrefix(asset, "=~") || strings.HasPrefix(asset, "re:") {
+		pattern := asset
+		switch {
+		case strings.HasPrefix(pattern, "=~"):
+			pattern = strings.TrimPrefix(pattern, "=~")
+		case strings.HasPrefix(pattern, "re:"):
+			pattern = strings.TrimPrefix(pattern, "re:")
+		default:
+			pattern = strings.TrimPrefix(pattern, "~")
+		}
+		if strings.TrimSpace(pattern) == "" {
+			return "", anti, nil, fmt.Errorf("regex pattern cannot be empty")
+		}
+		rx, err = regexp.Compile(pattern)
+		if err != nil {
+			return "", anti, nil, err
+		}
+		return asset, anti, rx, nil
+	}
+	return asset, anti, nil, nil
 }
 
 // Determine which extractor to use.
@@ -440,7 +511,11 @@ func Run(target string, opts options.Flags) error {
 
 	body := buf.Bytes()
 	sumAsset := checksumAsset(url, assets)
-	verifier, err := getVerifier(sumAsset, &opts)
+	githubDigest := ""
+	if finder, ok := finder.(*GithubAssetFinder); ok {
+		githubDigest = finder.Digests[url]
+	}
+	verifier, err := getVerifier(sumAsset, githubDigest, &opts)
 	if err != nil {
 		return err
 	}

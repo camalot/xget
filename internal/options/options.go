@@ -12,6 +12,7 @@ type Flags struct {
 	DLOnly      bool
 	UpgradeOnly bool
 	Asset       []string
+	Ignore      []string
 	Hash        bool
 	Verify      string
 	Remove      bool

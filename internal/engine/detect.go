@@ -182,18 +182,26 @@ func (a *AllDetector) Detect(assets []string) (string, []string, error) {
 type SingleAssetDetector struct {
 	Asset string
 	Anti  bool
+	Regex *regexp.Regexp
 }
 
 func (s *SingleAssetDetector) Detect(assets []string) (string, []string, error) {
 	var candidates []string
 	for _, a := range assets {
-		if !s.Anti && path.Base(a) == s.Asset {
+		base := path.Base(a)
+		if !s.Anti && s.Regex == nil && base == s.Asset {
 			return a, nil, nil
 		}
-		if !s.Anti && strings.Contains(path.Base(a), s.Asset) {
+
+		match := strings.Contains(base, s.Asset)
+		if s.Regex != nil {
+			match = s.Regex.MatchString(base)
+		}
+
+		if !s.Anti && match {
 			candidates = append(candidates, a)
 		}
-		if s.Anti && !strings.Contains(path.Base(a), s.Asset) {
+		if s.Anti && !match {
 			candidates = append(candidates, a)
 		}
 	}

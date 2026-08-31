@@ -16,10 +16,10 @@ The runtime flow is unchanged from the user perspective.
 
 xget works in four phases:
 
-* Find: determine a list of assets that may be installed.
-* Detect: determine which asset in the list should be downloaded for the target system.
-* Verify: verify the checksum of the asset if possible.
-* Extract: determine which file within the asset to extract.
+- Find: determine a list of assets that may be installed.
+- Detect: determine which asset in the list should be downloaded for the target system.
+- Verify: verify the checksum of the asset if possible.
+- Extract: determine which file within the asset to extract.
 
 If you are interested in reading the source code, the phase implementations are
 in `internal/engine`, and orchestration is handled by `internal/engine/run.go`
@@ -32,18 +32,24 @@ backward compatibility with existing eget/xget TOML files.
 
 Supported config filenames:
 
-* `xget.toml`
-* `xget.yaml`
-* `xget.yml`
+- `.xget.toml`
+- `.xget.yaml`
+- `.xget.yml`
+- `.eget.toml` (backward compatibility)
+- `.eget.yaml` / `.eget.yml` (accepted if present)
 
 Search order:
 
-1. `XGET_CONFIG` if defined.
-2. Home file: `~/.xget.<ext>`.
-3. Current directory: `./xget.<ext>`.
-4. OS config path:
-	* Linux/macOS: `$XDG_CONFIG_HOME/xget/xget.<ext>` or `~/.config/xget/xget.<ext>`
-	* Windows: `%LOCALAPPDATA%/xget/xget.<ext>`
+1. `--config` if specified.
+2. `XGET_CONFIG` if defined.
+3. `EGET_CONFIG` if defined (compatibility with original eget).
+4. Current directory: `./.xget.<ext>` and `./.eget.<ext>`.
+5. Home file: `~/.xget.<ext>` and `~/.eget.<ext>` (Windows: `%USERPROFILE%` is used as the home path).
+6. OS config path:
+    - Linux/macOS: `$XDG_CONFIG_HOME/xget/.xget.<ext>` or `~/.config/xget/.xget.<ext>`
+    - Windows: `%LOCALAPPDATA%/xget/.xget.<ext>` and `%LOCALAPPDATA%/xget/.eget.<ext>`
+
+The earlier docs were outdated: they referenced `./xget.<ext>` and `xget/xget.<ext>` rather than the dot-prefixed `.xget.<ext>` files under the current directory and config directory.
 
 Resolution precedence:
 
@@ -53,7 +59,7 @@ Resolution precedence:
 4. Built-in defaults.
 
 Config keys remain unchanged across TOML and YAML. For example, `target`,
-`asset_filters`, `download_only`, and `verify_sha256` map to the same flags as
+`asset_filters`, `ignore`, `download_only`, and `verify_sha256` map to the same flags as
 before.
 
 ## Find
@@ -68,6 +74,16 @@ The Detect phase attempts to determine what OS and architecture each asset is
 built for. This is done by matching a regular expression for each
 OS/architecture that xget knows about. The match rules are shown below, and are
 case insensitive.
+
+Asset filtering behavior:
+
+- `--asset` matchers are applied before system detection and can be chained.
+- Literal `--asset` values prefer exact basename match, then substring match.
+- Negative forms: `^<pattern>` and `not:<pattern>`.
+- Regex forms: `~<pattern>`, `=~<pattern>`, and `re:<pattern>` (backward compatible).
+- Negative regex forms: `^~<pattern>`, `not:~<pattern>`, or `not:re:<pattern>`.
+- Escaping for literal prefixes: `~~` for a leading literal `~`, `^^` for a leading literal `^`, or `text:<pattern>` to force literal matching.
+- Use `--ignore` to exclude assets explicitly with literal or regex matchers (for example `--ignore '~\.zip\.sbom\.json$'`).
 
 | OS | Match Rule |
 | ------------- | -------------------- |
@@ -119,15 +135,15 @@ of permissions within the archive.
 
 xget supports the following filetypes for assets:
 
-* `.tar.gz`/`.tgz`: tar archive with gzip compression.
-* `.tar.bz2`: tar archive with bzip2 compression.
-* `.tar.xz`: tar archive with xz compression.
-* `.tar`: tar archive with no compression.
-* `.zip`: zip archive.
-* `.gz`: single file with gzip compression.
-* `.bz2`: single file with bzip2 compression.
-* `.xz`: single file with xz compression.
-* otherwise: single file.
+- `.tar.gz`/`.tgz`: tar archive with gzip compression.
+- `.tar.bz2`: tar archive with bzip2 compression.
+- `.tar.xz`: tar archive with xz compression.
+- `.tar`: tar archive with no compression.
+- `.zip`: zip archive.
+- `.gz`: single file with gzip compression.
+- `.bz2`: single file with bzip2 compression.
+- `.xz`: single file with xz compression.
+- otherwise: single file.
 
 If a single file is "extracted" (no tar or zip archive), it will be marked
 executable automatically.

@@ -34,7 +34,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y pandoc
 
       - name: Generate man page
-        run: pandoc man/xget.md -s -t man -o xget.1
+        run: pandoc docs/_man/xget.md -s -t man -o xget.1
 
       - uses: anchore/sbom-action/download-syft@v0
       - uses: sigstore/cosign-installer@v4.1.2

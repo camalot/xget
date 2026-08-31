@@ -11,22 +11,24 @@ import (
 )
 
 type Global struct {
-	All          bool   `mapstructure:"all" toml:"all" yaml:"all"`
-	DownloadOnly bool   `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
-	File         string `mapstructure:"file" toml:"file" yaml:"file"`
-	GithubToken  string `mapstructure:"github_token" toml:"github_token" yaml:"github_token"`
-	Quiet        bool   `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
-	ShowHash     bool   `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
-	Source       bool   `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
-	System       string `mapstructure:"system" toml:"system" yaml:"system"`
-	Target       string `mapstructure:"target" toml:"target" yaml:"target"`
-	UpgradeOnly  bool   `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
-	DisableSSL   bool   `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
+	All          bool     `mapstructure:"all" toml:"all" yaml:"all"`
+	Ignore       []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
+	DownloadOnly bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
+	File         string   `mapstructure:"file" toml:"file" yaml:"file"`
+	GithubToken  string   `mapstructure:"github_token" toml:"github_token" yaml:"github_token"`
+	Quiet        bool     `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
+	ShowHash     bool     `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
+	Source       bool     `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
+	System       string   `mapstructure:"system" toml:"system" yaml:"system"`
+	Target       string   `mapstructure:"target" toml:"target" yaml:"target"`
+	UpgradeOnly  bool     `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
+	DisableSSL   bool     `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
 }
 
 type Repository struct {
 	All          bool     `mapstructure:"all" toml:"all" yaml:"all"`
 	AssetFilters []string `mapstructure:"asset_filters" toml:"asset_filters" yaml:"asset_filters"`
+	Ignore       []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
 	DownloadOnly bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
 	File         string   `mapstructure:"file" toml:"file" yaml:"file"`
 	Name         string   `mapstructure:"name" toml:"name" yaml:"name"`
@@ -51,6 +53,7 @@ func Default() *Config {
 	return &Config{
 		Global: Global{
 			All:          false,
+			Ignore:       []string{},
 			DownloadOnly: false,
 			GithubToken:  "",
 			Quiet:        false,
@@ -66,41 +69,52 @@ func Default() *Config {
 func GetOSConfigPath(homePath string, ext string) string {
 	var configDir string
 
-	defaultConfig := map[string]string{
-		"windows": "LocalAppData",
-		"default": ".config",
-	}
-
-	var goos string
 	switch runtime.GOOS {
 	case "windows":
 		configDir = os.Getenv("LOCALAPPDATA")
-		goos = "windows"
+		if configDir == "" {
+			configDir = filepath.Join(homePath, "AppData", "Local")
+		}
 	default:
 		configDir = os.Getenv("XDG_CONFIG_HOME")
-		goos = "default"
+		if configDir == "" {
+			configDir = filepath.Join(homePath, ".config")
+		}
 	}
 
-	if configDir == "" {
-		configDir = filepath.Join(homePath, defaultConfig[goos])
-	}
+	return filepath.Join(configDir, "xget", ".xget."+ext)
+}
 
-	return filepath.Join(configDir, "xget", "xget."+ext)
+func configuredPath() string {
+	if custom, ok := os.LookupEnv("XGET_CONFIG"); ok && custom != "" {
+		return custom
+	}
+	if custom, ok := os.LookupEnv("EGET_CONFIG"); ok && custom != "" {
+		return custom
+	}
+	return ""
 }
 
 func candidatePaths(homePath string) []string {
 	candidates := []string{}
 
-	if custom, ok := os.LookupEnv("XGET_CONFIG"); ok && custom != "" {
-		candidates = append(candidates, custom)
-	}
-
-	for _, ext := range []string{"toml", "yaml", "yml"} {
-		candidates = append(candidates,
-			filepath.Join(homePath, ".xget."+ext),
-			"xget."+ext,
-			GetOSConfigPath(homePath, ext),
-		)
+	for _, base := range []string{".xget", ".eget"} {
+		for _, ext := range []string{"toml", "yml", "yaml"} {
+			candidates = append(candidates,
+				filepath.Join(".", base+"."+ext),
+				filepath.Join(homePath, base+"."+ext),
+				filepath.Join(homePath, ".config", "xget", base+"."+ext),
+			)
+			if runtime.GOOS == "windows" {
+				localAppData := os.Getenv("LOCALAPPDATA")
+				if localAppData == "" {
+					localAppData = filepath.Join(homePath, "AppData", "Local")
+				}
+				candidates = append(candidates,
+					filepath.Join(localAppData, "xget", base+"."+ext),
+				)
+			}
+		}
 	}
 
 	return candidates
@@ -122,6 +136,11 @@ func loadFromFile(path string) (*Config, error) {
 		}
 	}
 
+	// if github_token is set in the config file, print a warning to stderr
+	if cfg.Global.GithubToken != "" {
+		fmt.Fprintln(os.Stderr, "⚠️ Warning: github_token is set in the config file. It is recommended to use XGET_GITHUB_TOKEN or GITHUB_TOKEN environment variable instead. Storing your GitHub token in a config file is not recommended, as it may be accidentally committed to source control and stored in plaintext.")
+	}
+
 	for key := range v.AllSettings() {
 		if key == "global" {
 			continue
@@ -140,6 +159,9 @@ func loadFromFile(path string) (*Config, error) {
 		}
 		if !section.IsSet("asset_filters") {
 			repo.AssetFilters = []string{}
+		}
+		if !section.IsSet("ignore") {
+			repo.Ignore = cfg.Global.Ignore
 		}
 		if !section.IsSet("download_only") {
 			repo.DownloadOnly = cfg.Global.DownloadOnly
@@ -167,10 +189,26 @@ func loadFromFile(path string) (*Config, error) {
 	return cfg, nil
 }
 
-func Load() (*Config, error) {
+func Load(explicitPath ...string) (*Config, error) {
 	homePath, _ := os.UserHomeDir()
-	var lastNotExist error
 
+	if len(explicitPath) > 0 && explicitPath[0] != "" {
+		cfg, err := loadFromFile(explicitPath[0])
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", explicitPath[0], err)
+		}
+		return cfg, nil
+	}
+
+	if custom := configuredPath(); custom != "" {
+		cfg, err := loadFromFile(custom)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", custom, err)
+		}
+		return cfg, nil
+	}
+
+	var lastNotExist error
 	for _, p := range candidatePaths(homePath) {
 		cfg, err := loadFromFile(p)
 		if err == nil {

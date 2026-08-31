@@ -24,6 +24,7 @@ type rootFlags struct {
 	dlOnly      bool
 	upgradeOnly bool
 	asset       []string
+	ignore      []string
 	hash        bool
 	verify      string
 	rate        bool
@@ -31,6 +32,7 @@ type rootFlags struct {
 	downloadAll bool
 	disableSSL  bool
 	showVersion bool
+	config      string
 }
 
 func Execute() error {
@@ -60,7 +62,7 @@ func newRootCommand() *cobra.Command {
 				return nil
 			}
 
-			cfg, err := config.Load()
+			cfg, err := config.Load(f.config)
 			if err != nil {
 				return err
 			}
@@ -114,14 +116,20 @@ func newRootCommand() *cobra.Command {
 	cmd.Flags().BoolVarP(&f.quiet, "quiet", "q", false, "only print essential output")
 	cmd.Flags().BoolVarP(&f.dlOnly, "download-only", "d", false, "stop after downloading the asset (no extraction)")
 	cmd.Flags().BoolVar(&f.upgradeOnly, "upgrade-only", false, "only download if release is more recent than current version")
-	cmd.Flags().StringSliceVarP(&f.asset, "asset", "a", nil, "download a specific asset containing the given string; can be specified multiple times for additional filtering; use ^ for anti-match")
+	cmd.Flags().StringSliceVarP(&f.asset, "asset", "a", nil, "filter assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not:, escapes: ~~ and ^^, explicit literal: text: (for example ^musl, not:~.*\\.sbom\\.json$, text:~literal)")
+	cmd.Flags().StringSliceVar(&f.ignore, "ignore", nil, "exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times")
 	cmd.Flags().BoolVar(&f.hash, "sha256", false, "show the SHA-256 hash of the downloaded asset")
 	cmd.Flags().StringVar(&f.verify, "verify-sha256", "", "verify the downloaded asset checksum against the one provided")
+	cmd.Flags().StringVar(&f.verify, "verify", "", "verify the downloaded asset checksum; pass a hash or use --verify with no value to use GitHub's published SHA256 when available")
+	cmd.Flags().Lookup("verify").NoOptDefVal = "auto"
 	cmd.Flags().BoolVar(&f.rate, "rate", false, "show GitHub API rate limiting information")
 	cmd.Flags().BoolVarP(&f.remove, "remove", "r", false, "remove the given file from $XGET_BIN or the current directory")
 	cmd.Flags().BoolVarP(&f.showVersion, "version", "v", false, "show version information")
 	cmd.Flags().BoolVarP(&f.downloadAll, "download-all", "D", false, "download all projects defined in the config file")
 	cmd.Flags().BoolVarP(&f.disableSSL, "disable-ssl", "k", false, "disable SSL verification for download requests")
+	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
+
+	cmd.InitDefaultCompletionCmd("completion")
 
 	return cmd
 }
@@ -131,6 +139,7 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 		Source:      cfg.Global.Source,
 		System:      cfg.Global.System,
 		All:         cfg.Global.All,
+		Ignore:      cfg.Global.Ignore,
 		Quiet:       cfg.Global.Quiet,
 		DLOnly:      cfg.Global.DownloadOnly,
 		UpgradeOnly: cfg.Global.UpgradeOnly,
@@ -152,6 +161,7 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 	if repo, ok := cfg.Repositories[target]; ok {
 		opts.All = repo.All
 		opts.Asset = repo.AssetFilters
+		opts.Ignore = repo.Ignore
 		opts.DLOnly = repo.DownloadOnly
 		opts.ExtractFile = repo.File
 		opts.Hash = repo.ShowHash
@@ -207,10 +217,13 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 	if cmd.Flags().Changed("asset") {
 		opts.Asset = f.asset
 	}
+	if cmd.Flags().Changed("ignore") {
+		opts.Ignore = f.ignore
+	}
 	if cmd.Flags().Changed("sha256") {
 		opts.Hash = f.hash
 	}
-	if cmd.Flags().Changed("verify-sha256") {
+	if cmd.Flags().Changed("verify") || cmd.Flags().Changed("verify-sha256") {
 		opts.Verify = f.verify
 	}
 	if cmd.Flags().Changed("remove") {

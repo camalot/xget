@@ -45,7 +45,7 @@ configuration extensions easier:
 This preserves compatibility with existing eget/xget behavior while modernizing
 the internal layout.
 
-# Examples
+## Examples
 
 ``` shell
 xget zyedidia/micro --tag nightly
@@ -53,6 +53,8 @@ xget jgm/pandoc --to /usr/local/bin
 xget junegunn/fzf
 xget neovim/neovim
 xget ogham/exa --asset ^musl
+xget tacocontent/ironstate --asset '~\.zip$' --ignore '~\.zip\.sbom\.json$'
+xget tacocontent/ironstate --asset 're:\.zip$' --ignore 'not:re:\.zip\.sbom\.json$'
 xget --system darwin/amd64 sharkdp/fd
 xget BurntSushi/ripgrep
 xget -f xget.1 camalot/xget
@@ -134,7 +136,7 @@ go build ./...
 A man page can be generated from the source tree with `pandoc`:
 
 ``` shell
-pandoc man/xget.md -s -t man -o xget.1
+pandoc docs/_man/xget.md -s -t man -o xget.1
 ```
 
 You can also use `xget` to download the man page: `xget -f xget.1 camalot/xget`.
@@ -166,10 +168,11 @@ xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
 GitHub limits API requests to 60 per hour for unauthenticated users. If you
 would like to perform more requests (up to 5,000 per hour), you can set up a
 personal access token and assign it to an environment variable named either
-`GITHUB_TOKEN` or `XGET_GITHUB_TOKEN` when running xget. If both are set,
-`XGET_GITHUB_TOKEN` will take precedence. xget will read this variable and
-send the token as authorization with requests to GitHub. It is also possible
-to read the token from a file by using `@/path/to/file` as the token value.
+`GITHUB_TOKEN`, `EGET_GITHUB_TOKEN` or `XGET_GITHUB_TOKEN` when running xget.
+If both are set, `XGET_GITHUB_TOKEN` will take precedence. xget will read this
+variable and send the token as authorization with requests to GitHub. It is
+also possible to read the token from a file by using `@/path/to/file` as the
+token value.
 
 ``` text
 Usage:
@@ -186,7 +189,8 @@ Application Options:
   -q, --quiet          only print essential output
   -d, --download-only  stop after downloading the asset (no extraction)
       --upgrade-only   only download if release is more recent than current version
-  -a, --asset=         download a specific asset containing the given string; can be specified multiple times for additional filtering; use ^ for anti-match
+    -a, --asset=         filter assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not:, escapes: ~~ and ^^, explicit literal: text:
+      --ignore=        exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times
       --sha256         show the SHA-256 hash of the downloaded asset
       --verify-sha256= verify the downloaded asset checksum against the one provided
       --rate           show GitHub API rate limiting information
@@ -195,6 +199,7 @@ Application Options:
   -h, --help           show this help message
   -D, --download-all   download all projects defined in the config file
   -k, --disable-ssl    disable SSL verification for download
+  -c, --config=        path to config file (TOML or YAML)
 ```
 
 ## Configuration
@@ -204,15 +209,27 @@ configuration remains fully supported.
 
 Configuration search order:
 
-1. Path from `XGET_CONFIG` (if set).
-2. `~/.xget.toml`, `./xget.toml`, and OS config path `xget.toml`.
-3. `~/.xget.yaml`, `./xget.yaml`, and OS config path `xget.yaml`.
-4. `~/.xget.yml`, `./xget.yml`, and OS config path `xget.yml`.
+1. Path from `--config` if set.
+2. Path from `XGET_CONFIG` if set.
+    - Path from `EGET_CONFIG` if set (compatibility with original [eget](https://github.com/zyedidia/eget)).
+3. Current directory: `./.xget.<ext>`.
+    - `.eget.<ext>` is also checked for backward compatibility.
+4. User home: `~/.xget.<ext>` (Windows: `%USERPROFILE%/.xget.<ext>`).
+    - `.eget.<ext>` is also checked for backward compatibility.
+5. OS config path: `$XDG_CONFIG_HOME/xget/.xget.<ext>` or `~/.config/xget/.xget.<ext>`.
+    - `.eget.<ext>` is also checked for backward compatibility.
+6. Windows: `%LOCALAPPDATA%/xget/.xget.<ext>`.
+    - `.eget.<ext>` is also checked for backward compatibility.
+
+Backward compatibility:
+
+- xget also checks the original eget-compatible file name `.eget.toml` in the same locations.
+- `.eget.yml` and `.eget.yaml` are accepted if present, even though original eget only shipped TOML.
 
 OS config path defaults to:
 
-- Linux/macOS: `$XDG_CONFIG_HOME/xget/xget.<ext>` or `~/.config/xget/xget.<ext>`.
-- Windows: `%LOCALAPPDATA%/xget/xget.<ext>`.
+- Linux/macOS: `$XDG_CONFIG_HOME/xget/.xget.<ext>` or `~/.config/xget/.xget.<ext>`.
+- Windows: `%LOCALAPPDATA%/xget/.xget.<ext>` and `%USERPROFILE%/.xget.<ext>` are both checked.
 
 Option precedence:
 
@@ -251,13 +268,17 @@ global:
 
 ## Available settings - global section
 
+> [!IMPORTANT]
+> ⚠️ `github_token` is supported for backwards compatibility with the original `eget` project, but it is recommended to use `XGET_GITHUB_TOKEN` or `GITHUB_TOKEN` environment variable instead. Storing your GitHub token in a config file is not recommended, as it may be accidentally committed to source control and stored in plaintext. Use environment variables instead. `xget` will output a warning if `github_token` is set in the config file.
+
 | Setting | Related Flag | Description | Default |
 | --- | --- | --- | --- |
-| `github_token` | `N/A` | GitHub API token to use for requests | `""` |
+| ⚠️ `github_token` | `N/A` | GitHub API token to use for requests | `""` |
 | `all` | `--all` | Whether to extract all candidate files. | `false` |
 | `download_only` | `--download-only` | Whether to stop after downloading the asset (no extraction). | `false` |
 | `download_source` | `--source` | Whether to download the source code for the target repo instead of a release. | `false` |
 | `file` | `--file` | The glob to select files for extraction. | `*` |
+| `ignore` | `--ignore` | An array of asset matchers to exclude. Supports the same matcher syntax as `asset_filters` (`~`, `=~`, `re:`, `^`, `not:`, `~~`, `^^`, `text:`). Negative forms (`^`/`not:`) invert the ignore behavior. | `[]` |
 | `quiet` | `--quiet` | Whether to only print essential output. | `false` |
 | `show_hash` | `--sha256` | Whether to show the SHA-256 hash of the downloaded asset. | `false` |
 | `system` | `--system` | The target system to download for. | `all` |
@@ -270,41 +291,44 @@ global:
 | Setting | Related Flag | Description | Default |
 | --- | --- | --- | --- |
 | `all` | `--all` | Whether to extract all candidate files. | `false` |
-| `asset_filters` | `--asset` |  An array of partial asset names to filter the available assets for download. | `[]` |
+| `asset_filters` | `--asset` | An array of asset matchers. Literal values use exact basename match first, then contains matching. Regex prefixes: `~`, `=~`, `re:`. Negative prefixes: `^`, `not:`. Use `~~`/`^^` or `text:` to force literal matching when needed. | `[]` |
 | `download_only` | `--download-only` | Whether to stop after downloading the asset (no extraction). | `false` |
 | `download_source` | `--source` | Whether to download the source code for the target repo instead of a release. | `false` |
 | `file` | `--file` | The glob to select files for extraction. | `*` |
+| `ignore` | `--ignore` | An array of asset matchers to exclude. Supports the same matcher syntax as `asset_filters`. Negative forms (`^`/`not:`) invert the ignore behavior. | `[]` |
 | `quiet` | `--quiet` | Whether to only print essential output. | `false` |
 | `show_hash` | `--sha256` | Whether to show the SHA-256 hash of the downloaded asset. | `false` |
 | `system` | `--system` | The target system to download for. | `all` |
 | `target` | `--to` | The directory to move the downloaded file to after extraction. | `.` |
 | `upgrade_only` | `--upgrade-only` | Whether to only download if release is more recent than current version. | `false` |
-| `verify_sha256` | `--verify-sha256` | Verify the sha256 hash of the asset against a provided hash. | `""` |
+| `verify_sha256` | `--verify-sha256` / `--verify` | Verify the sha256 hash of the asset against a provided hash. | `""` |
 | `disable_ssl` | `--disable-ssl` | Disable SSL certificate verification for downloads. | `false` |
 
 ## Example configuration
 
 ```toml
 [global]
-    github_token = "ghp_1234567890"
-    quiet = false
-    show_hash = false
-    upgrade_only = true
-    target = "./test"
+  quiet = false
+  show_hash = false
+  upgrade_only = true
+  ignore = ["~\\.sbom\\.json$"]
+  target = "./test"
 
 ["zyedidia/micro"]
-    upgrade_only = false
-    show_hash = true
-    asset_filters = [ "static", ".tar.gz" ]
-    target = "~/.local/bin/micro"
+  upgrade_only = false
+  show_hash = true
+  asset_filters = [ "static", ".tar.gz" ]
+  ignore = ["not:arm64"]
+  target = "~/.local/bin/micro"
 ```
 
 ```yaml
 global:
-  github_token: "ghp_1234567890"
   quiet: false
   show_hash: false
   upgrade_only: true
+  ignore:
+    - "~\\.sbom\\.json$"
   target: "./test"
 
 "zyedidia/micro":
@@ -313,6 +337,8 @@ global:
   asset_filters:
     - "static"
     - ".tar.gz"
+  ignore:
+    - "not:arm64"
   target: "~/.local/bin/micro"
 ```
 
@@ -327,6 +353,39 @@ Without the configuration, you would need to run the following command instead:
 ```bash
 export XGET_GITHUB_TOKEN=ghp_1234567890 &&\
 xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar.gz
+```
+
+## Asset filtering
+
+`--asset` supports short and long forms and can be repeated:
+
+- Literal matcher: `--asset .zip`
+- Literal anti-match: `--asset '^musl'` or `--asset 'not:musl'`
+- Regex matcher: `--asset '~^tool_.*\.zip$'`, `--asset '=~^tool_.*\.zip$'`, or `--asset 're:^tool_.*\.zip$'`
+- Regex anti-match: `--asset '^~.*\.sbom\.json$'`, `--asset 'not:~.*\.sbom\.json$'`, or `--asset 'not:re:.*\.sbom\.json$'`
+
+`--ignore` always excludes matches and can also be repeated. It accepts literal and
+regex matcher styles:
+
+- `--ignore '.sbom.json'`
+- `--ignore '~\.zip\.sbom\.json$'`
+- `--ignore '=~\.zip\.sbom\.json$'`
+- `--ignore 're:\.zip\.sbom\.json$'`
+- `--ignore 'not:arm64'` (inverted ignore, keeps only matches for `arm64`)
+
+Note: patterns that start with `~` are parsed as regex and patterns that start
+with `^` are parsed as negative by default.
+
+If a literal pattern starts with `~` or `^`, use escaping or explicit text mode:
+
+- `--asset '~~literal-starts-with-tilde'`
+- `--asset '^^literal-starts-with-caret'`
+- `--asset 'text:~literal-starts-with-tilde'`
+
+This allows combinations such as "use `.zip` but ignore `.zip.sbom.json`":
+
+```bash
+xget tacocontent/ironstate --asset '~\.zip$' --ignore '~\.zip\.sbom\.json$'
 ```
 
 ## FAQ

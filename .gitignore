@@ -1,12 +1,13 @@
-xget
-xget.exe
-xget-*
-todo.txt
 xget.1
 /test/*
 !/test/test_xget.go
 !/test/xget.toml
+!/test/xget.yml
+!/test/xget.yaml
 .xget.toml
+.xget.yml
+.xget.yaml
+
 
 
 **/.env

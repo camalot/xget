@@ -11,8 +11,8 @@
 #####################################################################
 
 [remote.github]
-owner = "TacoContent"
-repo = "ironstate"
+owner = "camalot"
+repo = "xget"
 
 [changelog]
 footer = """
@@ -270,7 +270,7 @@ render_always = true
 postprocessors = [
   { pattern = '<REMOTE_URL>', replace = "https://github.com" },
   # Replace the placeholder <REPO> with a URL.
-  { pattern = '<REPO>', replace = "https://github.com/TacoContent/ironstate" },
+  { pattern = '<REPO>', replace = "https://github.com/camalot/xget" },
   { pattern = '#\d+', replace = ''},
   # we take the reformatted issue link and display it correctly
   { pattern = '!#!(\d+)', replace = '#$1'},
