@@ -1,0 +1,17 @@
+---
+
+version: '3'
+vars: {}
+
+tasks:
+  build:
+    desc: Build the project
+    cmds:
+      - echo "Building the project..."
+      - mkdir -p bin
+      - go mod tidy
+      - golangci-lint run ./...
+      - goreleaser build --snapshot --clean
+      - go vet .
+      - gofmt -l .
+      - go test ./...

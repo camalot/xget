@@ -27,25 +27,25 @@ func must(err error) {
 }
 
 func main() {
-	eget := os.Getenv("TEST_EGET")
+	xget := os.Getenv("TEST_XGET")
 
-	must(run(eget, "--system", "linux/amd64", "jgm/pandoc"))
+	must(run(xget, "--system", "linux/amd64", "jgm/pandoc"))
 	must(fileExists("pandoc"))
 
-	must(run(eget, "zyedidia/micro", "--tag", "nightly", "--asset", "osx"))
+	must(run(xget, "zyedidia/micro", "--tag", "nightly", "--asset", "osx"))
 	must(fileExists("micro"))
 
-	must(run(eget, "--asset", "nvim.appimage", "--to", "nvim", "neovim/neovim"))
+	must(run(xget, "--asset", "nvim.appimage", "--to", "nvim", "neovim/neovim"))
 	must(fileExists("nvim"))
 
-	must(run(eget, "--system", "darwin/amd64", "sharkdp/fd"))
+	must(run(xget, "--system", "darwin/amd64", "sharkdp/fd"))
 	must(fileExists("fd"))
 
-	must(run(eget, "--system", "windows/amd64", "--asset", "windows-gnu", "BurntSushi/ripgrep"))
+	must(run(xget, "--system", "windows/amd64", "--asset", "windows-gnu", "BurntSushi/ripgrep"))
 	must(fileExists("rg.exe"))
 
-	must(run(eget, "-f", "eget.1", "zyedidia/eget"))
-	must(fileExists("eget.1"))
+	must(run(xget, "-f", "xget.1", "camalot/xget"))
+	must(fileExists("xget.1"))
 
 	fmt.Println("ALL TESTS PASS")
 }

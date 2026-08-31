@@ -12,7 +12,7 @@ import (
 	"time"
 
 	pb "github.com/schollz/progressbar/v3"
-	"github.com/zyedidia/eget/home"
+	"github.com/camalot/xget/internal/home"
 )
 
 func tokenFrom(s string) (string, error) {
@@ -30,8 +30,12 @@ func tokenFrom(s string) (string, error) {
 var ErrNoToken = errors.New("no github token")
 
 func getGithubToken() (string, error) {
+	// support for EGET_GITHUB_TOKEN is kept for backwards compatibility, but XGET_GITHUB_TOKEN is preferred
 	if os.Getenv("EGET_GITHUB_TOKEN") != "" {
 		return tokenFrom(os.Getenv("EGET_GITHUB_TOKEN"))
+	}
+	if os.Getenv("XGET_GITHUB_TOKEN") != "" {
+		return tokenFrom(os.Getenv("XGET_GITHUB_TOKEN"))
 	}
 	if os.Getenv("GITHUB_TOKEN") != "" {
 		return tokenFrom(os.Getenv("GITHUB_TOKEN"))
@@ -116,7 +120,11 @@ func GetRateLimit() (RateLimit, error) {
 		return RateLimit{}, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Println("error closing response body:", err)
+		}
+	}()
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -139,7 +147,11 @@ func Download(url string, out io.Writer, getbar func(size int64) *pb.ProgressBar
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				fmt.Println("error closing file:", err)
+			}
+		}()
 		_, err = io.Copy(out, f)
 		return err
 	}
@@ -148,7 +160,11 @@ func Download(url string, out io.Writer, getbar func(size int64) *pb.ProgressBar
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Println("error closing response body:", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)

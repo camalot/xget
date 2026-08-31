@@ -227,15 +227,22 @@ func writeFile(data []byte, rename string, mode fs.FileMode) error {
 	}
 
 	// remove file if it exists already
-	os.Remove(rename)
+	err := os.Remove(rename)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	// make parent directories if necessary
-	os.MkdirAll(filepath.Dir(rename), 0755)
+	_ = os.MkdirAll(filepath.Dir(rename), 0755)
 
 	f, err := os.OpenFile(rename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Println("error closing file:", err)
+		}
+	}()
 	_, err = f.Write(data)
 	return err
 }
@@ -273,12 +280,14 @@ func bintime(bin string, to string) (t time.Time) {
 	if to != "" && IsDirectory(to) {
 		// direct directory
 		dir = to
-	} else if ebin := os.Getenv("EGET_BIN"); ebin != "" {
-		dir = ebin
+	} else if xbin := os.Getenv("EGET_BIN"); xbin != "" {
+		dir = xbin
+	} else if xbin := os.Getenv("XGET_BIN"); xbin != "" {
+		dir = xbin
 	}
 
 	if to != "" && !strings.ContainsRune(to, os.PathSeparator) {
-		// path joined possible with eget bin
+		// path joined possible with xget bin
 		bin = to
 	} else if to != "" && !IsDirectory(to) {
 		// direct path
@@ -305,7 +314,7 @@ func downloadConfigRepositories(config *Config) error {
 		binary = os.Args[0]
 	}
 
-	for name, _ := range config.Repositories {
+	for name := range config.Repositories {
 		cmd := exec.Command(binary, name)
 		cmd.Stderr = os.Stderr
 
@@ -337,7 +346,7 @@ func main() {
 	}
 
 	if cli.Version {
-		fmt.Println("eget version", Version)
+		fmt.Println("xget version", Version)
 		os.Exit(0)
 	}
 
@@ -397,13 +406,13 @@ func main() {
 	}
 
 	if opts.Remove {
-		ebin := os.Getenv("EGET_BIN")
-		err := os.Remove(filepath.Join(ebin, target))
+		xbin := os.Getenv("XGET_BIN")
+		err := os.Remove(filepath.Join(xbin, target))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		fmt.Printf("Removed `%s`\n", filepath.Join(ebin, target))
+		fmt.Printf("Removed `%s`\n", filepath.Join(xbin, target))
 		os.Exit(0)
 	}
 
@@ -417,7 +426,10 @@ func main() {
 	assets, err := finder.Find()
 	if err != nil {
 		if errors.Is(err, ErrNoUpgrade) {
-			fmt.Fprintf(output, "%s: %v\n", target, err)
+			_, err = fmt.Fprintf(output, "%s: %v\n", target, err)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
 			os.Exit(0)
 		}
 		fatal(err)
@@ -488,9 +500,15 @@ func main() {
 	if err != nil {
 		fatal(err)
 	} else if opts.Verify == "" && sumAsset != "" {
-		fmt.Fprintf(output, "Checksum verified with %s\n", path.Base(sumAsset))
+		_, err = fmt.Fprintf(output, "Checksum verified with %s\n", path.Base(sumAsset))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	} else if opts.Verify != "" {
-		fmt.Fprintf(output, "Checksum verified\n")
+		_, err = fmt.Fprintf(output, "Checksum verified\n")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 
 	extractor, err := getExtractor(url, tool, &opts)
@@ -532,7 +550,10 @@ func main() {
 		} else if opts.Output != "" && IsDirectory(opts.Output) {
 			out = filepath.Join(opts.Output, out)
 		} else if opts.Output != "" && opts.All {
-			os.MkdirAll(opts.Output, 0755)
+			err = os.MkdirAll(opts.Output, 0755)
+			if err != nil {
+				fatal(err)
+			}
 			out = filepath.Join(opts.Output, out)
 		} else {
 			if opts.Output != "" {
@@ -544,6 +565,14 @@ func main() {
 			// 3. The extracted file is executable
 			if os.Getenv("EGET_BIN") != "" && !strings.ContainsRune(out, os.PathSeparator) && mode&0111 != 0 && !bin.Dir {
 				out = filepath.Join(os.Getenv("EGET_BIN"), out)
+			}
+
+			// only use $XGET_BIN if all of the following are true
+			// 1. $XGET_BIN is non-empty
+			// 2. --to is not a path (not a path if no path separator is found)
+			// 3. The extracted file is executable
+			if os.Getenv("XGET_BIN") != "" && !strings.ContainsRune(out, os.PathSeparator) && mode&0111 != 0 && !bin.Dir {
+				out = filepath.Join(os.Getenv("XGET_BIN"), out)
 			}
 		}
 

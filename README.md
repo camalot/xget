@@ -1,141 +1,164 @@
-# Eget: easy pre-built binary installation
+# xget: easy pre-built binary installation
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/zyedidia/eget)](https://goreportcard.com/report/github.com/zyedidia/eget)
-[![Release](https://img.shields.io/github/release/zyedidia/eget.svg?label=Release)](https://github.com/zyedidia/eget/releases)
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/zyedidia/eget/blob/master/LICENSE)
+> [!NOTE]
+> xget is a forked codebase of [zyedidia/eget](https://github.com/zyedidia/eget) focusing on some additional features and improvements. The original project does not seem to be actively maintained.
+> The version of xget is starting at v2.0.0 to avoid confusion with the original project.
 
-**Eget** is the best way to easily get pre-built binaries for your favorite
+[![Release](https://img.shields.io/github/release/camalot/xget.svg?label=Release)](https://github.com/camalot/xget/releases)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/camalot/xget/blob/master/LICENSE)
+
+**xget** is the best way to easily get pre-built binaries for your favorite
 tools. It downloads and extracts pre-built binaries from releases on GitHub. To
-use it, provide a repository and Eget will search through the assets from the
+use it, provide a repository and xget will search through the assets from the
 latest release in an attempt to find a suitable prebuilt binary for your
-system. If one is found, the asset will be downloaded and Eget will extract the
-binary to the current directory. Eget should only be used for installing
+system. If one is found, the asset will be downloaded and xget will extract the
+binary to the current directory. xget should only be used for installing
 simple, static prebuilt binaries, where the extracted binary is all that is
 needed for installation. For more complex installation, you may use the
 `--download-only` option, and perform extraction manually.
 
-![Eget Demo](https://github.com/zyedidia/blobs/blob/master/eget-demo.gif)
+<!-- TODO CREATE xget demo -->
+![xget Demo](https://github.com/zyedidia/blobs/blob/master/eget-demo.gif)
 
 For software maintainers, if you provide prebuilt binaries on GitHub, you can
-list `eget` as a one-line method for users to install your software.
+list `xget` as a one-line method for users to install your software.
 
-Eget has a number of detection mechanisms and should work out-of-the-box with
+xget has a number of detection mechanisms and should work out-of-the-box with
 most software that is distributed via single binaries on GitHub releases. First
-try using Eget on your software, it may already just work. Otherwise, see the
-FAQ for a clear set of rules to make your software compatible with Eget.
+try using xget on your software, it may already just work. Otherwise, see the
+FAQ for a clear set of rules to make your software compatible with xget.
 
 For more in-depth documentation, see [DOCS.md](DOCS.md).
 
 # Examples
 
-```
-eget zyedidia/micro --tag nightly
-eget jgm/pandoc --to /usr/local/bin
-eget junegunn/fzf
-eget neovim/neovim
-eget ogham/exa --asset ^musl
-eget --system darwin/amd64 sharkdp/fd
-eget BurntSushi/ripgrep
-eget -f eget.1 zyedidia/eget
-eget zachjs/sv2v
-eget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
-eget --all --file '*' ActivityWatch/activitywatch
+``` shell
+xget zyedidia/micro --tag nightly
+xget jgm/pandoc --to /usr/local/bin
+xget junegunn/fzf
+xget neovim/neovim
+xget ogham/exa --asset ^musl
+xget --system darwin/amd64 sharkdp/fd
+xget BurntSushi/ripgrep
+xget -f xget.1 camalot/xget
+xget zachjs/sv2v
+xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
+xget --all --file '*' ActivityWatch/activitywatch
 ```
 
-# How to get Eget
+## How to get xget
 
-Before you can get anything, you have to get Eget. If you already have Eget and want to upgrade, use `eget zyedidia/eget`.
+Before you can get anything, you have to get xget. If you already have xget and want to upgrade, use `xget camalot/xget`.
 
 ### Quick-install script
 
-```
-curl -o eget.sh https://zyedidia.github.io/eget.sh
-shasum -a 256 eget.sh # verify with hash below
-bash eget.sh
+``` shell
+curl -o xget.sh https://camalot.github.io/xget.sh
+shasum -a 256 xget.sh # verify with hash below
+bash xget.sh
 ```
 
 Or alternatively (less secure):
 
-```
-curl https://zyedidia.github.io/eget.sh | sh
+``` shell
+curl https://camalot.github.io/xget.sh | sh
 ```
 
 You can then place the downloaded binary in a location on your `$PATH` such as `/usr/local/bin`.
 
-To verify the script, the sha256 checksum is `0e64b8a3c13f531da005096cc364ac77835bda54276fedef6c62f3dbdc1ee919` (use `shasum -a 256 eget.sh` after downloading the script).
+To verify the script, the sha256 checksum is `TODO: GENERATE CHECKSUM FOR SHELL SCRIPT` (use `shasum -a 256 xget.sh` after downloading the script).
 
-One of the reasons to use eget is to avoid running curl into bash, but unfortunately you can't eget eget until you have eget.
+One of the reasons to use xget is to avoid running curl into bash, but unfortunately you can't xget xget until you have xget.
 
-### Homebrew
+<!-- ### Homebrew
 
+``` shell
+brew install xget
 ```
-brew install eget
-```
+-->
 
-### Chocolatey
+<!-- ### Chocolatey
 
-```
-choco install eget
-```
+``` shell
+choco install xget
+``` -->
+
+<!-- ### Scoop
+
+``` shell
+scoop bucket add main
+scoop install xget
+``` -->
+
+<!-- ### Winget
+
+``` shell
+winget install camalot.xget
+``` -->
 
 ### Pre-built binaries
 
-Pre-built binaries are available on the [releases](https://github.com/zyedidia/eget/releases) page.
+Pre-built binaries are available on the [releases](https://github.com/camalot/xget/releases) page.
 
 ### From source
 
 Install the latest released version:
 
-```
-go install github.com/zyedidia/eget@latest
+``` shell
+go install github.com/camalot/xget@latest
 ```
 
 or install from HEAD:
 
+``` shell
+git clone https://github.com/camalot/xget
+cd xget
+go build ./...
 ```
-git clone https://github.com/zyedidia/eget
-cd eget
-make build # or go build (produces incomplete version information)
+
+A man page can be generated from the source tree with `pandoc`:
+
+``` shell
+pandoc man/xget.md -s -t man -o xget.1
 ```
 
-A man page can be generated by cloning the repository and running `make eget.1`
-(requires pandoc). You can also use `eget` to download the man page: `eget -f eget.1 zyedidia/eget`.
+You can also use `xget` to download the man page: `xget -f xget.1 camalot/xget`.
 
-# Usage
+## Usage
 
-The `TARGET` argument passed to Eget should either be a GitHub repository,
-formatted as `user/repo`, in which case Eget will search the release assets, a
-direct URL, in which case Eget will directly download and extract from the
-given URL, or a local file, in which case Eget will extract directly from the
+The `TARGET` argument passed to xget should either be a GitHub repository,
+formatted as `user/repo`, in which case xget will search the release assets, a
+direct URL, in which case xget will directly download and extract from the
+given URL, or a local file, in which case xget will extract directly from the
 local file.
 
-If Eget downloads an asset called `xxx` and there also exists an asset called
-`xxx.sha256` or `xxx.sha256sum`, Eget will automatically verify that the
+If xget downloads an asset called `xxx` and there also exists an asset called
+`xxx.sha256` or `xxx.sha256sum`, xget will automatically verify that the
 SHA-256 checksum of the downloaded asset matches the one contained in that
 file, and abort installation if a mismatch occurs.
 
-When installing an executable, Eget will place it in the current directory by
-default. If the environment variable `EGET_BIN` is non-empty, Eget will
+When installing an executable, xget will place it in the current directory by
+default. If the environment variable `XGET_BIN` is non-empty, xget will
 place the executable in that directory.
 
 Directories can also be specified as files to extract, and all files within
 them will be extracted. For example:
 
-```
-eget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
+```shell
+xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
 ```
 
 GitHub limits API requests to 60 per hour for unauthenticated users. If you
 would like to perform more requests (up to 5,000 per hour), you can set up a
 personal access token and assign it to an environment variable named either
-`GITHUB_TOKEN` or `EGET_GITHUB_TOKEN` when running Eget. If both are set,
-`EGET_GITHUB_TOKEN` will take precedence. Eget will read this variable and
+`GITHUB_TOKEN` or `XGET_GITHUB_TOKEN` when running xget. If both are set,
+`XGET_GITHUB_TOKEN` will take precedence. xget will read this variable and
 send the token as authorization with requests to GitHub. It is also possible
 to read the token from a file by using `@/path/to/file` as the token value.
 
-```
+``` text
 Usage:
-  eget [OPTIONS] TARGET
+  xget [OPTIONS] TARGET
 
 Application Options:
   -t, --tag=           tagged release to use instead of latest
@@ -152,17 +175,21 @@ Application Options:
       --sha256         show the SHA-256 hash of the downloaded asset
       --verify-sha256= verify the downloaded asset checksum against the one provided
       --rate           show GitHub API rate limiting information
-  -r, --remove         remove the given file from $EGET_BIN or the current directory
+  -r, --remove         remove the given file from $XGET_BIN or the current directory
   -v, --version        show version information
   -h, --help           show this help message
   -D, --download-all   download all projects defined in the config file
   -k, --disable-ssl    disable SSL verification for download
 ```
 
-# Configuration
+## Configuration
 
-Eget can be configured using a TOML file located at `~/.eget.toml` or it will fallback to the expected `XDG_CONFIG_HOME` directory of your os. Alternatively,
-the configuration file can be located in the same directory as the Eget binary or the path specified with the environment variable `EGET_CONFIG`.
+xget can be configured using a TOML file located at `~/.xget.toml` or it will fallback to the expected `XDG_CONFIG_HOME` directory of your os. Alternatively,
+the configuration file can be located in the same directory as the xget binary or the path specified with the environment variable `XGET_CONFIG`.
+
+> [!NOTE]
+> TODO: Support for CWD config file. Currently, xget will only read the config file from the home directory or the binary directory.
+> TODO: Support for yaml config file. Currently, xget will only read the config file in TOML format.
 
 Both global settings can be configured, as well as setting on a per-repository basis.
 
@@ -213,7 +240,6 @@ target = "~/.local/bin"
 | `upgrade_only` | `--upgrade-only` | Whether to only download if release is more recent than current version. | `false` |
 | `verify_sha256` | `--verify-sha256` | Verify the sha256 hash of the asset against a provided hash. | `""` |
 
-
 ## Example configuration
 
 ```toml
@@ -234,43 +260,43 @@ target = "~/.local/bin"
 By using the configuration above, you could run the following command to download the latest release of `micro`:
 
 ```bash
-eget zyedidia/micro
+xget zyedidia/micro
 ```
 
 Without the configuration, you would need to run the following command instead:
 
 ```bash
-export EGET_GITHUB_TOKEN=ghp_1234567890 &&\
-eget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar.gz
+export XGET_GITHUB_TOKEN=ghp_1234567890 &&\
+xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar.gz
 ```
 
-# FAQ
+## FAQ
 
 ### How is this different from a package manager?
 
-Eget only downloads pre-built binaries uploaded to GitHub by the developers of
+xget only downloads pre-built binaries uploaded to GitHub by the developers of
 the repository. It does not maintain a central list of packages, nor does it do
-any dependency management. Eget does not "install" executables by placing them
+any dependency management. xget does not "install" executables by placing them
 in system-wide directories (such as `/usr/local/bin`) unless instructed, and it
-does not maintain a registry for uninstallation. Eget works best for installing
+does not maintain a registry for uninstallation. xget works best for installing
 software that comes as a single binary with no additional files needed (CLI
 tools made in Go, Rust, or Haskell tend to fit this description).
 
-### Does Eget keep track of installed binaries?
+### Does xget keep track of installed binaries?
 
-Eget does not maintain any sort of manifest containing information about
-installed binaries. In general, Eget does not maintain any state across
-invocations. However, Eget does support the `--upgrade-only` option, which
-will first check `EGET_BIN` to determine if you have already downloaded the
+xget does not maintain any sort of manifest containing information about
+installed binaries. In general, xget does not maintain any state across
+invocations. However, xget does support the `--upgrade-only` option, which
+will first check `XGET_BIN` to determine if you have already downloaded the
 tool you are trying to install -- if so it will only download a new version if
 the GitHub release is newer than the binary on your file system.
 
 ### Is this secure?
 
-Eget does not run any downloaded code -- it just finds executables from GitHub
+xget does not run any downloaded code -- it just finds executables from GitHub
 releases and downloads/extracts them. If you trust the code you are downloading
-(i.e. if you trust downloading pre-built binaries from GitHub) then using Eget
-is perfectly safe. If Eget finds a matching asset ending in `.sha256` or
+(i.e. if you trust downloading pre-built binaries from GitHub) then using xget
+is perfectly safe. If xget finds a matching asset ending in `.sha256` or
 `.sha256sum`, the SHA-256 checksum of your download will be automatically
 verified. You can also use the `--sha256` or `--verify-sha256` options to
 manually verify the SHA-256 checksums of your downloads (checksums are provided
@@ -278,17 +304,17 @@ in an alternative manner by your download source).
 
 ### Does this work only for GitHub repositories?
 
-At the moment Eget supports searching GitHub releases, direct URLs, and local
-files. If you provide a direct URL instead of a GitHub repository, Eget will
+At the moment xget supports searching GitHub releases, direct URLs, and local
+files. If you provide a direct URL instead of a GitHub repository, xget will
 skip the detection phase and download directly from the given URL. If you
-provide a local file, Eget will skip detection and download and just perform
+provide a local file, xget will skip detection and download and just perform
 extraction from the local file.
 
-### How can I make my software compatible with Eget?
+### How can I make my software compatible with xget?
 
-Eget should work out-of-the-box with many methods for releasing software, and
-does not require that you build your release process for Eget in particular.
-However, here are some rules that will guarantee compatibility with Eget.
+xget should work out-of-the-box with many methods for releasing software, and
+does not require that you build your release process for xget in particular.
+However, here are some rules that will guarantee compatibility with xget.
 
 - Provide your pre-built binaries as GitHub release assets.
 - Format the system name as `OS_Arch` and include it in every pre-built binary
@@ -297,7 +323,7 @@ However, here are some rules that will guarantee compatibility with Eget.
   architectures are `amd64`, `i386`, `arm`, `arm64`, `riscv64`.
 - If desired, include `*.sha256` files for each asset, containing the SHA-256
   checksum of each asset. These checksums will be automatically verified by
-  Eget.
+  xget.
 - Include only a single executable or appimage per system in each release archive.
 - Use `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.tar`, or `.zip` for archives. You may
   also directly upload the executable without an archive, or a compressed
@@ -306,13 +332,13 @@ However, here are some rules that will guarantee compatibility with Eget.
 ### Does this work with monorepos?
 
 Yes, you can pass a tag or tag identifier with the `--tag TAG` option. If no
-tag exactly matches, Eget will look for the latest release with a tag that
+tag exactly matches, xget will look for the latest release with a tag that
 contains `TAG`. So if your repository contains releases for multiple different
-projects, just pass the appropriate tag (for the project you want) to Eget, and
+just pass the appropriate tag (for the project you want) to xget, and
 it will find the latest release for that particular project (as long as
 releases for that project are given tags that contain the project name).
 
-# Contributing
+## Contributing
 
 If you find a bug, have a suggestion, or something else, please open an issue
 for discussion. I am sometimes prone to leaving pull requests unmerged, so

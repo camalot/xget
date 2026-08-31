@@ -1,0 +1,18 @@
+# golangci-lint config — see docs/plans/go-rewrite.md §6 for the testing/lint
+# policy this backs, including the explicit gosec G204 (subprocess with
+# variable input) posture: this tool's entire job is shelling out to
+# package managers/interpreters named in user-authored YAML, so G204 is
+# expected to fire constantly. Suppress per-callsite with a `//nolint:gosec`
+# plus a one-line justification rather than disabling the rule globally.
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - staticcheck
+    - errcheck
+    - gosec
+    - unused
+    - ineffassign

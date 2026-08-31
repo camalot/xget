@@ -39,7 +39,7 @@ type errResponse struct {
 
 func (ge *GithubError) Error() string {
 	var msg errResponse
-	json.Unmarshal(ge.Body, &msg)
+	_ = json.Unmarshal(ge.Body, &msg)
 
 	if ge.Code == http.StatusForbidden {
 		return fmt.Sprintf("%s: %s: %s", ge.Status, msg.Message, msg.Doc)
@@ -74,7 +74,11 @@ func (f *GithubAssetFinder) Find() ([]string, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Println("error closing response body:", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
@@ -127,7 +131,11 @@ func (f *GithubAssetFinder) FindMatch() ([]string, error) {
 			return nil, err
 		}
 
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				fmt.Println("error closing response body:", err)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			body, err := io.ReadAll(resp.Body)

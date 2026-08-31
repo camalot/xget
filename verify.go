@@ -69,13 +69,20 @@ func (s256 *Sha256AssetVerifier) Verify(b []byte) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Println("error closing response body:", err)
+		}
+	}()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 	expected := make([]byte, sha256.Size)
 	n, err := hex.Decode(expected, data)
+	if err != nil {
+		return err
+	}
 	if n < sha256.Size {
 		return fmt.Errorf("sha256sum (%s) too small: %d bytes decoded", string(data), n)
 	}

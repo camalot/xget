@@ -133,7 +133,11 @@ func (z *ZipArchive) ReadAll() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("zip extract: %w", err)
 	}
-	defer rc.Close()
+	defer func() {
+		if err := rc.Close(); err != nil {
+			fmt.Println("zip extract: close error:", err)
+		}
+	}()
 	data, err := io.ReadAll(rc)
 	return data, err
 }

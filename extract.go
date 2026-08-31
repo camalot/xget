@@ -170,9 +170,15 @@ type link struct {
 
 func (l link) Write() error {
 	// remove file if it exists already
-	os.Remove(l.newname)
+	err := os.Remove(l.newname)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	// make parent directories if necessary
-	os.MkdirAll(filepath.Dir(l.newname), 0755)
+	err = os.MkdirAll(filepath.Dir(l.newname), 0755)
+	if err != nil {
+		return err
+	}
 
 	if l.sym {
 		return os.Symlink(l.oldname, l.newname)
@@ -237,7 +243,7 @@ func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, [
 						} else if !strings.HasPrefix(subf.Name, f.Name) {
 							continue
 						} else if subf.Dir() {
-							os.MkdirAll(filepath.Join(to, subf.Name[len(f.Name):]), 0755)
+							_ = os.MkdirAll(filepath.Join(to, subf.Name[len(f.Name):]), 0755)
 							continue
 						} else if subf.Type == TypeLink || subf.Type == TypeSymlink {
 							newname := filepath.Join(to, subf.Name[len(f.Name):])

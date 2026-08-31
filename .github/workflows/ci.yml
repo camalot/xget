@@ -1,0 +1,121 @@
+name: ci
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+
+permissions: {}
+
+jobs:
+  lint:
+    permissions:
+      contents: read
+    # runs-on: windows-latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needed for golangci-lint's changelog generation
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+
+  vet-and-vuln:
+    permissions:
+      contents: read
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needed for govulncheck's changelog generation
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - run: govulncheck ./...
+
+  # Windows carries the full suite (incl. //go:build windows-tagged
+  # handler tests added in later phases); ubuntu-latest only exercises the
+  # OS-agnostic packages — not a symmetric full-suite run, see
+  # docs/plans/go-rewrite.md §6/§9.
+  test:
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needed for coverage's changelog generation
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go build ./...
+      - run: go test ./... -coverprofile=coverage.out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage.out
+
+  # go test -race requires cgo (a C toolchain); only ubuntu-latest has one
+  # available out of the box in GitHub-hosted runners.
+  race:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needed for coverage's changelog generation
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go test ./internal/filters/... -race
+
+  fuzz-smoke:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needed for coverage's changelog generation
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go test ./internal/expr/... -run xxx -fuzz FuzzParse -fuzztime 20s
+      - run: go test ./internal/expr/... -run xxx -fuzz FuzzScanSpans -fuzztime 20s
+
+  build-snapshot:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needed for goreleaser's changelog generation
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+      - name: Generate man page
+        run: pandoc man/xget.md -s -t man -o xget.1
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: latest
+          args: build --snapshot --clean

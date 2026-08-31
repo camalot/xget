@@ -9,7 +9,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/jessevdk/go-flags"
-	"github.com/zyedidia/eget/home"
+	"github.com/camalot/xget/internal/home"
 )
 
 type ConfigGlobal struct {
@@ -94,7 +94,7 @@ func GetOSConfigPath(homePath string) string {
 		configDir = filepath.Join(homePath, defaultConfig[goos])
 	}
 
-	return filepath.Join(configDir, "eget", "eget.toml")
+	return filepath.Join(configDir, "xget", "xget.toml")
 }
 
 func InitializeConfig() (*Config, error) {
@@ -102,9 +102,9 @@ func InitializeConfig() (*Config, error) {
 	var config Config
 
 	homePath, _ := os.UserHomeDir()
-	appName := "eget"
+	appName := "xget"
 
-	if configFilePath, ok := os.LookupEnv("EGET_CONFIG"); ok {
+	if configFilePath, ok := os.LookupEnv("XGET_CONFIG"); ok {
 		if config, err = LoadConfigurationFile(configFilePath); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("%s: %w", configFilePath, err)
 		}
@@ -223,8 +223,11 @@ func update[T any](config T, cli *T) T {
 
 // Move the loaded configuration file global options into the opts variable
 func SetGlobalOptionsFromConfig(config *Config, parser *flags.Parser, opts *Flags, cli CliFlags) error {
-	if config.Global.GithubToken != "" && os.Getenv("EGET_GITHUB_TOKEN") == "" {
-		os.Setenv("EGET_GITHUB_TOKEN", config.Global.GithubToken)
+	if config.Global.GithubToken != "" && os.Getenv("XGET_GITHUB_TOKEN") == "" {
+		err := os.Setenv("XGET_GITHUB_TOKEN", config.Global.GithubToken)
+		if err != nil {
+			return err
+		}
 	}
 
 	opts.Tag = update("", cli.Tag)
