@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"bufio"
@@ -168,6 +168,18 @@ type link struct {
 	sym     bool
 }
 
+func safeArchiveJoin(base string, rel string) (string, error) {
+	rel = strings.TrimLeft(rel, "/\\")
+	cleanRel := filepath.Clean(filepath.FromSlash(rel))
+	if cleanRel == "" || cleanRel == "." {
+		return base, nil
+	}
+	if filepath.IsAbs(cleanRel) || cleanRel == ".." || strings.HasPrefix(cleanRel, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("unsafe archive path %q", rel)
+	}
+	return filepath.Join(base, cleanRel), nil
+}
+
 func (l link) Write() error {
 	// remove file if it exists already
 	err := os.Remove(l.newname)
@@ -175,7 +187,7 @@ func (l link) Write() error {
 		return err
 	}
 	// make parent directories if necessary
-	err = os.MkdirAll(filepath.Dir(l.newname), 0755)
+	err = os.MkdirAll(filepath.Dir(l.newname), 0750)
 	if err != nil {
 		return err
 	}
@@ -243,10 +255,18 @@ func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, [
 						} else if !strings.HasPrefix(subf.Name, f.Name) {
 							continue
 						} else if subf.Dir() {
-							_ = os.MkdirAll(filepath.Join(to, subf.Name[len(f.Name):]), 0755)
+							dirName, err := safeArchiveJoin(to, subf.Name[len(f.Name):])
+							if err != nil {
+								return fmt.Errorf("extract: %w", err)
+							}
+							// #nosec G703 -- safeArchiveJoin blocks absolute and parent traversal paths.
+							_ = os.MkdirAll(dirName, 0750)
 							continue
 						} else if subf.Type == TypeLink || subf.Type == TypeSymlink {
-							newname := filepath.Join(to, subf.Name[len(f.Name):])
+							newname, err := safeArchiveJoin(to, subf.Name[len(f.Name):])
+							if err != nil {
+								return fmt.Errorf("extract: %w", err)
+							}
 							oldname := subf.LinkName
 							links = append(links, link{
 								newname: newname,
@@ -260,7 +280,10 @@ func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, [
 						if err != nil {
 							return fmt.Errorf("extract: %w", err)
 						}
-						name = filepath.Join(to, subf.Name[len(f.Name):])
+						name, err = safeArchiveJoin(to, subf.Name[len(f.Name):])
+						if err != nil {
+							return fmt.Errorf("extract: %w", err)
+						}
 						err = writeFile(fdata, name, subf.Mode)
 						if err != nil {
 							return fmt.Errorf("extract: %w", err)

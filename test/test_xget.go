@@ -12,6 +12,7 @@ func fileExists(path string) error {
 }
 
 func run(name string, args ...string) error {
+	// #nosec G204,G702 -- test harness executes binary path from TEST_XGET intentionally.
 	cmd := exec.Command(name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

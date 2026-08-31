@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"bytes"
@@ -16,13 +16,34 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jessevdk/go-flags"
+	"github.com/camalot/xget/internal/config"
+	"github.com/camalot/xget/internal/options"
 	pb "github.com/schollz/progressbar/v3"
 )
 
-func fatal(a ...interface{}) {
-	fmt.Fprintln(os.Stderr, a...)
-	os.Exit(1)
+func cleanLocalPath(p string) (string, error) {
+	clean := filepath.Clean(p)
+	if clean == "" || clean == "." {
+		return "", fmt.Errorf("invalid path %q", p)
+	}
+	if !filepath.IsAbs(clean) && (clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator))) {
+		return "", fmt.Errorf("invalid relative path %q", p)
+	}
+	return clean, nil
+}
+
+func safeBaseName(name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("empty file name")
+	}
+	base := filepath.Base(name)
+	if base == "." || base == string(os.PathSeparator) || base == ".." {
+		return "", fmt.Errorf("invalid file name %q", name)
+	}
+	if strings.ContainsRune(base, os.PathSeparator) {
+		return "", fmt.Errorf("invalid file name %q", name)
+	}
+	return base, nil
 }
 
 // IsUrl returns true if s is a valid URL.
@@ -51,7 +72,7 @@ func IsLocalFile(s string) bool {
 	return err == nil
 }
 
-// IsDirectory returns true if the file at 'path' is a directory.
+// IsDirectory returns true if the file at path is a directory.
 func IsDirectory(path string) bool {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
@@ -60,7 +81,7 @@ func IsDirectory(path string) bool {
 	return fileInfo.IsDir()
 }
 
-// searches for an asset thaat has the same name as the requested one but
+// searches for an asset that has the same name as the requested one but
 // ending with .sha256 or .sha256sum
 func checksumAsset(asset string, assets []string) string {
 	for _, a := range assets {
@@ -71,77 +92,67 @@ func checksumAsset(asset string, assets []string) string {
 	return ""
 }
 
-// Determine the appropriate Finder to use. If opts.URL is provided, we use
-// a DirectAssetFinder. Otherwise we use a GithubAssetFinder. When a Github
-// repo is provided, we assume the repo name is the 'tool' name (for direct
-// URLs, the tool name is unknown and remains empty).
-func getFinder(project string, opts *Flags) (finder Finder, tool string) {
+// Determine the appropriate Finder to use. If url is a local/direct URL we use
+// a DirectAssetFinder. Otherwise we use a GithubAssetFinder.
+func getFinder(project string, opts *options.Flags) (finder Finder, tool string, err error) {
 	if IsLocalFile(project) || (IsUrl(project) && !IsGithubUrl(project)) {
-		finder = &DirectAssetFinder{
-			URL: project,
-		}
+		finder = &DirectAssetFinder{URL: project}
 		opts.System = "all"
-	} else {
-		if IsGithubUrl(project) {
-			_, after, found := Cut(project, "github.com/")
-			if found {
-				project = strings.Trim(after, "/")
-			} else {
-				fatal(fmt.Sprintf("invalid GitHub repo URL %s", project))
-			}
-		}
-
-		repo := project
-		if strings.Count(repo, "/") != 1 {
-			fatal("invalid argument (must be of the form `user/repo`)")
-		}
-		parts := strings.Split(repo, "/")
-		if parts[0] == "" || parts[1] == "" {
-			fatal("invalid argument (must be of the form `user/repo`)")
-		}
-		tool = parts[1]
-
-		if opts.Source {
-			tag := "master"
-			if opts.Tag != "" {
-				tag = opts.Tag
-			}
-			finder = &GithubSourceFinder{
-				Repo: repo,
-				Tag:  tag,
-				Tool: tool,
-			}
-		} else {
-			tag := "latest"
-			if opts.Tag != "" {
-				tag = fmt.Sprintf("tags/%s", opts.Tag)
-			}
-
-			var mint time.Time
-			if opts.UpgradeOnly {
-				parts := strings.Split(project, "/")
-				last := parts[len(parts)-1]
-				mint = bintime(last, opts.Output)
-			}
-
-			finder = &GithubAssetFinder{
-				Repo:       repo,
-				Tag:        tag,
-				Prerelease: opts.Prerelease,
-				MinTime:    mint,
-			}
-		}
+		return finder, tool, nil
 	}
-	return finder, tool
+
+	if IsGithubUrl(project) {
+		_, after, found := Cut(project, "github.com/")
+		if !found {
+			return nil, "", fmt.Errorf("invalid GitHub repo URL %s", project)
+		}
+		project = strings.Trim(after, "/")
+	}
+
+	repo := project
+	if strings.Count(repo, "/") != 1 {
+		return nil, "", fmt.Errorf("invalid argument (must be of the form user/repo)")
+	}
+	parts := strings.Split(repo, "/")
+	if parts[0] == "" || parts[1] == "" {
+		return nil, "", fmt.Errorf("invalid argument (must be of the form user/repo)")
+	}
+	tool = parts[1]
+
+	if opts.Source {
+		tag := "master"
+		if opts.Tag != "" {
+			tag = opts.Tag
+		}
+		finder = &GithubSourceFinder{Repo: repo, Tag: tag, Tool: tool}
+		return finder, tool, nil
+	}
+
+	tag := "latest"
+	if opts.Tag != "" {
+		tag = fmt.Sprintf("tags/%s", opts.Tag)
+	}
+
+	var mint time.Time
+	if opts.UpgradeOnly {
+		last := parts[len(parts)-1]
+		mint = bintime(last, opts.Output)
+	}
+
+	finder = &GithubAssetFinder{
+		Repo:       repo,
+		Tag:        tag,
+		Prerelease: opts.Prerelease,
+		MinTime:    mint,
+	}
+	return finder, tool, nil
 }
 
-func getVerifier(sumAsset string, opts *Flags) (verifier Verifier, err error) {
+func getVerifier(sumAsset string, opts *options.Flags) (verifier Verifier, err error) {
 	if opts.Verify != "" {
 		verifier, err = NewSha256Verifier(opts.Verify)
 	} else if sumAsset != "" {
-		verifier = &Sha256AssetVerifier{
-			AssetURL: sumAsset,
-		}
+		verifier = &Sha256AssetVerifier{AssetURL: sumAsset}
 	} else if opts.Hash {
 		verifier = &Sha256Printer{}
 	} else {
@@ -150,22 +161,22 @@ func getVerifier(sumAsset string, opts *Flags) (verifier Verifier, err error) {
 	return verifier, err
 }
 
-// Determine the appropriate detector. If the --system is 'all', we use an
-// AllDetector, which will just return all assets. Otherwise we use the
-// --system pair provided by the user, or the runtime.GOOS/runtime.GOARCH
-// pair by default (the host system OS/Arch pair).
-func getDetector(opts *Flags) (detector Detector, err error) {
+// Determine the appropriate detector.
+func getDetector(opts *options.Flags) (detector Detector, err error) {
 	var system Detector
 	if opts.System == "all" {
 		system = &AllDetector{}
 	} else if opts.System != "" {
 		split := strings.Split(opts.System, "/")
 		if len(split) < 2 {
-			fatal("system descriptor must be os/arch")
+			return nil, fmt.Errorf("system descriptor must be os/arch")
 		}
 		system, err = NewSystemDetector(split[0], split[1])
 	} else {
 		system, err = NewSystemDetector(runtime.GOOS, runtime.GOARCH)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	if len(opts.Asset) >= 1 {
@@ -175,27 +186,17 @@ func getDetector(opts *Flags) (detector Detector, err error) {
 			if anti {
 				a = a[1:]
 			}
-			detectors[i] = &SingleAssetDetector{
-				Asset: a,
-				Anti:  anti,
-			}
+			detectors[i] = &SingleAssetDetector{Asset: a, Anti: anti}
 		}
-		detector = &DetectorChain{
-			detectors: detectors,
-			system:    system,
-		}
+		detector = &DetectorChain{detectors: detectors, system: system}
 	} else {
 		detector = system
 	}
-	return detector, err
+	return detector, nil
 }
 
-// Determine which extractor to use. If --download-only is provided, we
-// just "extract" the downloaded archive to itself. Otherwise we try to
-// extract the literal file provided by --file, or by default we just
-// extract a binary with the tool name that was possibly auto-detected
-// above.
-func getExtractor(url, tool string, opts *Flags) (extractor Extractor, err error) {
+// Determine which extractor to use.
+func getExtractor(url, tool string, opts *options.Flags) (extractor Extractor, err error) {
 	if opts.DLOnly {
 		extractor = &SingleFileExtractor{
 			Name:   path.Base(url),
@@ -211,30 +212,36 @@ func getExtractor(url, tool string, opts *Flags) (extractor Extractor, err error
 		}
 		extractor = NewExtractor(path.Base(url), tool, gc)
 	} else {
-		extractor = NewExtractor(path.Base(url), tool, &BinaryChooser{
-			Tool: tool,
-		})
+		extractor = NewExtractor(path.Base(url), tool, &BinaryChooser{Tool: tool})
 	}
 	return extractor, nil
 }
 
 // Write an extracted file to disk with a new name.
 func writeFile(data []byte, rename string, mode fs.FileMode) error {
+	if rename == "" {
+		return fmt.Errorf("invalid output path")
+	}
 	if rename[0] == '-' {
-		// if the output is '-', just print it to stdout
 		_, err := os.Stdout.Write(data)
 		return err
 	}
 
-	// remove file if it exists already
-	err := os.Remove(rename)
+	safeRename, err := cleanLocalPath(rename)
+	if err != nil {
+		return err
+	}
+
+	// #nosec G703 -- cleanLocalPath rejects traversal segments for relative paths.
+	err = os.Remove(safeRename)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	// make parent directories if necessary
-	_ = os.MkdirAll(filepath.Dir(rename), 0755)
+	// #nosec G703 -- destination path is normalized and validated via cleanLocalPath.
+	_ = os.MkdirAll(filepath.Dir(safeRename), 0750)
 
-	f, err := os.OpenFile(rename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+	// #nosec G304,G703 -- path is normalized and validated via cleanLocalPath above.
+	f, err := os.OpenFile(safeRename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
 	if err != nil {
 		return err
 	}
@@ -247,10 +254,7 @@ func writeFile(data []byte, rename string, mode fs.FileMode) error {
 	return err
 }
 
-// Would really like generics to implement this...
-// Make the user select one of the choices and return the index of the
-// selection.
-func userSelect(choices []interface{}) int {
+func userSelect(choices []interface{}) (int, error) {
 	for i, c := range choices {
 		fmt.Fprintf(os.Stderr, "(%d) %v\n", i+1, c)
 	}
@@ -264,21 +268,18 @@ func userSelect(choices []interface{}) int {
 		if err == nil {
 			break
 		}
-
 		if errors.Is(err, io.EOF) {
-			fatal("Error reading selection")
+			return 0, fmt.Errorf("error reading selection")
 		}
-
 		fmt.Fprintf(os.Stderr, "Invalid selection: %v\n", err)
 	}
-	return choice
+	return choice, nil
 }
 
 func bintime(bin string, to string) (t time.Time) {
 	file := ""
 	dir := "."
 	if to != "" && IsDirectory(to) {
-		// direct directory
 		dir = to
 	} else if xbin := os.Getenv("EGET_BIN"); xbin != "" {
 		dir = xbin
@@ -287,34 +288,37 @@ func bintime(bin string, to string) (t time.Time) {
 	}
 
 	if to != "" && !strings.ContainsRune(to, os.PathSeparator) {
-		// path joined possible with xget bin
 		bin = to
 	} else if to != "" && !IsDirectory(to) {
-		// direct path
 		file = to
 	}
 
 	if file == "" {
 		file = filepath.Join(dir, bin)
 	}
-	fi, err := os.Stat(file)
+	safeFile, err := cleanLocalPath(file)
+	if err != nil {
+		return
+	}
+	// #nosec G703 -- cleanLocalPath rejects traversal segments for relative paths.
+	fi, err := os.Stat(safeFile)
 	if err != nil {
 		return
 	}
 	return fi.ModTime()
 }
 
-func downloadConfigRepositories(config *Config) error {
+func DownloadConfigRepositories(cfg *config.Config) error {
 	hasError := false
 	errorList := []error{}
 
 	binary, err := os.Executable()
-
 	if err != nil {
 		binary = os.Args[0]
 	}
 
-	for name := range config.Repositories {
+	for name := range cfg.Repositories {
+		// #nosec G204,G702 -- executes this binary with repository names as plain arguments.
 		cmd := exec.Command(binary, name)
 		cmd.Stderr = os.Stderr
 
@@ -328,78 +332,11 @@ func downloadConfigRepositories(config *Config) error {
 	if hasError {
 		return fmt.Errorf("one or more errors occurred while downloading: %v", errorList)
 	}
-
 	return nil
 }
 
-var opts Flags
-
-func main() {
-	var cli CliFlags
-
-	flagparser := flags.NewParser(&cli, flags.PassDoubleDash|flags.PrintErrors)
-	flagparser.Usage = "[OPTIONS] TARGET"
-	args, err := flagparser.Parse()
-
-	if err != nil {
-		os.Exit(1)
-	}
-
-	if cli.Version {
-		fmt.Println("xget version", Version)
-		os.Exit(0)
-	}
-
-	if cli.Help {
-		flagparser.WriteHelp(os.Stdout)
-		os.Exit(0)
-	}
-
-	config, err := InitializeConfig()
-	if err != nil {
-		fatal(err)
-	}
-
-	err = SetGlobalOptionsFromConfig(config, flagparser, &opts, cli)
-	if err != nil {
-		fatal(err)
-	}
-
-	if cli.Rate {
-		rdat, err := GetRateLimit()
-		if err != nil {
-			fatal(err)
-		}
-		fmt.Println(rdat)
-		os.Exit(0)
-	}
-
-	target := ""
-
-	if len(args) > 0 {
-		target = args[0]
-	}
-
-	err = SetProjectOptionsFromConfig(config, flagparser, &opts, cli, target)
-	if err != nil {
-		fatal(err)
-	}
-
-	if cli.DownloadAll {
-		err = downloadConfigRepositories(config)
-
-		if err != nil {
-			fatal(err)
-		}
-
-		os.Exit(0)
-	}
-
-	if len(args) <= 0 {
-		fmt.Println("no target given")
-		flagparser.WriteHelp(os.Stdout)
-		os.Exit(0)
-	}
+func Run(target string, opts options.Flags) error {
+	SetDisableSSL(opts.DisableSSL)
 
 	if opts.DisableSSL {
 		fmt.Fprintln(os.Stderr, "warning: SSL verification is disabled")
@@ -407,58 +344,70 @@ func main() {
 
 	if opts.Remove {
 		xbin := os.Getenv("XGET_BIN")
-		err := os.Remove(filepath.Join(xbin, target))
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		if xbin == "" {
+			xbin = "."
 		}
-		fmt.Printf("Removed `%s`\n", filepath.Join(xbin, target))
-		os.Exit(0)
+		targetName, err := safeBaseName(target)
+		if err != nil {
+			return err
+		}
+		removePath := filepath.Join(xbin, targetName)
+		removePath, err = cleanLocalPath(removePath)
+		if err != nil {
+			return err
+		}
+		// #nosec G703 -- removePath uses validated basename joined to configured bin directory.
+		err = os.Remove(removePath)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Removed `%s`\n", removePath)
+		return nil
 	}
 
-	// when --quiet is passed, send non-essential output to io.Discard
 	var output io.Writer = os.Stderr
 	if opts.Quiet {
 		output = io.Discard
 	}
 
-	finder, tool := getFinder(target, &opts)
+	finder, tool, err := getFinder(target, &opts)
+	if err != nil {
+		return err
+	}
 	assets, err := finder.Find()
 	if err != nil {
 		if errors.Is(err, ErrNoUpgrade) {
-			_, err = fmt.Fprintf(output, "%s: %v\n", target, err)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-			}
-			os.Exit(0)
+			_, _ = fmt.Fprintf(output, "%s: %v\n", target, err)
+			return nil
 		}
-		fatal(err)
+		return err
 	}
 
 	detector, err := getDetector(&opts)
 	if err != nil {
-		fatal(err)
+		return err
 	}
 
-	// get the url and candidates from the detector
 	url, candidates, err := detector.Detect(assets)
 	if len(candidates) != 0 && err != nil {
-		// if multiple candidates are returned, the user must select manually which one to download
 		fmt.Fprintf(os.Stderr, "%v: please select manually\n", err)
 		choices := make([]interface{}, len(candidates))
 		for i := range candidates {
 			choices[i] = path.Base(candidates[i])
 		}
-		choice := userSelect(choices)
+		choice, err := userSelect(choices)
+		if err != nil {
+			return err
+		}
 		url = candidates[choice-1]
 	} else if err != nil {
-		fatal(err)
+		return err
 	}
 
-	// print the URL
-	fmt.Fprintf(output, "%s\n", url)
+	if _, err := fmt.Fprintf(output, "%s\n", url); err != nil {
+		return err
+	}
 
-	// download with progress bar
 	buf := &bytes.Buffer{}
 	err = Download(url, buf, func(size int64) *pb.ProgressBar {
 		var pbout io.Writer = os.Stderr
@@ -475,7 +424,7 @@ func main() {
 			pb.OptionFullWidth(),
 			pb.OptionSetDescription("Downloading"),
 			pb.OptionOnCompletion(func() {
-				fmt.Fprint(pbout, "\n")
+				_, _ = fmt.Fprint(pbout, "\n")
 			}),
 			pb.OptionSetTheme(pb.Theme{
 				Saucer:        "=",
@@ -486,109 +435,92 @@ func main() {
 			}))
 	})
 	if err != nil {
-		fatal(fmt.Sprintf("%s (URL: %s)", err, url))
+		return fmt.Errorf("%s (URL: %s)", err, url)
 	}
 
 	body := buf.Bytes()
-
 	sumAsset := checksumAsset(url, assets)
 	verifier, err := getVerifier(sumAsset, &opts)
 	if err != nil {
-		fatal(err)
+		return err
 	}
-	err = verifier.Verify(body)
-	if err != nil {
-		fatal(err)
-	} else if opts.Verify == "" && sumAsset != "" {
-		_, err = fmt.Fprintf(output, "Checksum verified with %s\n", path.Base(sumAsset))
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
+	if err = verifier.Verify(body); err != nil {
+		return err
+	}
+	if opts.Verify == "" && sumAsset != "" {
+		_, _ = fmt.Fprintf(output, "Checksum verified with %s\n", path.Base(sumAsset))
 	} else if opts.Verify != "" {
-		_, err = fmt.Fprintf(output, "Checksum verified\n")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
+		_, _ = fmt.Fprintln(output, "Checksum verified")
 	}
 
 	extractor, err := getExtractor(url, tool, &opts)
 	if err != nil {
-		fatal(err)
+		return err
 	}
 
-	// get extraction candidates
 	bin, bins, err := extractor.Extract(body, opts.All)
 	if len(bins) != 0 && err != nil && !opts.All {
-		// if there are multiple candidates, have the user select manually
 		fmt.Fprintf(os.Stderr, "%v: please select manually\n", err)
 		choices := make([]interface{}, len(bins)+1)
 		for i := range bins {
 			choices[i] = bins[i]
 		}
 		choices[len(bins)] = "all"
-		choice := userSelect(choices)
+		choice, err := userSelect(choices)
+		if err != nil {
+			return err
+		}
 		if choice == len(bins)+1 {
 			opts.All = true
 		} else {
 			bin = bins[choice-1]
 		}
 	} else if err != nil && len(bins) == 0 {
-		fatal(err)
+		return err
 	}
 	if len(bins) == 0 {
 		bins = []ExtractedFile{bin}
 	}
 
-	extract := func(bin ExtractedFile) {
+	extract := func(bin ExtractedFile) error {
 		mode := bin.Mode()
-
-		// write the extracted file to a file on disk, in the --to directory if
-		// requested
 		out := filepath.Base(bin.Name)
 		if opts.Output == "-" {
 			out = "-"
 		} else if opts.Output != "" && IsDirectory(opts.Output) {
 			out = filepath.Join(opts.Output, out)
 		} else if opts.Output != "" && opts.All {
-			err = os.MkdirAll(opts.Output, 0755)
+			err := os.MkdirAll(opts.Output, 0750)
 			if err != nil {
-				fatal(err)
+				return err
 			}
 			out = filepath.Join(opts.Output, out)
 		} else {
 			if opts.Output != "" {
 				out = opts.Output
 			}
-			// only use $EGET_BIN if all of the following are true
-			// 1. $EGET_BIN is non-empty
-			// 2. --to is not a path (not a path if no path separator is found)
-			// 3. The extracted file is executable
 			if os.Getenv("EGET_BIN") != "" && !strings.ContainsRune(out, os.PathSeparator) && mode&0111 != 0 && !bin.Dir {
 				out = filepath.Join(os.Getenv("EGET_BIN"), out)
 			}
-
-			// only use $XGET_BIN if all of the following are true
-			// 1. $XGET_BIN is non-empty
-			// 2. --to is not a path (not a path if no path separator is found)
-			// 3. The extracted file is executable
 			if os.Getenv("XGET_BIN") != "" && !strings.ContainsRune(out, os.PathSeparator) && mode&0111 != 0 && !bin.Dir {
 				out = filepath.Join(os.Getenv("XGET_BIN"), out)
 			}
 		}
 
-		err = bin.Extract(out)
-		if err != nil {
-			fatal(err)
+		if err := bin.Extract(out); err != nil {
+			return err
 		}
-
-		fmt.Fprintf(output, "Extracted `%s` to `%s`\n", bin.ArchiveName, out)
+		_, err := fmt.Fprintf(output, "Extracted `%s` to `%s`\n", bin.ArchiveName, out)
+		return err
 	}
 
 	if opts.All {
-		for _, bin := range bins {
-			extract(bin)
+		for _, eb := range bins {
+			if err := extract(eb); err != nil {
+				return err
+			}
 		}
-	} else {
-		extract(bin)
+		return nil
 	}
+	return extract(bin)
 }

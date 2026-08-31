@@ -30,6 +30,21 @@ FAQ for a clear set of rules to make your software compatible with xget.
 
 For more in-depth documentation, see [DOCS.md](DOCS.md).
 
+## Project structure
+
+xget now uses a structured Cobra/Viper architecture to make future command and
+configuration extensions easier:
+
+- `cmd/xget/main.go`: application entrypoint.
+- `internal/cli/root.go`: root Cobra command and flag wiring.
+- `internal/config`: configuration loading and normalization (TOML + YAML).
+- `internal/options`: runtime option model used by the engine.
+- `internal/engine`: find/detect/verify/extract/download runtime flow.
+- `internal/version`: version string used by the CLI and release builds.
+
+This preserves compatibility with existing eget/xget behavior while modernizing
+the internal layout.
+
 # Examples
 
 ``` shell
@@ -184,12 +199,27 @@ Application Options:
 
 ## Configuration
 
-xget can be configured using a TOML file located at `~/.xget.toml` or it will fallback to the expected `XDG_CONFIG_HOME` directory of your os. Alternatively,
-the configuration file can be located in the same directory as the xget binary or the path specified with the environment variable `XGET_CONFIG`.
+xget can be configured with either TOML or YAML files. Existing TOML-based
+configuration remains fully supported.
 
-> [!NOTE]
-> TODO: Support for CWD config file. Currently, xget will only read the config file from the home directory or the binary directory.
-> TODO: Support for yaml config file. Currently, xget will only read the config file in TOML format.
+Configuration search order:
+
+1. Path from `XGET_CONFIG` (if set).
+2. `~/.xget.toml`, `./xget.toml`, and OS config path `xget.toml`.
+3. `~/.xget.yaml`, `./xget.yaml`, and OS config path `xget.yaml`.
+4. `~/.xget.yml`, `./xget.yml`, and OS config path `xget.yml`.
+
+OS config path defaults to:
+
+- Linux/macOS: `$XDG_CONFIG_HOME/xget/xget.<ext>` or `~/.config/xget/xget.<ext>`.
+- Windows: `%LOCALAPPDATA%/xget/xget.<ext>`.
+
+Option precedence:
+
+1. CLI flags.
+2. Repository section (`"owner/repo"`) in config.
+3. Global section (`global`) in config.
+4. Built-in defaults.
 
 Both global settings can be configured, as well as setting on a per-repository basis.
 
@@ -209,6 +239,16 @@ target = "~/bin"
 target = "~/.local/bin"
 ```
 
+Equivalent YAML:
+
+```yaml
+global:
+  target: "~/bin"
+
+"zyedidia/micro":
+  target: "~/.local/bin"
+```
+
 ## Available settings - global section
 
 | Setting | Related Flag | Description | Default |
@@ -223,6 +263,7 @@ target = "~/.local/bin"
 | `system` | `--system` | The target system to download for. | `all` |
 | `target` | `--to` | The directory to move the downloaded file to after extraction. | `.` |
 | `upgrade_only` | `--upgrade-only` | Whether to only download if release is more recent than current version. | `false` |
+| `disable_ssl` | `--disable-ssl` | Disable SSL certificate verification for downloads. | `false` |
 
 ## Available settings - repository sections
 
@@ -239,6 +280,7 @@ target = "~/.local/bin"
 | `target` | `--to` | The directory to move the downloaded file to after extraction. | `.` |
 | `upgrade_only` | `--upgrade-only` | Whether to only download if release is more recent than current version. | `false` |
 | `verify_sha256` | `--verify-sha256` | Verify the sha256 hash of the asset against a provided hash. | `""` |
+| `disable_ssl` | `--disable-ssl` | Disable SSL certificate verification for downloads. | `false` |
 
 ## Example configuration
 
@@ -255,6 +297,23 @@ target = "~/.local/bin"
     show_hash = true
     asset_filters = [ "static", ".tar.gz" ]
     target = "~/.local/bin/micro"
+```
+
+```yaml
+global:
+  github_token: "ghp_1234567890"
+  quiet: false
+  show_hash: false
+  upgrade_only: true
+  target: "./test"
+
+"zyedidia/micro":
+  upgrade_only: false
+  show_hash: true
+  asset_filters:
+    - "static"
+    - ".tar.gz"
+  target: "~/.local/bin/micro"
 ```
 
 By using the configuration above, you could run the following command to download the latest release of `micro`:

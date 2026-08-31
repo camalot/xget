@@ -1,5 +1,19 @@
 # xget Documentation
 
+## Code layout
+
+xget is organized into internal packages so CLI concerns and runtime behavior
+are separated:
+
+- `cmd/xget/main.go`: application entrypoint.
+- `internal/cli/root.go`: root Cobra command and CLI flag handling.
+- `internal/config/config.go`: Viper-based configuration loading for TOML/YAML.
+- `internal/options/options.go`: normalized runtime option structure.
+- `internal/engine`: find/detect/verify/extract/download implementation.
+- `internal/version/version.go`: version constant for runtime and release.
+
+The runtime flow is unchanged from the user perspective.
+
 xget works in four phases:
 
 * Find: determine a list of assets that may be installed.
@@ -7,9 +21,40 @@ xget works in four phases:
 * Verify: verify the checksum of the asset if possible.
 * Extract: determine which file within the asset to extract.
 
-If you are interested in reading the source code, there is one file for each
-phase, and the `xget.go` main file runs a routine that combines them all
-together.
+If you are interested in reading the source code, the phase implementations are
+in `internal/engine`, and orchestration is handled by `internal/engine/run.go`
+via the Cobra root command in `internal/cli/root.go`.
+
+## Configuration loading and precedence
+
+xget now supports both TOML and YAML configuration formats while maintaining
+backward compatibility with existing eget/xget TOML files.
+
+Supported config filenames:
+
+* `xget.toml`
+* `xget.yaml`
+* `xget.yml`
+
+Search order:
+
+1. `XGET_CONFIG` if defined.
+2. Home file: `~/.xget.<ext>`.
+3. Current directory: `./xget.<ext>`.
+4. OS config path:
+	* Linux/macOS: `$XDG_CONFIG_HOME/xget/xget.<ext>` or `~/.config/xget/xget.<ext>`
+	* Windows: `%LOCALAPPDATA%/xget/xget.<ext>`
+
+Resolution precedence:
+
+1. CLI flags.
+2. Repository section values (`"owner/repo"`).
+3. Global section values (`global`).
+4. Built-in defaults.
+
+Config keys remain unchanged across TOML and YAML. For example, `target`,
+`asset_filters`, `download_only`, and `verify_sha256` map to the same flags as
+before.
 
 ## Find
 

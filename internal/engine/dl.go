@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"crypto/tls"
@@ -8,12 +8,55 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
-	pb "github.com/schollz/progressbar/v3"
 	"github.com/camalot/xget/internal/home"
+	pb "github.com/schollz/progressbar/v3"
 )
+
+var runtimeDisableSSL bool
+
+func SetDisableSSL(disable bool) {
+	runtimeDisableSSL = disable
+}
+
+func readValidatedFile(p string) ([]byte, error) {
+	clean := filepath.Clean(p)
+	if clean == "" || clean == "." {
+		return nil, fmt.Errorf("invalid file path %q", p)
+	}
+
+	info, err := os.Stat(clean)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s is not a regular file", clean)
+	}
+
+	// #nosec G304 -- path is normalized and validated to a regular file above.
+	return os.ReadFile(clean)
+}
+
+func openValidatedFile(p string) (*os.File, error) {
+	clean := filepath.Clean(p)
+	if clean == "" || clean == "." {
+		return nil, fmt.Errorf("invalid file path %q", p)
+	}
+
+	info, err := os.Stat(clean)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s is not a regular file", clean)
+	}
+
+	// #nosec G304 -- path is normalized and validated to a regular file above.
+	return os.Open(clean)
+}
 
 func tokenFrom(s string) (string, error) {
 	if strings.HasPrefix(s, "@") {
@@ -21,7 +64,10 @@ func tokenFrom(s string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		b, err := os.ReadFile(f)
+		b, err := readValidatedFile(f)
+		if err != nil {
+			return "", err
+		}
 		return strings.TrimRight(string(b), "\r\n"), nil
 	}
 	return s, nil
@@ -50,9 +96,9 @@ func SetAuthHeader(req *http.Request) *http.Request {
 	}
 
 	if req.URL.Scheme == "https" && req.Host == "api.github.com" && err == nil {
-		if opts.DisableSSL {
-			fmt.Fprintln(os.Stderr, "error: cannot use GitHub token if SSL verification is disabled")
-			os.Exit(1)
+		if runtimeDisableSSL {
+			fmt.Fprintln(os.Stderr, "warning: not using GitHub token while SSL verification is disabled")
+			return req
 		}
 		req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 	}
@@ -69,10 +115,12 @@ func Get(url string) (*http.Response, error) {
 
 	req = SetAuthHeader(req)
 
-	proxyClient := &http.Client{Transport: &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: opts.DisableSSL},
-	}}
+	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
+	if runtimeDisableSSL {
+		// #nosec G402 -- explicit user opt-in via --disable-ssl.
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	proxyClient := &http.Client{Transport: transport}
 
 	return proxyClient.Do(req)
 }
@@ -143,7 +191,7 @@ func GetRateLimit() (RateLimit, error) {
 // returned progress bar.
 func Download(url string, out io.Writer, getbar func(size int64) *pb.ProgressBar) error {
 	if IsLocalFile(url) {
-		f, err := os.Open(url)
+		f, err := openValidatedFile(url)
 		if err != nil {
 			return err
 		}

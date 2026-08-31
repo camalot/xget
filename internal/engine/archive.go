@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"archive/tar"
@@ -76,7 +76,7 @@ func (t *TarArchive) Next() (File, error) {
 			return File{
 				Name:     hdr.Name,
 				LinkName: hdr.Linkname,
-				Mode:     fs.FileMode(hdr.Mode),
+				Mode:     hdr.FileInfo().Mode(),
 				Type:     ft,
 			}, err
 		}

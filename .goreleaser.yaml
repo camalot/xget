@@ -8,7 +8,7 @@ before:
 
 builds:
   - id: xget
-    main: .
+    main: ./cmd/xget
     binary: xget
     env:
       - CGO_ENABLED=0
@@ -21,7 +21,7 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X main.Version={{.Version}}
+      - -X github.com/camalot/xget/internal/version.Version={{.Version}}
 
 archives:
   - id: xget

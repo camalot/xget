@@ -4,5 +4,34 @@
     "progressbar",
     "schollz",
     "xget"
-  ]
+  ],
+  "workspaceTasks.enabledTaskTypes": {
+    "ant": false,
+    "ruby": false,
+    "bitbucket": false,
+    "cake": false,
+    "cmake": false,
+    "composer": false,
+    "deno": false,
+    "eslint": false,
+    "cargo": false,
+    "cargo-make": false,
+    "gitlab-ci": false,
+    "gradle": false,
+    "grunt": false,
+    "gulp": false,
+    "jupyter": false,
+    "just": false,
+    "make": false,
+    "maven": false,
+    "msbuild": false,
+    "mise": false,
+    "npm": false,
+    "pipenv": false,
+    "poe": false,
+    "poetry": false,
+    "rake": false,
+    "typescript": false,
+    "webpack": false
+  }
 }
