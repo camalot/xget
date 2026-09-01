@@ -68,23 +68,31 @@ Before you can get anything, you have to get xget. If you already have xget and 
 
 ### Quick-install script
 
+### Bash
+
 ``` shell
-curl -o xget.sh https://camalot.github.io/xget.sh
+curl -o xget.sh https://github.com/camalot/xget/raw/refs/heads/main/install/xget.sh
 shasum -a 256 xget.sh # verify with hash below
+curl -o xget.sh.sha256 https://github.com/camalot/xget/raw/refs/heads/main/install/xget.sh.sha256
+shasum -a 256 --check xget.sh.sha256
 bash xget.sh
 ```
 
-Or alternatively (less secure):
-
 ``` shell
-curl https://camalot.github.io/xget.sh | sh
+curl https://github.com/camalot/xget/raw/refs/heads/main/install/xget.sh | bash
 ```
 
-You can then place the downloaded binary in a location on your `$PATH` such as `/usr/local/bin`.
+The default install location is `$HOME/.local/bin`. You can change the install location with the `-d` or `--dir` option:
 
-To verify the script, the sha256 checksum is `TODO: GENERATE CHECKSUM FOR SHELL SCRIPT` (use `shasum -a 256 xget.sh` after downloading the script).
+``` shell
+curl -o xget.sh https://github.com/camalot/xget/raw/refs/heads/main/install/xget.sh | bash -s -- -d /usr/local/bin
+```
 
-One of the reasons to use xget is to avoid running curl into bash, but unfortunately you can't xget xget until you have xget.
+### PowerShell
+
+``` powershell
+iwr https://github.com/camalot/xget/raw/refs/heads/main/install/xget.ps1 | iex
+```
 
 <!-- ### Homebrew
 

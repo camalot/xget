@@ -58,6 +58,18 @@ sboms:
 snapshot:
   version_template: "{{ .Tag }}-next"
 
+scoops:
+  - name: xget
+    repository:
+      owner: camalot
+      name: xget-scoop-bucket # The repo where you want the manifest pushed
+    commit_author:
+      name: CI Bot
+      email: bot@example.com
+    homepage: "https://github.com/camalot/xget"
+    description: "Easy pre-built binary installation for your favorite tools."
+    license: MIT
+
 changelog:
   sort: asc
   filters:
