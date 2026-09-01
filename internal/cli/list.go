@@ -3,8 +3,10 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/engine"
@@ -95,19 +97,14 @@ func listInstalled(cmd *cobra.Command, args []string) error {
 		if !ok {
 			return fmt.Errorf("%s is not installed", args[0])
 		}
-		printInstalledPackage(cmd, pkg)
+		printInstalledPackages(cmd, []installed.Package{pkg})
 		return nil
 	}
 	if len(packages) == 0 {
 		cmd.Println("no installed packages")
 		return nil
 	}
-	for i, pkg := range packages {
-		if i > 0 {
-			cmd.Println("")
-		}
-		printInstalledPackage(cmd, pkg)
-	}
+	printInstalledPackages(cmd, packages)
 	return nil
 }
 
@@ -118,7 +115,7 @@ func refreshInstalledStore(storePath string, store *installed.Store) error {
 		if err != nil {
 			return err
 		}
-		if !refreshed.RefreshedAt.Equal(pkg.RefreshedAt) || refreshed.CurrentTag != pkg.CurrentTag || refreshed.CurrentVersion != pkg.CurrentVersion {
+		if !refreshed.RefreshedAt.Equal(pkg.RefreshedAt) || refreshed.CurrentTag != pkg.CurrentTag {
 			store.Packages[name] = refreshed
 			changed = true
 		}
@@ -131,30 +128,39 @@ func refreshInstalledStore(storePath string, store *installed.Store) error {
 
 func findInstalledPackage(packages []installed.Package, target string) (installed.Package, bool) {
 	for _, pkg := range packages {
-		if pkg.Name == target || pkg.Repo == target || strings.HasSuffix(pkg.Repo, "/"+target) {
+		if strings.EqualFold(pkg.Key(), target) || pkg.Name == target || strings.HasSuffix(pkg.Name, "/"+target) {
 			return pkg, true
 		}
 	}
 	return installed.Package{}, false
 }
 
-func printInstalledPackage(cmd *cobra.Command, pkg installed.Package) {
-	cmd.Printf("Name: %s\n", pkg.Name)
-	cmd.Printf("Source: %s\n", pkg.Source)
-	cmd.Printf("Repo: %s\n", pkg.Repo)
-	cmd.Printf("Installed tag: %s\n", pkg.InstalledTag)
-	cmd.Printf("Current tag: %s\n", pkg.CurrentTag)
-	cmd.Printf("Installed version: %s\n", pkg.InstalledVersion)
-	cmd.Printf("Current version: %s\n", pkg.CurrentVersion)
-	cmd.Printf("Installed at: %s\n", pkg.InstalledAt.Format(timeFormat))
-	cmd.Printf("Refreshed at: %s\n", pkg.RefreshedAt.Format(timeFormat))
-	cmd.Printf("Install location: %s\n", pkg.InstallLocation)
-	cmd.Printf("Download URL: %s\n", pkg.DownloadURL)
-	cmd.Printf("Asset: %s\n", pkg.Asset)
-	cmd.Printf("SHA256: %s\n", pkg.SHA256)
-	if len(pkg.ExtractedFiles) > 0 {
-		cmd.Printf("Extracted files: %s\n", strings.Join(pkg.ExtractedFiles, ", "))
+func printInstalledPackages(cmd *cobra.Command, packages []installed.Package) {
+	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "PACKAGE\tTAG/VERSION\tLATEST\tLOCATION")
+	_, _ = fmt.Fprintln(w, "-------------------------------------------------------------------")
+	for _, pkg := range packages {
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", pkg.Key(), pkg.InstalledTag, pkg.CurrentTag, displayLocation(pkg.InstallLocation))
 	}
+	_ = w.Flush()
 }
 
-const timeFormat = "2006-01-02T15:04:05Z07:00"
+func displayLocation(location string) string {
+	if location == "" {
+		return ""
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return location
+	}
+	cleanLocation := filepath.Clean(location)
+	cleanHome := filepath.Clean(home)
+	if strings.EqualFold(cleanLocation, cleanHome) {
+		return "~"
+	}
+	withSeparator := cleanHome + string(os.PathSeparator)
+	if strings.HasPrefix(strings.ToLower(cleanLocation), strings.ToLower(withSeparator)) {
+		return "~" + string(os.PathSeparator) + cleanLocation[len(withSeparator):]
+	}
+	return location
+}

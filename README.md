@@ -178,8 +178,9 @@ xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
 Successful installs are tracked in `~/.config/xget/.xget.installed.yml`. Each
 record includes the repo or URL, source type, install location, timestamps,
 selected asset, download URL, extracted files, effective install options,
-SHA-256, and installed/current tag or version when release metadata is
-available. Reinstalling a package refreshes the existing record.
+SHA-256, and installed/current tag when release metadata is available. Records
+are keyed as `<source>:<repo-or-url>`, such as `github:nektos/act`, and
+reinstalling a package refreshes the existing record.
 
 Use `xget list TARGET` to list installable release assets for a target. Use
 `xget list --installed` to show installed package metadata, or

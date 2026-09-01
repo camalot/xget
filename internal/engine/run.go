@@ -456,12 +456,23 @@ func finderVersion(finder Finder, opts options.Flags) string {
 	}
 }
 
+func packageName(target string, finder Finder) string {
+	switch f := finder.(type) {
+	case *GithubAssetFinder:
+		return f.Repo
+	case *GithubSourceFinder:
+		return f.Repo
+	default:
+		return target
+	}
+}
+
 func RefreshInstalledPackage(pkg installed.Package) (installed.Package, error) {
 	if !strings.EqualFold(pkg.Source, "GitHub") {
 		return pkg, nil
 	}
 	opts := options.Flags{SourceType: pkg.Source}
-	finder, _, err := getFinder(pkg.Repo, &opts)
+	finder, _, err := getFinder(pkg.Name, &opts)
 	if err != nil {
 		return pkg, err
 	}
@@ -470,7 +481,6 @@ func RefreshInstalledPackage(pkg installed.Package) (installed.Package, error) {
 	}
 	version := finderVersion(finder, opts)
 	if version != "" {
-		pkg.CurrentVersion = version
 		pkg.CurrentTag = version
 	}
 	pkg.RefreshedAt = time.Now().UTC()
@@ -682,21 +692,18 @@ func Run(target string, opts options.Flags) error {
 			installLocation = filepath.Dir(extractedFiles[0])
 		}
 		pkg := installed.Package{
-			Name:             tool,
-			Repo:             target,
-			InstallLocation:  installLocation,
-			InstalledAt:      now,
-			DownloadURL:      url,
-			Asset:            path.Base(url),
-			ExtractedFiles:   extractedFiles,
-			Options:          installedOptions(opts),
-			RefreshedAt:      now,
-			CurrentVersion:   version,
-			CurrentTag:       version,
-			InstalledVersion: version,
-			InstalledTag:     version,
-			Source:           opts.SourceType,
-			SHA256:           assetSHA256,
+			Name:            packageName(target, finder),
+			InstallLocation: installLocation,
+			InstalledAt:     now,
+			DownloadURL:     url,
+			Asset:           path.Base(url),
+			ExtractedFiles:  extractedFiles,
+			Options:         installedOptions(opts),
+			RefreshedAt:     now,
+			CurrentTag:      version,
+			InstalledTag:    version,
+			Source:          opts.SourceType,
+			SHA256:          assetSHA256,
 		}
 		return installed.Upsert(storePath, pkg)
 	}

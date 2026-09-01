@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -27,21 +28,19 @@ type Options struct {
 }
 
 type Package struct {
-	Name             string    `yaml:"name"`
-	Repo             string    `yaml:"repo"`
-	InstallLocation  string    `yaml:"install_location,omitempty"`
-	InstalledAt      time.Time `yaml:"installed_at"`
-	DownloadURL      string    `yaml:"download_url"`
-	Asset            string    `yaml:"asset"`
-	ExtractedFiles   []string  `yaml:"extracted_files,omitempty"`
-	Options          Options   `yaml:"options,omitempty"`
-	RefreshedAt      time.Time `yaml:"refreshed_at"`
-	CurrentVersion   string    `yaml:"current_version,omitempty"`
-	CurrentTag       string    `yaml:"current_tag,omitempty"`
-	InstalledVersion string    `yaml:"installed_version,omitempty"`
-	InstalledTag     string    `yaml:"installed_tag,omitempty"`
-	Source           string    `yaml:"source"`
-	SHA256           string    `yaml:"sha256"`
+	Name            string    `yaml:"name"`
+	Repo            string    `yaml:"repo,omitempty"`
+	InstallLocation string    `yaml:"install_location,omitempty"`
+	InstalledAt     time.Time `yaml:"installed_at"`
+	DownloadURL     string    `yaml:"download_url"`
+	Asset           string    `yaml:"asset"`
+	ExtractedFiles  []string  `yaml:"extracted_files,omitempty"`
+	Options         Options   `yaml:"options,omitempty"`
+	RefreshedAt     time.Time `yaml:"refreshed_at"`
+	CurrentTag      string    `yaml:"current_tag,omitempty"`
+	InstalledTag    string    `yaml:"installed_tag,omitempty"`
+	Source          string    `yaml:"source"`
+	SHA256          string    `yaml:"sha256"`
 }
 
 type Store struct {
@@ -75,7 +74,27 @@ func Load(path string) (*Store, error) {
 	if store.Packages == nil {
 		store.Packages = map[string]Package{}
 	}
+	store.migrate()
 	return store, nil
+}
+
+func (s *Store) migrate() {
+	if s == nil || len(s.Packages) == 0 {
+		return
+	}
+	migrated := map[string]Package{}
+	for key, pkg := range s.Packages {
+		if pkg.Repo != "" && !strings.Contains(pkg.Name, "/") {
+			pkg.Name = pkg.Repo
+		}
+		pkg.Repo = ""
+		newKey := pkg.Key()
+		if newKey == "unknown:" {
+			newKey = key
+		}
+		migrated[newKey] = pkg
+	}
+	s.Packages = migrated
 }
 
 func Save(path string, store *Store) error {
@@ -95,6 +114,32 @@ func Save(path string, store *Store) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
+func (s *Store) MarshalYAML() (interface{}, error) {
+	packages := &yaml.Node{Kind: yaml.MappingNode}
+	keys := make([]string, 0, len(s.Packages))
+	for key := range s.Packages {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		value := yaml.Node{}
+		if err := value.Encode(s.Packages[key]); err != nil {
+			return nil, err
+		}
+		packages.Content = append(packages.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Value: key, Style: yaml.DoubleQuotedStyle},
+			&value,
+		)
+	}
+	return &yaml.Node{
+		Kind: yaml.MappingNode,
+		Content: []*yaml.Node{
+			{Kind: yaml.ScalarNode, Value: "packages"},
+			packages,
+		},
+	}, nil
+}
+
 func Upsert(path string, pkg Package) error {
 	store, err := Load(path)
 	if err != nil {
@@ -103,11 +148,24 @@ func Upsert(path string, pkg Package) error {
 	if store.Packages == nil {
 		store.Packages = map[string]Package{}
 	}
-	if existing, ok := store.Packages[pkg.Name]; ok && !existing.InstalledAt.IsZero() {
+	if pkg.Repo != "" && !strings.Contains(pkg.Name, "/") {
+		pkg.Name = pkg.Repo
+	}
+	pkg.Repo = ""
+	key := pkg.Key()
+	if existing, ok := store.Packages[key]; ok && !existing.InstalledAt.IsZero() {
 		pkg.InstalledAt = existing.InstalledAt
 	}
-	store.Packages[pkg.Name] = pkg
+	store.Packages[key] = pkg
 	return Save(path, store)
+}
+
+func (p Package) Key() string {
+	source := strings.ToLower(p.Source)
+	if source == "" {
+		source = "unknown"
+	}
+	return source + ":" + p.Name
 }
 
 func SortedPackages(store *Store) []Package {

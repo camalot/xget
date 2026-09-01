@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strings"
 )
 
 type Verifier interface {
@@ -32,13 +33,26 @@ type Sha256Verifier struct {
 }
 
 func NewSha256Verifier(expectedHex string) (*Sha256Verifier, error) {
-	expected, _ := hex.DecodeString(expectedHex)
+	expectedHex = sha256HexToken(expectedHex)
+	expected, err := hex.DecodeString(expectedHex)
+	if err != nil {
+		return nil, err
+	}
 	if len(expected) != sha256.Size {
 		return nil, fmt.Errorf("sha256sum (%s) too small: %d bytes decoded", expectedHex, len(expectedHex))
 	}
 	return &Sha256Verifier{
 		Expected: expected,
 	}, nil
+}
+
+func sha256HexToken(checksum string) string {
+	checksum = strings.TrimPrefix(strings.TrimSpace(checksum), "sha256:")
+	fields := strings.Fields(checksum)
+	if len(fields) == 0 {
+		return ""
+	}
+	return strings.TrimPrefix(fields[0], "sha256:")
 }
 
 func (s256 *Sha256Verifier) Verify(b []byte) error {
@@ -78,20 +92,20 @@ func (s256 *Sha256AssetVerifier) Verify(b []byte) error {
 	if err != nil {
 		return err
 	}
-	expected := make([]byte, sha256.Size)
-	n, err := hex.Decode(expected, data)
+	expectedHex := sha256HexToken(string(data))
+	expected, err := hex.DecodeString(expectedHex)
 	if err != nil {
 		return err
 	}
-	if n < sha256.Size {
-		return fmt.Errorf("sha256sum (%s) too small: %d bytes decoded", string(data), n)
+	if len(expected) != sha256.Size {
+		return fmt.Errorf("sha256sum (%s) too small: %d bytes decoded", expectedHex, len(expected))
 	}
 	sum := sha256.Sum256(b)
-	if bytes.Equal(sum[:], expected[:n]) {
+	if bytes.Equal(sum[:], expected) {
 		return nil
 	}
 	return &Sha256Error{
-		Expected: expected[:n],
+		Expected: expected,
 		Got:      sum[:],
 	}
 }

@@ -92,7 +92,7 @@ If xget downloads an asset called `xxx`, and there is also a matching checksum a
 
 ## Installed package tracking
 
-Successful installs are recorded in `~/.config/xget/.xget.installed.yml`. Records include source type, repo or URL, install location, install and refresh timestamps, selected asset, download URL, extracted files, effective options, SHA-256, and installed/current tag or version when release metadata is available.
+Successful installs are recorded in `~/.config/xget/.xget.installed.yml`. Records include source type, repo or URL, install location, install and refresh timestamps, selected asset, download URL, extracted files, effective options, SHA-256, and installed/current tag when release metadata is available. Records are keyed as `<source>:<repo-or-url>`, such as `github:nektos/act`.
 
 Use `xget list TARGET` to list assets that can be installed for a target. Use `xget list --installed` to show all installed records, or `xget list TARGET --installed` to show one installed package.
 
