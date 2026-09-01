@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -225,4 +226,36 @@ func Load(explicitPath ...string) (*Config, error) {
 
 	_ = lastNotExist
 	return Default(), nil
+}
+
+// SubstituteTemplateVars replaces {{.OS}} and {{.Arch}} in a filter string
+// with the actual OS and architecture values based on the system parameter.
+func SubstituteTemplateVars(filter string, system string) string {
+	goos := runtime.GOOS
+	goarch := runtime.GOARCH
+
+	// If system is specified, parse it to extract OS and Arch
+	if system != "" && system != "all" {
+		parts := strings.Split(system, "/")
+		if len(parts) >= 2 {
+			goos = parts[0]
+			goarch = parts[1]
+		}
+	}
+
+	result := strings.ReplaceAll(filter, "{{.OS}}", goos)
+	result = strings.ReplaceAll(result, "{{.Arch}}", goarch)
+	return result
+}
+
+// SubstituteTemplateVarsSlice applies SubstituteTemplateVars to every entry in filters.
+func SubstituteTemplateVarsSlice(filters []string, system string) []string {
+	if len(filters) == 0 {
+		return filters
+	}
+	result := make([]string, len(filters))
+	for i, filter := range filters {
+		result[i] = SubstituteTemplateVars(filter, system)
+	}
+	return result
 }

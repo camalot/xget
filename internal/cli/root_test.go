@@ -71,3 +71,63 @@ func TestOptionsForTarget_UsesConfigIgnoreAndOverrides(t *testing.T) {
 		t.Fatalf("expected cli ignore override, got %#v", opts.Ignore)
 	}
 }
+
+func TestOptionsForTarget_SubstitutesTemplateVarsInConfigAssetAndIgnore(t *testing.T) {
+	cmd := newRootCommand()
+	flags := &rootFlags{}
+
+	cfg := &config.Config{
+		Global: config.Global{Ignore: []string{"{{.OS}}-global-ignore"}},
+		Repositories: map[string]config.Repository{
+			"owner/repo": {
+				System:       "linux/arm64",
+				AssetFilters: []string{"{{.OS}}_{{.Arch}}.tar.gz"},
+				Ignore:       []string{"{{.OS}}_{{.Arch}}.sbom.json"},
+			},
+		},
+	}
+
+	opts, err := optionsForTarget(cfg, cmd, flags, "owner/repo")
+	if err != nil {
+		t.Fatalf("optionsForTarget returned error: %v", err)
+	}
+	if !reflect.DeepEqual(opts.Asset, []string{"linux_arm64.tar.gz"}) {
+		t.Fatalf("expected substituted asset filters, got %#v", opts.Asset)
+	}
+	if !reflect.DeepEqual(opts.Ignore, []string{"linux_arm64.sbom.json"}) {
+		t.Fatalf("expected substituted ignore filters, got %#v", opts.Ignore)
+	}
+}
+
+func TestOptionsForTarget_DoesNotSubstituteCliAssetAndIgnore(t *testing.T) {
+	cmd := newRootCommand()
+	flags := &rootFlags{}
+
+	cfg := &config.Config{
+		Repositories: map[string]config.Repository{
+			"owner/repo": {
+				System: "linux/arm64",
+			},
+		},
+	}
+
+	flags.asset = []string{"{{.OS}}_{{.Arch}}.tar.gz"}
+	if err := cmd.Flags().Set("asset", "{{.OS}}_{{.Arch}}.tar.gz"); err != nil {
+		t.Fatalf("set flag: %v", err)
+	}
+	flags.ignore = []string{"{{.OS}}_{{.Arch}}.sbom.json"}
+	if err := cmd.Flags().Set("ignore", "{{.OS}}_{{.Arch}}.sbom.json"); err != nil {
+		t.Fatalf("set flag: %v", err)
+	}
+
+	opts, err := optionsForTarget(cfg, cmd, flags, "owner/repo")
+	if err != nil {
+		t.Fatalf("optionsForTarget returned error: %v", err)
+	}
+	if !reflect.DeepEqual(opts.Asset, []string{"{{.OS}}_{{.Arch}}.tar.gz"}) {
+		t.Fatalf("expected cli asset filters unsubstituted, got %#v", opts.Asset)
+	}
+	if !reflect.DeepEqual(opts.Ignore, []string{"{{.OS}}_{{.Arch}}.sbom.json"}) {
+		t.Fatalf("expected cli ignore filters unsubstituted, got %#v", opts.Ignore)
+	}
+}

@@ -128,3 +128,47 @@ asset_filters = [".zip"]
 		t.Fatalf("expected repo ignore to fall back to global, got %#v", repo.Ignore)
 	}
 }
+
+func TestSubstituteTemplateVarsUsesGivenSystem(t *testing.T) {
+	got := SubstituteTemplateVars("{{.OS}}_{{.Arch}}.tar.gz", "linux/arm64")
+	want := "linux_arm64.tar.gz"
+	if got != want {
+		t.Fatalf("SubstituteTemplateVars() = %q, want %q", got, want)
+	}
+}
+
+func TestSubstituteTemplateVarsFallsBackToRuntimeWhenSystemEmptyOrAll(t *testing.T) {
+	want := runtime.GOOS + "_" + runtime.GOARCH
+
+	if got := SubstituteTemplateVars("{{.OS}}_{{.Arch}}", ""); got != want {
+		t.Fatalf("SubstituteTemplateVars() with empty system = %q, want %q", got, want)
+	}
+	if got := SubstituteTemplateVars("{{.OS}}_{{.Arch}}", "all"); got != want {
+		t.Fatalf("SubstituteTemplateVars() with all system = %q, want %q", got, want)
+	}
+}
+
+func TestSubstituteTemplateVarsLeavesNonTemplateFiltersUnchanged(t *testing.T) {
+	got := SubstituteTemplateVars("~\\.sbom\\.json$", "linux/amd64")
+	want := "~\\.sbom\\.json$"
+	if got != want {
+		t.Fatalf("SubstituteTemplateVars() = %q, want %q", got, want)
+	}
+}
+
+func TestSubstituteTemplateVarsSliceAppliesToEveryEntry(t *testing.T) {
+	got := SubstituteTemplateVarsSlice([]string{"{{.OS}}_{{.Arch}}.zip", "not:debug"}, "windows/amd64")
+	want := []string{"windows_amd64.zip", "not:debug"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("SubstituteTemplateVarsSlice() = %#v, want %#v", got, want)
+	}
+}
+
+func TestSubstituteTemplateVarsSliceHandlesEmptyAndNil(t *testing.T) {
+	if got := SubstituteTemplateVarsSlice(nil, "linux/amd64"); got != nil {
+		t.Fatalf("expected nil for nil input, got %#v", got)
+	}
+	if got := SubstituteTemplateVarsSlice([]string{}, "linux/amd64"); len(got) != 0 {
+		t.Fatalf("expected empty slice for empty input, got %#v", got)
+	}
+}

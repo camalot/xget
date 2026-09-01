@@ -302,6 +302,37 @@ global:
   target: "~/.local/bin"
 ```
 
+## Template Variables in Asset Filters / Ignore Lists
+
+The `asset_filters` and `ignore` settings support template variables that are automatically replaced with the appropriate values based on your target system:
+
+- `{{.OS}}` - Replaced with the target operating system (e.g., `linux`, `darwin`, `windows`)
+- `{{.Arch}}` - Replaced with the target architecture (e.g., `amd64`, `arm64`, `386`)
+
+The values are determined by:
+
+1. The `--system` flag if provided (e.g., `--system linux/amd64`)
+2. The `system` setting in the repository configuration
+3. The runtime system (detected automatically from your current OS/architecture)
+
+Example:
+
+```toml
+["junegunn/fzf"]
+asset_filters = ["{{.OS}}_{{.Arch}}.tar.gz"]
+```
+
+``` yaml
+"junegunn/fzf":
+  asset_filters:
+    - "{{.OS}}_{{.Arch}}.tar.gz"
+```
+
+When running `xget junegunn/fzf` on a Linux AMD64 system, this will match assets containing `linux_amd64.tar.gz`.
+When running `xget junegunn/fzf --system darwin/arm64`, it will match assets containing `darwin_arm64.tar.gz`.
+
+> Template substitution only applies to `asset_filters`/`ignore` values read from the config file. Passing `--asset` or `--ignore` on the command line uses those values verbatim (no `{{.OS}}`/`{{.Arch}}` substitution).
+
 ## Available settings - global section
 
 > [!IMPORTANT]

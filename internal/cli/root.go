@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/engine"
@@ -224,6 +225,19 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 	}
 	if cmd.Flags().Changed("disable-ssl") {
 		opts.DisableSSL = f.disableSSL
+	}
+
+	// Template substitution only applies to asset/ignore matchers sourced from the
+	// config file; explicit --asset/--ignore flags are used verbatim.
+	systemForTemplate := opts.System
+	if systemForTemplate == "" {
+		systemForTemplate = fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	if !cmd.Flags().Changed("asset") {
+		opts.Asset = config.SubstituteTemplateVarsSlice(opts.Asset, systemForTemplate)
+	}
+	if !cmd.Flags().Changed("ignore") {
+		opts.Ignore = config.SubstituteTemplateVarsSlice(opts.Ignore, systemForTemplate)
 	}
 
 	return opts, nil
