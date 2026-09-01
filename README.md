@@ -5,7 +5,7 @@
 > The version of xget is starting at v2.0.0 to avoid confusion with the original project.
 
 [![Release](https://img.shields.io/github/release/camalot/xget.svg?label=Release)](https://github.com/camalot/xget/releases)
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/camalot/xget/blob/master/LICENSE)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/camalot/xget/blob/main/LICENSE)
 
 **xget** is the best way to easily get pre-built binaries for your favorite
 tools. It downloads and extracts pre-built binaries from releases on GitHub. To
@@ -17,8 +17,7 @@ simple, static prebuilt binaries, where the extracted binary is all that is
 needed for installation. For more complex installation, you may use the
 `--download-only` option, and perform extraction manually.
 
-<!-- TODO CREATE xget demo -->
-![xget Demo](https://github.com/zyedidia/blobs/blob/master/eget-demo.gif)
+![xget Demo](https://github.com/camalot/xget/raw/refs/heads/main/docs/assets/images/xget-demo.gif)
 
 For software maintainers, if you provide prebuilt binaries on GitHub, you can
 list `xget` as a one-line method for users to install your software.
