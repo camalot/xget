@@ -123,7 +123,7 @@ func newRootCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 
 	cmd.InitDefaultCompletionCmd("completion")
-	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(newVersionCommand(), newListCommand())
 
 	return cmd
 }
@@ -139,6 +139,7 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 		UpgradeOnly: cfg.Global.UpgradeOnly,
 		Hash:        cfg.Global.ShowHash,
 		DisableSSL:  cfg.Global.DisableSSL,
+		SourceType:  cfg.Global.SourceType,
 	}
 
 	if cfg.Global.File != "" {
@@ -166,6 +167,7 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 		opts.UpgradeOnly = repo.UpgradeOnly
 		opts.Verify = repo.Verify
 		opts.DisableSSL = repo.DisableSSL
+		opts.SourceType = repo.SourceType
 
 		expanded, err := home.Expand(repo.Target)
 		if err != nil {

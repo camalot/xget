@@ -29,6 +29,19 @@ func TestRootCommandIncludesConfigFlag(t *testing.T) {
 	}
 }
 
+func TestRootCommandIncludesListSubcommand(t *testing.T) {
+	cmd := newRootCommand()
+	for _, sub := range cmd.Commands() {
+		if sub.Name() == "list" {
+			if sub.Flags().Lookup("installed") == nil {
+				t.Fatal("expected list command to include an --installed flag")
+			}
+			return
+		}
+	}
+	t.Fatal("expected root command to include a list subcommand")
+}
+
 func TestOptionsForTarget_UsesConfigIgnoreAndOverrides(t *testing.T) {
 	cmd := newRootCommand()
 	flags := &rootFlags{}

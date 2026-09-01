@@ -17,4 +17,5 @@ type Flags struct {
 	Verify      string
 	Remove      bool
 	DisableSSL  bool
+	SourceType  string
 }

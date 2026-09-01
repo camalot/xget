@@ -60,6 +60,9 @@ xget -f xget.1 camalot/xget
 xget zachjs/sv2v
 xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
 xget --all --file '*' ActivityWatch/activitywatch
+xget list camalot/xget
+xget list --installed
+xget list camalot/xget --installed
 ```
 
 ## How to get xget
@@ -172,6 +175,16 @@ them will be extracted. For example:
 xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
 ```
 
+Successful installs are tracked in `~/.config/xget/.xget.installed.yml`. Each
+record includes the repo or URL, source type, install location, timestamps,
+selected asset, download URL, extracted files, effective install options,
+SHA-256, and installed/current tag or version when release metadata is
+available. Reinstalling a package refreshes the existing record.
+
+Use `xget list TARGET` to list installable release assets for a target. Use
+`xget list --installed` to show installed package metadata, or
+`xget list TARGET --installed` to show one installed package.
+
 GitHub limits API requests to 60 per hour for unauthenticated users. If you
 would like to perform more requests (up to 5,000 per hour), you can set up a
 personal access token and assign it to an environment variable named either
@@ -191,6 +204,7 @@ Usage:
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
+  list        List available or installed packages
   version     Print the xget version
 
 Flags:

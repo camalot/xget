@@ -129,6 +129,30 @@ asset_filters = [".zip"]
 	}
 }
 
+func TestLoadRepositorySourceTypeFallsBackToGlobal(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".xget.toml")
+	content := `[global]
+source = "GitHub"
+
+["owner/repo"]
+asset_filters = [".zip"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	repo := cfg.Repositories["owner/repo"]
+	if repo.SourceType != "GitHub" {
+		t.Fatalf("expected repo source to fall back to global, got %q", repo.SourceType)
+	}
+}
+
 func TestSubstituteTemplateVarsUsesGivenSystem(t *testing.T) {
 	got := SubstituteTemplateVars("{{.OS}}_{{.Arch}}.tar.gz", "linux/arm64")
 	want := "linux_arm64.tar.gz"

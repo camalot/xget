@@ -2,6 +2,8 @@ package engine
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +19,7 @@ import (
 	"time"
 
 	"github.com/camalot/xget/internal/config"
+	"github.com/camalot/xget/internal/installed"
 	"github.com/camalot/xget/internal/options"
 	pb "github.com/schollz/progressbar/v3"
 )
@@ -97,6 +100,13 @@ func checksumAsset(asset string, assets []string) string {
 func getFinder(project string, opts *options.Flags) (finder Finder, tool string, err error) {
 	if IsLocalFile(project) || (IsUrl(project) && !IsGithubUrl(project)) {
 		finder = &DirectAssetFinder{URL: project}
+		tool = filepath.Base(project)
+		if parsed, perr := url.Parse(project); perr == nil && parsed.Path != "" {
+			tool = path.Base(parsed.Path)
+		}
+		if opts.SourceType == "" {
+			opts.SourceType = "URL"
+		}
 		opts.System = "all"
 		return finder, tool, nil
 	}
@@ -112,6 +122,9 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 	repo := project
 	if strings.Count(repo, "/") != 1 {
 		return nil, "", fmt.Errorf("invalid argument (must be of the form user/repo)")
+	}
+	if opts.SourceType == "" {
+		opts.SourceType = "GitHub"
 	}
 	parts := strings.Split(repo, "/")
 	if parts[0] == "" || parts[1] == "" {
@@ -406,6 +419,64 @@ func DownloadConfigRepositories(cfg *config.Config) error {
 	return nil
 }
 
+func ListAvailable(target string, opts options.Flags) ([]string, error) {
+	SetDisableSSL(opts.DisableSSL)
+	finder, _, err := getFinder(target, &opts)
+	if err != nil {
+		return nil, err
+	}
+	return finder.Find()
+}
+
+func installedOptions(opts options.Flags) installed.Options {
+	return installed.Options{
+		Tag:            opts.Tag,
+		Prerelease:     opts.Prerelease,
+		DownloadSource: opts.Source,
+		Output:         opts.Output,
+		System:         opts.System,
+		ExtractFile:    opts.ExtractFile,
+		All:            opts.All,
+		DownloadOnly:   opts.DLOnly,
+		UpgradeOnly:    opts.UpgradeOnly,
+		Asset:          opts.Asset,
+		Ignore:         opts.Ignore,
+		Verify:         opts.Verify,
+	}
+}
+
+func finderVersion(finder Finder, opts options.Flags) string {
+	switch f := finder.(type) {
+	case *GithubAssetFinder:
+		return f.ReleaseTag
+	case *GithubSourceFinder:
+		return f.Tag
+	default:
+		return opts.Tag
+	}
+}
+
+func RefreshInstalledPackage(pkg installed.Package) (installed.Package, error) {
+	if !strings.EqualFold(pkg.Source, "GitHub") {
+		return pkg, nil
+	}
+	opts := options.Flags{SourceType: pkg.Source}
+	finder, _, err := getFinder(pkg.Repo, &opts)
+	if err != nil {
+		return pkg, err
+	}
+	if _, err := finder.Find(); err != nil {
+		return pkg, err
+	}
+	version := finderVersion(finder, opts)
+	if version != "" {
+		pkg.CurrentVersion = version
+		pkg.CurrentTag = version
+	}
+	pkg.RefreshedAt = time.Now().UTC()
+	return pkg, nil
+}
+
 func Run(target string, opts options.Flags) error {
 	SetDisableSSL(opts.DisableSSL)
 
@@ -515,6 +586,11 @@ func Run(target string, opts options.Flags) error {
 	if finder, ok := finder.(*GithubAssetFinder); ok {
 		githubDigest = finder.Digests[url]
 	}
+	assetSHA256 := githubDigest
+	if assetSHA256 == "" {
+		sum := sha256.Sum256(body)
+		assetSHA256 = hex.EncodeToString(sum[:])
+	}
 	verifier, err := getVerifier(sumAsset, githubDigest, &opts)
 	if err != nil {
 		return err
@@ -556,6 +632,7 @@ func Run(target string, opts options.Flags) error {
 	if len(bins) == 0 {
 		bins = []ExtractedFile{bin}
 	}
+	extractedFiles := []string{}
 
 	extract := func(bin ExtractedFile) error {
 		mode := bin.Mode()
@@ -585,8 +662,43 @@ func Run(target string, opts options.Flags) error {
 		if err := bin.Extract(out); err != nil {
 			return err
 		}
+		extractedFiles = append(extractedFiles, out)
 		_, err := fmt.Fprintf(output, "Extracted `%s` to `%s`\n", bin.ArchiveName, out)
 		return err
+	}
+
+	recordInstall := func() error {
+		if opts.Output == "-" {
+			return nil
+		}
+		storePath, err := installed.DefaultPath()
+		if err != nil {
+			return err
+		}
+		version := finderVersion(finder, opts)
+		now := time.Now().UTC()
+		installLocation := opts.Output
+		if installLocation == "" && len(extractedFiles) > 0 {
+			installLocation = filepath.Dir(extractedFiles[0])
+		}
+		pkg := installed.Package{
+			Name:             tool,
+			Repo:             target,
+			InstallLocation:  installLocation,
+			InstalledAt:      now,
+			DownloadURL:      url,
+			Asset:            path.Base(url),
+			ExtractedFiles:   extractedFiles,
+			Options:          installedOptions(opts),
+			RefreshedAt:      now,
+			CurrentVersion:   version,
+			CurrentTag:       version,
+			InstalledVersion: version,
+			InstalledTag:     version,
+			Source:           opts.SourceType,
+			SHA256:           assetSHA256,
+		}
+		return installed.Upsert(storePath, pkg)
 	}
 
 	if opts.All {
@@ -595,7 +707,10 @@ func Run(target string, opts options.Flags) error {
 				return err
 			}
 		}
-		return nil
+		return recordInstall()
 	}
-	return extract(bin)
+	if err := extract(bin); err != nil {
+		return err
+	}
+	return recordInstall()
 }

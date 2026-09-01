@@ -32,6 +32,9 @@ xget -f xget.1 camalot/xget
 xget zachjs/sv2v
 xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
 xget --all --file '*' ActivityWatch/activitywatch
+xget list camalot/xget
+xget list --installed
+xget list camalot/xget --installed
 ```
 
 ## Basic command syntax
@@ -46,6 +49,7 @@ Usage:
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
+  list        List available or installed packages
   version     Print the xget version
 
 Flags:
@@ -85,6 +89,12 @@ xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
 ```
 
 If xget downloads an asset called `xxx`, and there is also a matching checksum asset such as `xxx.sha256` or `xxx.sha256sum`, xget will automatically verify the hash before extracting it.
+
+## Installed package tracking
+
+Successful installs are recorded in `~/.config/xget/.xget.installed.yml`. Records include source type, repo or URL, install location, install and refresh timestamps, selected asset, download URL, extracted files, effective options, SHA-256, and installed/current tag or version when release metadata is available.
+
+Use `xget list TARGET` to list assets that can be installed for a target. Use `xget list --installed` to show all installed records, or `xget list TARGET --installed` to show one installed package.
 
 ## GitHub rate limits
 

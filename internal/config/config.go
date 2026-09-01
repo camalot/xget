@@ -24,6 +24,7 @@ type Global struct {
 	Target       string   `mapstructure:"target" toml:"target" yaml:"target"`
 	UpgradeOnly  bool     `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
 	DisableSSL   bool     `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
+	SourceType   string   `mapstructure:"source" toml:"source" yaml:"source"`
 }
 
 type Repository struct {
@@ -42,6 +43,7 @@ type Repository struct {
 	UpgradeOnly  bool     `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
 	Verify       string   `mapstructure:"verify_sha256" toml:"verify_sha256" yaml:"verify_sha256"`
 	DisableSSL   bool     `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
+	SourceType   string   `mapstructure:"source" toml:"source" yaml:"source"`
 }
 
 type Config struct {
@@ -181,6 +183,9 @@ func loadFromFile(path string) (*Config, error) {
 		}
 		if !section.IsSet("disable_ssl") {
 			repo.DisableSSL = cfg.Global.DisableSSL
+		}
+		if !section.IsSet("source") {
+			repo.SourceType = cfg.Global.SourceType
 		}
 		if !section.IsSet("target") {
 			repo.Target = cfg.Global.Target

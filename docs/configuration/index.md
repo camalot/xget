@@ -19,6 +19,7 @@ For information on where xget looks for configuration files, see the [Configurat
   quiet = false
   show_hash = false
   upgrade_only = true
+  source = "GitHub"
   ignore = ["~\\.sbom\\.json$"]
   target = "./test"
 
@@ -37,6 +38,7 @@ global:
   quiet: false
   show_hash: false
   upgrade_only: true
+  source: GitHub
   ignore:
     - "~\\.sbom\\.json$"
   target: "./test"
@@ -80,6 +82,7 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | `ignore` | `--ignore` | Asset matchers to exclude. | `[]` |
 | `quiet` | `--quiet` | Print only essential output. | `false` |
 | `show_hash` | `--sha256` | Show the SHA-256 hash of the downloaded asset. | `false` |
+| `source` | N/A | Source provider metadata to record for installs. Defaults to `GitHub` for GitHub targets and `URL` for direct URLs/local files. | `""` |
 | `system` | `--system` | Target system to download for. | `all` |
 | `target` | `--to` | Directory to move downloaded files to after extraction. | `.` |
 | `upgrade_only` | `--upgrade-only` | Only download if the release is newer than the current installed version. | `false` |
@@ -97,6 +100,7 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | `ignore` | `--ignore` | Array of asset matchers to exclude. | `[]` |
 | `quiet` | `--quiet` | Print only essential output. | `false` |
 | `show_hash` | `--sha256` | Show the SHA-256 hash of the downloaded asset. | `false` |
+| `source` | N/A | Source provider metadata to record for installs. Defaults to `GitHub` for GitHub targets and `URL` for direct URLs/local files. | global value |
 | `system` | `--system` | Target system to download for. | `all` |
 | `target` | `--to` | Directory to move downloaded files to after extraction. | `.` |
 | `upgrade_only` | `--upgrade-only` | Only download if the release is newer than the current installed version. | `false` |
