@@ -182,31 +182,60 @@ also possible to read the token from a file by using `@/path/to/file` as the
 token value.
 
 ``` text
-Usage:
-  xget [OPTIONS] TARGET
+Download pre-built binaries from GitHub releases
 
-Application Options:
-  -t, --tag=           tagged release to use instead of latest
-      --pre-release    include pre-releases when fetching the latest version
-      --source         download the source code for the target repo instead of a release
-      --to=            move to given location after extracting
-  -s, --system=        target system to download for (use "all" for all choices)
-  -f, --file=          glob to select files for extraction
-      --all            extract all candidate files
-  -q, --quiet          only print essential output
-  -d, --download-only  stop after downloading the asset (no extraction)
-      --upgrade-only   only download if release is more recent than current version
-    -a, --asset=         filter assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not:, escapes: ~~ and ^^, explicit literal: text:
-      --ignore=        exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times
-      --sha256         show the SHA-256 hash of the downloaded asset
-      --verify-sha256= verify the downloaded asset checksum against the one provided
-      --rate           show GitHub API rate limiting information
-  -r, --remove         remove the given file from $XGET_BIN or the current directory
-  -v, --version        show version information
-  -h, --help           show this help message
-  -D, --download-all   download all projects defined in the config file
-  -k, --disable-ssl    disable SSL verification for download
-  -c, --config=        path to config file (TOML or YAML)
+Usage:
+  xget [TARGET] [flags]
+  xget [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  version     Print the xget version
+
+Flags:
+      --all                      extract all candidate files
+  -a, --asset strings            filter assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not:, escapes: ~~ and ^^, explicit literal: text: (for example ^musl, not:~.*\.sbom\.json$, text:~literal)
+  -c, --config string            path to the config file to use
+  -k, --disable-ssl              disable SSL verification for download requests
+  -D, --download-all             download all projects defined in the config file
+  -d, --download-only            stop after downloading the asset (no extraction)
+  -f, --file string              glob to select files for extraction
+  -h, --help                     help for xget
+      --ignore strings           exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times
+      --pre-release              include pre-releases when fetching the latest version
+  -q, --quiet                    only print essential output
+      --rate                     show GitHub API rate limiting information
+  -r, --remove                   remove the given file from $XGET_BIN or the current directory
+      --sha256                   show the SHA-256 hash of the downloaded asset
+      --source                   download the source code for the target repo instead of a release
+  -s, --system string            target system to download for (use all for all choices)
+  -t, --tag string               tagged release to use instead of latest
+      --to string                move to given location after extracting
+      --upgrade-only             only download if release is more recent than current version
+      --verify string[="auto"]   verify the downloaded asset checksum; pass a hash or use --verify with no value to use GitHub's published SHA256 when available
+      --verify-sha256 string     verify the downloaded asset checksum against the one provided
+
+Use "xget [command] --help" for more information about a command.
+```
+
+```text
+Generate the autocompletion script for xget for the specified shell.
+See each sub-command's help for details on how to use the generated script.
+
+Usage:
+  xget completion [command]
+
+Available Commands:
+  bash        Generate the autocompletion script for bash
+  fish        Generate the autocompletion script for fish
+  powershell  Generate the autocompletion script for powershell
+  zsh         Generate the autocompletion script for zsh
+
+Flags:
+  -h, --help   help for completion
+
+Use "xget completion [command] --help" for more information about a command.
 ```
 
 ## Configuration

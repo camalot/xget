@@ -21,8 +21,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/camalot/xget/internal/version.Version={{.Version}}
-
+      - -X github.com/camalot/xget/internal/cli.version={{.Version}}
+      - -X github.com/camalot/xget/internal/cli.commit={{.ShortCommit}}
+      - -X github.com/camalot/xget/internal/cli.date={{.Date}}
 archives:
   - id: xget
     formats: [zip]
@@ -57,18 +58,6 @@ sboms:
 
 snapshot:
   version_template: "{{ .Tag }}-next"
-
-scoops:
-  - name: xget
-    repository:
-      owner: camalot
-      name: xget-scoop-bucket # The repo where you want the manifest pushed
-    commit_author:
-      name: CI Bot
-      email: bot@example.com
-    homepage: "https://github.com/camalot/xget"
-    description: "Easy pre-built binary installation for your favorite tools."
-    license: MIT
 
 changelog:
   sort: asc

@@ -8,7 +8,6 @@ import (
 	"github.com/camalot/xget/internal/engine"
 	"github.com/camalot/xget/internal/home"
 	"github.com/camalot/xget/internal/options"
-	"github.com/camalot/xget/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +30,6 @@ type rootFlags struct {
 	remove      bool
 	downloadAll bool
 	disableSSL  bool
-	showVersion bool
 	config      string
 }
 
@@ -57,11 +55,6 @@ func newRootCommand() *cobra.Command {
 		SilenceErrors: true,
 		Args:          cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if f.showVersion {
-				fmt.Println("xget version", version.Version)
-				return nil
-			}
-
 			cfg, err := config.Load(f.config)
 			if err != nil {
 				return err
@@ -124,12 +117,12 @@ func newRootCommand() *cobra.Command {
 	cmd.Flags().Lookup("verify").NoOptDefVal = "auto"
 	cmd.Flags().BoolVar(&f.rate, "rate", false, "show GitHub API rate limiting information")
 	cmd.Flags().BoolVarP(&f.remove, "remove", "r", false, "remove the given file from $XGET_BIN or the current directory")
-	cmd.Flags().BoolVarP(&f.showVersion, "version", "v", false, "show version information")
 	cmd.Flags().BoolVarP(&f.downloadAll, "download-all", "D", false, "download all projects defined in the config file")
 	cmd.Flags().BoolVarP(&f.disableSSL, "disable-ssl", "k", false, "disable SSL verification for download requests")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 
 	cmd.InitDefaultCompletionCmd("completion")
+	cmd.AddCommand(newVersionCommand())
 
 	return cmd
 }

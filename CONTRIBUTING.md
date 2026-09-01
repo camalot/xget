@@ -71,7 +71,7 @@ When reporting a bug, please include:
 
 **Required Information:**
 
-- **xget Version** - `xget --version`
+- **xget Version** - `xget version`
 - **Command Executed** - The exact command you ran, e.g., `xget zyedidia/micro --tag nightly`
 - **Operating System** - Windows, macOS, or Linux (including version)
 - **Reproducible Steps** - Clear numbered steps to reproduce the issue

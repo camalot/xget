@@ -47,7 +47,7 @@ choco install xget
 <!-- ### Scoop
 
 ``` shell
-scoop bucket add main
+scoop bucket add xget https://github.com/camalot/xget
 scoop install xget
 ``` -->
 

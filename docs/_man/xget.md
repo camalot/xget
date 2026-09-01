@@ -8,7 +8,7 @@ header: xget Manual
   xget - easily install prebuilt binaries from GitHub
 
 # SYNOPSIS
-  xget `[--version] [--help] [OPTIONS] TARGET`
+  xget `[version] [--help] [OPTIONS] TARGET`
 
 # DESCRIPTION
   xget is a tool for downloading and extracting prebuilt binaries from releases
@@ -111,7 +111,7 @@ header: xget Manual
 
 :    Show the SHA-256 hash of the downloaded asset. This can be used to verify that the asset is not corrupted.
 
-  `--verify-sha256=`
+  `--verify, --verify-sha256=`
 
 :    Verify the SHA-256 hash of the downloaded asset against the one provided as an argument. Similar to `--sha256`, but xget will do the verification for you.
 
@@ -126,10 +126,6 @@ header: xget Manual
   `-k, --disable-ssl`
 
 :    Disable SSL certificate verification for GET requests. Cannot be used in combination with a `GITHUB_TOKEN`.
-
-  `-v, --version`
-
-:    Show version information.
 
   `-h, --help`
 

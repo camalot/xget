@@ -13,34 +13,53 @@ has_children: false
 xget supports both TOML and YAML configuration formats while maintaining
 backward compatibility with original [zyedidia/eget](https://github.com/zyedidia/eget) TOML files.
 
-Supported config filenames:
+## Supported filenames
 
 - `.xget.toml`
-- `.xget.yaml` / `.xget.yml`
+- `.xget.yaml`
+- `.xget.yml`
 - `.eget.toml` (backward compatibility)
 - `.eget.yaml` / `.eget.yml` (accepted if present)
 
-Search order:
+## Search order
+
+The configuration loader checks the following locations in order:
 
 1. Path from `--config` if set.
 2. Path from `XGET_CONFIG` if set.
-    - Path from `EGET_CONFIG` if set (compatibility with original [eget](https://github.com/zyedidia/eget)).
+   - Path from `EGET_CONFIG` if set (compatibility with original [eget](https://github.com/zyedidia/eget)).
 3. Current directory: `./.xget.<ext>`.
-    - `.eget.<ext>` is also checked for backward compatibility.
+   - `.eget.<ext>` is also checked for backward compatibility.
 4. User home: `~/.xget.<ext>` (Windows: `%USERPROFILE%/.xget.<ext>`).
-    - `.eget.<ext>` is also checked for backward compatibility.
+   - `.eget.<ext>` is also checked for backward compatibility.
 5. OS config path: `$XDG_CONFIG_HOME/xget/.xget.<ext>` or `~/.config/xget/.xget.<ext>`.
-    - `.eget.<ext>` is also checked for backward compatibility.
+   - `.eget.<ext>` is also checked for backward compatibility.
 6. Windows: `%LOCALAPPDATA%/xget/.xget.<ext>`.
-    - `.eget.<ext>` is also checked for backward compatibility.
+   - `.eget.<ext>` is also checked for backward compatibility.
 
-Resolution precedence:
+## Resolution precedence
+
+When multiple values are available, xget resolves them in this order:
 
 1. CLI flags.
 2. Repository section values (`"owner/repo"`).
 3. Global section values (`global`).
 4. Built-in defaults.
 
-Config keys remain unchanged across TOML and YAML. For example, `target`,
-`asset_filters`, `download_only`, and `verify_sha256` map to the same flags as
-before.
+This means an explicit command-line flag always wins, followed by repo-specific settings, followed by global defaults.
+
+## Backward compatibility
+
+xget retains compatibility with earlier [zyedidia/eget](https://github.com/zyedidia/eget) behavior and filenames. In addition to `.eget.toml`, xget will also read `.eget.yml` and `.eget.yaml` if they are present. The keys remain the same across TOML and YAML; for example, `target`, `asset_filters`, `download_only`, and `verify_sha256` map to the same runtime flags.
+
+## Example
+
+```toml
+[global]
+target = "~/bin"
+
+["zyedidia/micro"]
+target = "~/.local/bin/micro"
+```
+
+This makes all repositories install to `~/bin` by default, while `zyedidia/micro` overrides the target to its own installation directory.
