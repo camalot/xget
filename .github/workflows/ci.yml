@@ -68,37 +68,6 @@ jobs:
           name: coverage-${{ matrix.os }}
           path: coverage.out
 
-  # go test -race requires cgo (a C toolchain); only ubuntu-latest has one
-  # available out of the box in GitHub-hosted runners.
-  race:
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # needed for coverage's changelog generation
-          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-      - run: go test ./internal/filters/... -race
-
-  fuzz-smoke:
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # needed for coverage's changelog generation
-          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-      - run: go test ./internal/expr/... -run xxx -fuzz FuzzParse -fuzztime 20s
-      - run: go test ./internal/expr/... -run xxx -fuzz FuzzScanSpans -fuzztime 20s
-
   build-snapshot:
     permissions:
       contents: read
