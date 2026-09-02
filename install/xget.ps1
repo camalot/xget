@@ -50,7 +50,7 @@ if ($Help) {
 function Test-ScriptChecksum {
 	$checksumUrl = "https://raw.githubusercontent.com/$Repo/main/install/xget.ps1.sha256"
 	try {
-		$expected = (Invoke-RestMethod -Uri $checksumUrl -Headers @{ "User-Agent" = "xget-install-script" }).Trim()
+		$expected = ((Invoke-RestMethod -Uri $checksumUrl -Headers @{ "User-Agent" = "xget-install-script" }).Trim() -split '\s+')[0].ToLowerInvariant()
 		$actual = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
 		if ($actual -ne $expected) {
 			Write-Host "error: script checksum mismatch (expected $expected, got $actual)" -ForegroundColor Red
