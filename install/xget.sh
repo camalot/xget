@@ -136,6 +136,8 @@ os_raw="$(uname -s)"
 case "$os_raw" in
 Linux) os="linux" ;;
 Darwin) os="darwin" ;;
+# when MINGW32_NT or MSYS_NT, treat as Windows
+MINGW* | MSYS*) os="windows" ;;
 *) os="" ;;
 esac
 
