@@ -118,6 +118,7 @@ script_checksum() {
 	checksum_url="https://raw.githubusercontent.com/${REPO}/main/install/xget.sh.sha256"
 	if curl -fsSL -o /tmp/xget.sh.sha256 "$checksum_url"; then
 		expected_checksum="$(awk '{print $1}' /tmp/xget.sh.sha256)"
+		rm -f /tmp/xget.sh.sha256
 		actual_checksum="$(get_script_checksum)"
 		if [ "$actual_checksum" != "$expected_checksum" ]; then
 			echo "error: script checksum mismatch (expected ${expected_checksum}, got ${actual_checksum})" >&2
