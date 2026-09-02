@@ -10,9 +10,12 @@ SKIP_CHECKSUM=0
 
 REPO="camalot/xget"
 BINARY="xget"
+MAN_PAGE="${BINARY}.1"
 DEFAULT_INSTALL_DIR="$HOME/.local/bin"
+DEFAULT_MAN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/man/man1"
 
 INSTALL_DIR="$DEFAULT_INSTALL_DIR"
+MAN_DIR="$DEFAULT_MAN_DIR"
 VERSION=""
 
 usage() {
@@ -25,6 +28,7 @@ for this machine's OS/architecture from GitHub Releases
 
 Options:
   -d, --dir <path>       Install directory (default: ${DEFAULT_INSTALL_DIR})
+  -m, --man-dir <path>   Man page install directory (default: ${DEFAULT_MAN_DIR})
   -v, --version <tag>    Install a specific release tag, e.g. v0.1.0 (default: latest)
 	-x, --no-checksum      Skip script checksum verification (not recommended)
   -h, --help             Show this help message
@@ -35,6 +39,10 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 	-d | --dir)
 		INSTALL_DIR="$2"
+		shift 2
+		;;
+	-m | --man-dir)
+		MAN_DIR="$2"
 		shift 2
 		;;
 	-v | --version)
@@ -161,12 +169,13 @@ check_script_checksum() {
 }
 
 os_extension="tar.gz"
+BINARY_FILE="$BINARY"
 os_raw="$(uname -s)"
 case "$os_raw" in
 Linux) os="linux" ;;
 Darwin) os="darwin" ;;
 # when MINGW32_NT or MSYS_NT, treat as Windows
-MINGW* | MSYS*) os="windows"; os_extension="zip" ;;
+MINGW* | MSYS* | CYGWIN*) os="windows"; os_extension="zip"; BINARY_FILE="${BINARY}.exe" ;;
 *) os="" ;;
 esac
 
@@ -229,19 +238,31 @@ fi
 
 echo "Extracting..."
 if [ "$os_extension" = "tar.gz" ]; then
-	tar -xzf "$tmpdir/$ASSET" -C "$tmpdir" "$BINARY"
+	tar -xzf "$tmpdir/$ASSET" -C "$tmpdir" "$BINARY_FILE"
+	# older releases may not bundle a man page
+	tar -xzf "$tmpdir/$ASSET" -C "$tmpdir" "$MAN_PAGE" 2>/dev/null || true
 elif [ "$os_extension" = "zip" ]; then
-	unzip -q "$tmpdir/$ASSET" -d "$tmpdir" "$BINARY"
+	unzip -q "$tmpdir/$ASSET" "$BINARY_FILE" -d "$tmpdir"
+	unzip -q "$tmpdir/$ASSET" "$MAN_PAGE" -d "$tmpdir" 2>/dev/null || true
 else
 	echo "error: unsupported archive format: $os_extension" >&2
 	exit 1
 fi
 
 mkdir -p "$INSTALL_DIR"
-cp "$tmpdir/$BINARY" "$INSTALL_DIR/$BINARY"
-chmod +x "$INSTALL_DIR/$BINARY"
+cp "$tmpdir/$BINARY_FILE" "$INSTALL_DIR/$BINARY_FILE"
+chmod +x "$INSTALL_DIR/$BINARY_FILE"
 
-echo "Installed ${BINARY} ${TAG} to ${INSTALL_DIR}/${BINARY}"
+echo "Installed ${BINARY} ${TAG} to ${INSTALL_DIR}/${BINARY_FILE}"
+
+if [ -f "$tmpdir/$MAN_PAGE" ]; then
+	if mkdir -p "$MAN_DIR" 2>/dev/null && cp "$tmpdir/$MAN_PAGE" "$MAN_DIR/$MAN_PAGE" 2>/dev/null; then
+		chmod 644 "$MAN_DIR/$MAN_PAGE"
+		echo "Installed man page to ${MAN_DIR}/${MAN_PAGE}"
+	else
+		echo "warning: could not install man page to ${MAN_DIR}" >&2
+	fi
+fi
 case ":$PATH:" in
 *":${INSTALL_DIR}:"*) ;;
 *)
