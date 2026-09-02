@@ -45,6 +45,7 @@ function Show-Help {
 }
 
 function Test-ScriptChecksum {
+	Write-Host "Verifying script checksum..."
 	if (-not $script:RunningFromFile) {
 		Write-Warning "script was not run from a file (e.g. piped to iex); skipping script checksum verification"
 		return
@@ -59,8 +60,10 @@ function Test-ScriptChecksum {
 
 	$actual = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
 	if ($actual -ne $expected) {
-		throw "script checksum mismatch (expected $expected, got $actual)"
+		throw "script checksum mismatch`n`n❌ expected $expected`n❌ actual   $actual"
 	}
+
+	Write-Host "✅ Script checksum verified..."
 }
 
 $arch = Get-DetectedArch

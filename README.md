@@ -74,27 +74,41 @@ Before you can get anything, you have to get xget. If you already have xget and 
 ### Bash
 
 ``` shell
-curl -o xget.sh https://github.com/camalot/xget/raw/refs/heads/main/install/xget.sh
+curl -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh
 shasum -a 256 xget.sh # verify with hash below
-curl -o xget.sh.sha256 https://github.com/camalot/xget/raw/refs/heads/main/install/xget.sh.sha256
+curl -o xget.sh.sha256 https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh.sha256
 shasum -a 256 --check xget.sh.sha256
 bash xget.sh
 ```
 
 ``` shell
-curl https://github.com/camalot/xget/raw/refs/heads/main/install/xget.sh | bash
+curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
 ```
 
 The default install location is `$HOME/.local/bin`. You can change the install location with the `-d` or `--dir` option:
 
 ``` shell
-curl -o xget.sh https://github.com/camalot/xget/raw/refs/heads/main/install/xget.sh | bash -s -- -d /usr/local/bin
+curl -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash -s -- -d /usr/local/bin
 ```
 
 ### PowerShell
 
+The script to install will automatically download the sha256 checksum and verify the script before executing it. If you want to manually verify the checksum, you can download the script and the checksum file separately and run the following command:
+
+```powershell
+iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 -OutFile xget.ps1
+iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1.sha256 -OutFile xget.ps1.sha256
+$FileHash = Get-FileHash xget.ps1 -Algorithm SHA256
+$ExpectedHash = Get-Content xget.ps1.sha256 | ForEach-Object { $_.Split(' ')[0] }
+if ($FileHash.Hash -ne $ExpectedHash) {
+    Write-Error "Checksum verification failed. Expected: $ExpectedHash, Actual: $($FileHash.Hash)"
+} else {
+  Write-Output "Checksum verification passed."
+}
+```
+
 ``` powershell
-iwr https://github.com/camalot/xget/raw/refs/heads/main/install/xget.ps1 | iex
+iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
 ```
 
 <!-- ### Homebrew
