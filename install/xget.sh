@@ -65,6 +65,9 @@ need_cmd() {
 }
 need_cmd curl
 need_cmd tar
+need_cmd uname
+need_cmd unzip
+need_cmd mktemp
 
 TAG=""
 ASSET=""
@@ -82,6 +85,9 @@ issue_block() {
 - uname -m: ${arch_raw}
 - Detected OS: ${os:-<unrecognized>}
 - Detected Arch: ${arch:-<unrecognized>}
+- Install Path: ${INSTALL_DIR}
+- Expected Script Checksum: $(get_expected_script_checksum || echo "<unknown>")
+- Actual Script Checksum: $(get_script_checksum || echo "<unknown>")
 - Resolved tag: ${TAG:-<none>}
 - Attempted asset: ${ASSET:-<none>}
 EOF
@@ -110,34 +116,57 @@ get_script_checksum() {
 	fi
 }
 
-script_checksum() {
+# Cached result of the remote checksum lookup so it is fetched at most once per run.
+EXPECTED_SCRIPT_CHECKSUM=""
+EXPECTED_SCRIPT_CHECKSUM_STATE=""
+
+get_expected_script_checksum() {
+	if [ -n "$EXPECTED_SCRIPT_CHECKSUM_STATE" ]; then
+		[ "$EXPECTED_SCRIPT_CHECKSUM_STATE" = "ok" ] || return 1
+		echo "$EXPECTED_SCRIPT_CHECKSUM"
+		return 0
+	fi
+
+	checksum_url="https://raw.githubusercontent.com/${REPO}/main/install/xget.sh.sha256"
+	checksum_file="$(mktemp)"
+	if curl -fsSL -o "$checksum_file" "$checksum_url"; then
+		EXPECTED_SCRIPT_CHECKSUM="$(awk '{print $1}' "$checksum_file")"
+		EXPECTED_SCRIPT_CHECKSUM_STATE="ok"
+		rm -f "$checksum_file"
+		echo "$EXPECTED_SCRIPT_CHECKSUM"
+	else
+		EXPECTED_SCRIPT_CHECKSUM_STATE="failed"
+		rm -f "$checksum_file"
+		echo "warning: could not download script checksum from ${checksum_url}" >&2
+		return 1
+	fi
+}
+
+check_script_checksum() {
 	[ "$SKIP_CHECKSUM" -eq 1 ] && return 0
 
 	# download the script checksum from GitHub and compare it to the local checksum
 	# (this is a basic integrity check to ensure the script hasn't been tampered with)
-	checksum_url="https://raw.githubusercontent.com/${REPO}/main/install/xget.sh.sha256"
-	if curl -fsSL -o /tmp/xget.sh.sha256 "$checksum_url"; then
-		expected_checksum="$(awk '{print $1}' /tmp/xget.sh.sha256)"
-		rm -f /tmp/xget.sh.sha256
-		actual_checksum="$(get_script_checksum)"
-		if [ "$actual_checksum" != "$expected_checksum" ]; then
-			echo "error: script checksum mismatch (expected ${expected_checksum}, got ${actual_checksum})" >&2
-			exit 1
-		fi
-	else
-		echo "warning: could not download script checksum from ${checksum_url}; use --no-checksum to skip this check" >&2
-		exit 1
+	expected_checksum="$(get_expected_script_checksum)"
+	if [ -z "$expected_checksum" ]; then
+		echo "warning: could not determine expected script checksum; use --no-checksum to skip this check" >&2
+		return 1
+	fi
+	
+	actual_checksum="$(get_script_checksum)"
+	if [ "$actual_checksum" != "$expected_checksum" ]; then
+		echo "error: script checksum mismatch (expected ${expected_checksum}, got ${actual_checksum})" >&2
+		return 1
 	fi
 }
 
-script_checksum
-
+os_extension="tar.gz"
 os_raw="$(uname -s)"
 case "$os_raw" in
 Linux) os="linux" ;;
 Darwin) os="darwin" ;;
 # when MINGW32_NT or MSYS_NT, treat as Windows
-MINGW* | MSYS*) os="windows" ;;
+MINGW* | MSYS*) os="windows"; os_extension="zip" ;;
 *) os="" ;;
 esac
 
@@ -163,8 +192,10 @@ if [ -z "$TAG" ]; then
 	fail_unsupported "could not determine the latest release tag from the GitHub API"
 fi
 
+check_script_checksum || fail_unsupported "script integrity check failed; use --no-checksum to skip this check"
+
 VERSION_NUM="${TAG#v}"
-ASSET="${BINARY}_${VERSION_NUM}_${os}_${arch}.tar.gz"
+ASSET="${BINARY}_${VERSION_NUM}_${os}_${arch}.${os_extension}"
 URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET}"
 CHECKSUMS_URL="https://github.com/${REPO}/releases/download/${TAG}/checksums.txt"
 
@@ -197,7 +228,14 @@ else
 fi
 
 echo "Extracting..."
-tar -xzf "$tmpdir/$ASSET" -C "$tmpdir" "$BINARY"
+if [ "$os_extension" = "tar.gz" ]; then
+	tar -xzf "$tmpdir/$ASSET" -C "$tmpdir" "$BINARY"
+elif [ "$os_extension" = "zip" ]; then
+	unzip -q "$tmpdir/$ASSET" -d "$tmpdir" "$BINARY"
+else
+	echo "error: unsupported archive format: $os_extension" >&2
+	exit 1
+fi
 
 mkdir -p "$INSTALL_DIR"
 cp "$tmpdir/$BINARY" "$INSTALL_DIR/$BINARY"
