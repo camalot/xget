@@ -99,24 +99,26 @@ fail_unsupported() {
 	exit 1
 }
 
-script_checksum() {
-	[ "$SKIP_CHECKSUM" -eq 1 ] && return 0
-	# Compute the SHA256 checksum of this script
+get_script_checksum() {
 	if command -v sha256sum >/dev/null 2>&1; then
 		sha256sum "$0" | awk '{print $1}'
 	elif command -v shasum >/dev/null 2>&1; then
 		shasum -a 256 "$0" | awk '{print $1}'
 	else
 		echo "warning: no sha256sum/shasum found; cannot compute script checksum" >&2
-		echo ""
+		return 1
 	fi
+}
+
+script_checksum() {
+	[ "$SKIP_CHECKSUM" -eq 1 ] && return 0
 
 	# download the script checksum from GitHub and compare it to the local checksum
 	# (this is a basic integrity check to ensure the script hasn't been tampered with)
 	checksum_url="https://raw.githubusercontent.com/${REPO}/main/install/xget.sh.sha256"
 	if curl -fsSL -o /tmp/xget.sh.sha256 "$checksum_url"; then
-		expected_checksum="$(cat /tmp/xget.sh.sha256)"
-		actual_checksum="$(script_checksum)"
+		expected_checksum="$(awk '{print $1}' /tmp/xget.sh.sha256)"
+		actual_checksum="$(get_script_checksum)"
 		if [ "$actual_checksum" != "$expected_checksum" ]; then
 			echo "error: script checksum mismatch (expected ${expected_checksum}, got ${actual_checksum})" >&2
 			exit 1
