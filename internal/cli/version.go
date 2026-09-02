@@ -18,7 +18,7 @@ func newVersionCommand() *cobra.Command {
 		Use:   "version",
 		Short: "Print the xget version",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cmd.Println(fmt.Sprintf("xget %s (commit %s, built %s)", version, commit, date))
+			cmd.Println(fmt.Sprintf("xget %s (commit %s, built %s) - https://github.com/camalot/xget", version, commit, date))
 			return nil
 		},
 	}

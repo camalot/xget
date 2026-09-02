@@ -10,8 +10,14 @@
 #>
 [CmdletBinding()]
 param(
+	[Parameter(Mandatory=$false, ParameterSetName="Install")]
 	[string]$InstallDir = (Join-Path $HOME ".local\bin"),
-	[string]$Version = ""
+	[Parameter(Mandatory=$false, ParameterSetName="Install")]
+	[string]$Version = "",
+	[Parameter(Mandatory=$false, ParameterSetName="Install")]
+	[switch]$NoChecksum,
+	[Parameter(Mandatory=$false, ParameterSetName="Help")]
+	[switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,6 +30,41 @@ function Get-DetectedArch {
 		"Arm64" { return "arm64" }
 		default { return "" }
 	}
+}
+
+function Show-Help {
+	Write-Host "Usage: install.ps1 [-InstallDir <path>] [-Version <tag>] [-NoChecksum] [-Help]"
+	Write-Host ""
+	Write-Host "Options:"
+	Write-Host "  -InstallDir <path>   Install directory (default: $HOME\.local\bin)"
+	Write-Host "  -Version <tag>       Install a specific release tag, e.g. v0.1.0 (default: latest)"
+	Write-Host "  -NoChecksum          Skip script checksum verification (not recommended)"
+	Write-Host "  -Help                Show this help message"
+	exit 0
+}
+
+if ($Help) {
+	Show-Help
+}
+
+function Test-ScriptChecksum {
+	$checksumUrl = "https://raw.githubusercontent.com/$Repo/main/install/xget.ps1.sha256"
+	try {
+		$expected = (Invoke-RestMethod -Uri $checksumUrl -Headers @{ "User-Agent" = "xget-install-script" }).Trim()
+		$actual = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+		if ($actual -ne $expected) {
+			Write-Host "error: script checksum mismatch (expected $expected, got $actual)" -ForegroundColor Red
+			exit 1
+		}
+	} catch {
+		Write-Warning $_.Exception.Message
+		Write-Warning "could not download script checksum from $checksumUrl; use -NoChecksum to skip this check"
+		exit 1
+	}
+}
+
+if (-not $NoChecksum) {
+	Test-ScriptChecksum
 }
 
 $arch = Get-DetectedArch
@@ -48,7 +89,7 @@ function Write-IssueBlock {
 "@
 }
 
-function Fail-Unsupported {
+function Exit-Unsupported {
 	param([string]$Message)
 	$plat = "windows/$(if ($arch) { $arch } else { [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture })"
 	$issueTitle = [System.Uri]::EscapeDataString("Unsupported platform: $plat")
@@ -63,7 +104,7 @@ function Fail-Unsupported {
 }
 
 if (-not $arch) {
-	Fail-Unsupported "unsupported architecture: $([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)"
+	Exit-Unsupported "unsupported architecture: $([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)"
 }
 
 if ($Version) {
@@ -74,12 +115,12 @@ if ($Version) {
 		$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ "User-Agent" = "xget-install-script" }
 		$script:tag = $release.tag_name
 	} catch {
-		Fail-Unsupported "could not determine the latest release tag from the GitHub API ($($_.Exception.Message))"
+		Exit-Unsupported "could not determine the latest release tag from the GitHub API ($($_.Exception.Message))"
 	}
 }
 
 if (-not $script:tag) {
-	Fail-Unsupported "could not determine the latest release tag from the GitHub API"
+	Exit-Unsupported "could not determine the latest release tag from the GitHub API"
 }
 
 $versionNum = $script:tag.TrimStart("v")
@@ -95,7 +136,7 @@ try {
 	try {
 		Invoke-WebRequest -Uri $url -OutFile $assetPath -UseBasicParsing
 	} catch {
-		Fail-Unsupported "no release asset found at $url"
+		Exit-Unsupported "no release asset found at $url"
 	}
 
 	$checksumsPath = Join-Path $tmpDir "checksums.txt"

@@ -6,6 +6,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/camalot/xget/develop/install/xget.sh | bash
 #   ./xget.sh [-d|--dir <path>] [-v|--version <tag>] [-h|--help]
 set -euo pipefail
+SKIP_CHECKSUM=0
 
 REPO="camalot/xget"
 BINARY="xget"
@@ -25,6 +26,7 @@ for this machine's OS/architecture from GitHub Releases
 Options:
   -d, --dir <path>       Install directory (default: ${DEFAULT_INSTALL_DIR})
   -v, --version <tag>    Install a specific release tag, e.g. v0.1.0 (default: latest)
+	-x, --no-checksum      Skip script checksum verification (not recommended)
   -h, --help             Show this help message
 EOF
 }
@@ -38,6 +40,10 @@ while [ $# -gt 0 ]; do
 	-v | --version)
 		VERSION="$2"
 		shift 2
+		;;
+	-x | --no-checksum)
+		SKIP_CHECKSUM=1
+		shift
 		;;
 	-h | --help)
 		usage
@@ -92,6 +98,36 @@ fail_unsupported() {
 	issue_block >&2
 	exit 1
 }
+
+script_checksum() {
+	[ "$SKIP_CHECKSUM" -eq 1 ] && return 0
+	# Compute the SHA256 checksum of this script
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$0" | awk '{print $1}'
+	elif command -v shasum >/dev/null 2>&1; then
+		shasum -a 256 "$0" | awk '{print $1}'
+	else
+		echo "warning: no sha256sum/shasum found; cannot compute script checksum" >&2
+		echo ""
+	fi
+
+	# download the script checksum from GitHub and compare it to the local checksum
+	# (this is a basic integrity check to ensure the script hasn't been tampered with)
+	checksum_url="https://raw.githubusercontent.com/${REPO}/main/install/xget.sh.sha256"
+	if curl -fsSL -o /tmp/xget.sh.sha256 "$checksum_url"; then
+		expected_checksum="$(cat /tmp/xget.sh.sha256)"
+		actual_checksum="$(script_checksum)"
+		if [ "$actual_checksum" != "$expected_checksum" ]; then
+			echo "error: script checksum mismatch (expected ${expected_checksum}, got ${actual_checksum})" >&2
+			exit 1
+		fi
+	else
+		echo "warning: could not download script checksum from ${checksum_url}; use --no-checksum to skip this check" >&2
+		exit 1
+	fi
+}
+
+script_checksum
 
 os_raw="$(uname -s)"
 case "$os_raw" in
