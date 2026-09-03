@@ -134,7 +134,6 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 		System:      cfg.Global.System,
 		All:         cfg.Global.All,
 		Ignore:      cfg.Global.Ignore,
-		Prerelease:  cfg.Global.Prerelease,
 		Quiet:       cfg.Global.Quiet,
 		DLOnly:      cfg.Global.DownloadOnly,
 		UpgradeOnly: cfg.Global.UpgradeOnly,
