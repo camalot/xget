@@ -165,6 +165,21 @@ pandoc docs/_man/xget.md -s -t man -o xget.1
 
 You can also use `xget` to download the man page: `xget -f xget.1 camalot/xget`.
 
+### GitHub Action
+
+For GitHub Actions workflows, use [xget-action](https://github.com/camalot/xget-action)
+to install `xget` (with binary caching) and run it in a single step:
+
+``` yaml
+- name: Install a tool with xget
+  uses: camalot/xget-action@v1
+  with:
+    package: junegunn/fzf
+```
+
+See the [xget-action README](https://github.com/camalot/xget-action#readme)
+for the full list of inputs/outputs and more examples.
+
 ## Usage
 
 The `TARGET` argument passed to xget should either be a GitHub repository,
