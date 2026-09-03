@@ -165,7 +165,9 @@ func getVerifier(sumAsset, githubDigest string, opts *options.Flags) (verifier V
 	if opts.Verify != "" {
 		if opts.Verify == "auto" {
 			if githubDigest == "" {
-				return nil, fmt.Errorf("no SHA256 digest available for this asset")
+				// return nil, fmt.Errorf("no SHA256 digest available for this asset")
+				// skip verification if no SHA256 digest is available
+				return &NoVerifier{}, nil
 			}
 			verifier, err = NewSha256Verifier(githubDigest)
 		} else {
