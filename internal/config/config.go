@@ -17,6 +17,7 @@ type Global struct {
 	DownloadOnly bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
 	File         string   `mapstructure:"file" toml:"file" yaml:"file"`
 	GithubToken  string   `mapstructure:"github_token" toml:"github_token" yaml:"github_token"`
+	Prerelease   bool     `mapstructure:"pre_release" toml:"pre_release" yaml:"pre_release"`
 	Quiet        bool     `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
 	ShowHash     bool     `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
 	Source       bool     `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
@@ -34,6 +35,7 @@ type Repository struct {
 	DownloadOnly bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
 	File         string   `mapstructure:"file" toml:"file" yaml:"file"`
 	Name         string   `mapstructure:"name" toml:"name" yaml:"name"`
+	Prerelease   bool     `mapstructure:"pre_release" toml:"pre_release" yaml:"pre_release"`
 	Quiet        bool     `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
 	ShowHash     bool     `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
 	Source       bool     `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
@@ -59,6 +61,7 @@ func Default() *Config {
 			Ignore:       []string{},
 			DownloadOnly: false,
 			GithubToken:  "",
+			Prerelease:   false,
 			Quiet:        false,
 			ShowHash:     false,
 			Source:       false,
@@ -168,6 +171,9 @@ func loadFromFile(path string) (*Config, error) {
 		}
 		if !section.IsSet("download_only") {
 			repo.DownloadOnly = cfg.Global.DownloadOnly
+		}
+		if !section.IsSet("pre_release") {
+			repo.Prerelease = cfg.Global.Prerelease
 		}
 		if !section.IsSet("quiet") {
 			repo.Quiet = cfg.Global.Quiet

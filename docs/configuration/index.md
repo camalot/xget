@@ -80,6 +80,7 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | `download_source` | `--source` | Download the source code for the repo instead of a release. | `false` |
 | `file` | `--file` | Glob to select files for extraction. | `*` |
 | `ignore` | `--ignore` | Asset matchers to exclude. | `[]` |
+| `pre_release` | `--pre-release` | Include pre-releases when fetching the latest version. | `false` |
 | `quiet` | `--quiet` | Print only essential output. | `false` |
 | `show_hash` | `--sha256` | Show the SHA-256 hash of the downloaded asset. | `false` |
 | `source` | N/A | Source provider metadata to record for installs. Defaults to `GitHub` for GitHub targets and `URL` for direct URLs/local files. | `""` |
@@ -98,6 +99,7 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | `download_source` | `--source` | Download the source code for the repo instead of a release. | `false` |
 | `file` | `--file` | Glob to select files for extraction. | `*` |
 | `ignore` | `--ignore` | Array of asset matchers to exclude. | `[]` |
+| `pre_release` | `--pre-release` | Include pre-releases when fetching the latest version. | global value |
 | `quiet` | `--quiet` | Print only essential output. | `false` |
 | `show_hash` | `--sha256` | Show the SHA-256 hash of the downloaded asset. | `false` |
 | `source` | N/A | Source provider metadata to record for installs. Defaults to `GitHub` for GitHub targets and `URL` for direct URLs/local files. | global value |

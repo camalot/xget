@@ -1,0 +1,30 @@
+---
+name: Verify Checksums
+description: Verifies the checksums of the install scripts to ensure integrity.
+runs:
+  using: composite
+  steps:
+    - name: Verify Checksums
+      shell: bash
+      run: |
+        set -euo pipefail
+        declare -A files=(
+          ["install/xget.sh"]="$(cat install/xget.sh.sha256 | awk '{print $1}')"
+          ["install/xget.ps1"]="$(cat install/xget.ps1.sha256 | awk '{print $1}')"
+        )
+        failed=0
+        for file in "${!files[@]}"; do
+          expected="${files[$file]}"
+          actual="$(sha256sum "$file" | awk '{print $1}')"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "❌ Checksum mismatch for $file"
+            echo "   expected: $expected"
+            echo "   actual  : $actual"
+            failed=1
+          else
+            echo "✅ Checksum verified for $file"
+          fi
+        done
+        if [[ $failed -eq 1 ]]; then
+          exit 1
+        fi

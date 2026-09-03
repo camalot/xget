@@ -2,18 +2,30 @@ name: ci
 
 on:
   push:
-    branches:
-      - main
   pull_request:
 
 permissions: {}
 
 jobs:
+  verify:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needed for goreleaser's changelog generation
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - uses: ./.github/actions/verify-sha256
+
   lint:
     permissions:
       contents: read
     # runs-on: windows-latest
     runs-on: ubuntu-latest
+    needs:
+      - verify
     steps:
       - uses: actions/checkout@v7
         with:
@@ -30,6 +42,8 @@ jobs:
     permissions:
       contents: read
     runs-on: windows-latest
+    needs:
+      - verify
     steps:
       - uses: actions/checkout@v7
         with:
@@ -53,11 +67,14 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    needs:
+      - verify
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # needed for coverage's changelog generation
           persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -72,6 +89,10 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    needs:
+      - test
+      - vet-and-vuln
+      - lint
     steps:
       - uses: actions/checkout@v7
         with:
