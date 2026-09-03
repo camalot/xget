@@ -4,16 +4,31 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions: {}
 
 jobs:
+  verify:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needed for goreleaser's changelog generation
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - uses: ./.github/actions/verify-sha256
+
   release:
     permissions:
       contents: write
       id-token: write
       attestations: write
     runs-on: ubuntu-latest
+    needs:
+      - verify
     steps:
       - uses: actions/checkout@v7
         with:
