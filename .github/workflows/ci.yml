@@ -2,13 +2,43 @@ name: ci
 
 on:
   push:
-    branches:
-      - main
   pull_request:
 
 permissions: {}
 
 jobs:
+  verify:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needed for goreleaser's changelog generation
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - shell: bash
+        run: |
+          # verify the install script checksums were updated when being modified
+          # get the expected checksum from install/xget.sh.sha256 and install/xget.ps1.sha256
+          declare -A files=(
+            ["install/xget.sh"]="$(cat install/xget.sh.sha256)"
+            ["install/xget.ps1"]="$(cat install/xget.ps1.sha256)"
+          )
+          for file in "${!files[@]}"; do
+            expected="${files[$file]}"
+            actual="$(sha256sum "$file" | awk '{print $1}')"
+            if [[ "$actual" != "$expected" ]]; then
+              echo "❌ Checksum mismatch for $file"
+              echo "   expected: $expected"
+              echo "   actual  : $actual"
+              exit 1
+            else
+              echo "✅ Checksum verified for $file"
+            fi
+          done
+
+
   lint:
     permissions:
       contents: read
@@ -58,6 +88,7 @@ jobs:
         with:
           fetch-depth: 0 # needed for coverage's changelog generation
           persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
