@@ -7,14 +7,19 @@ tasks:
   build:
     desc: Build the project
     cmds:
+      - chmod +x ./scripts/generate-install-sha256.sh
+      - chmod +x ./install/xget.sh
+      - chmod +x ./install/xget.ps1
+      - bash ./scripts/generate-install-sha256.sh
       - echo "Building the project..."
       - mkdir -p bin
       - go mod tidy
       - golangci-lint run ./...
-      - goreleaser build --snapshot --clean
+      - goreleaser build --snapshot --clean --id xget
       - go vet ./...
       - gofmt -l .
       - go test ./...
+
 
 
   ironstate:

@@ -375,6 +375,7 @@ When running `xget junegunn/fzf --system darwin/arm64`, it will match assets con
 | `download_source` | `--source` | Whether to download the source code for the target repo instead of a release. | `false` |
 | `file` | `--file` | The glob to select files for extraction. | `*` |
 | `ignore` | `--ignore` | An array of asset matchers to exclude. Supports the same matcher syntax as `asset_filters` (`~`, `=~`, `re:`, `^`, `not:`, `~~`, `^^`, `text:`). Negative forms (`^`/`not:`) invert the ignore behavior. | `[]` |
+| `pre_release` | `--pre-release` | Whether to include pre-releases when fetching the latest version. | `false` |
 | `quiet` | `--quiet` | Whether to only print essential output. | `false` |
 | `show_hash` | `--sha256` | Whether to show the SHA-256 hash of the downloaded asset. | `false` |
 | `system` | `--system` | The target system to download for. | `all` |
@@ -392,6 +393,7 @@ When running `xget junegunn/fzf --system darwin/arm64`, it will match assets con
 | `download_source` | `--source` | Whether to download the source code for the target repo instead of a release. | `false` |
 | `file` | `--file` | The glob to select files for extraction. | `*` |
 | `ignore` | `--ignore` | An array of asset matchers to exclude. Supports the same matcher syntax as `asset_filters`. Negative forms (`^`/`not:`) invert the ignore behavior. | `[]` |
+| `pre_release` | `--pre-release` | Whether to include pre-releases when fetching the latest version. | global value |
 | `quiet` | `--quiet` | Whether to only print essential output. | `false` |
 | `show_hash` | `--sha256` | Whether to show the SHA-256 hash of the downloaded asset. | `false` |
 | `system` | `--system` | The target system to download for. | `all` |

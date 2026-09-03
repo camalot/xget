@@ -213,6 +213,10 @@ header: xget Manual
   
 :    GitHub API token to use for requests.
 
+  `pre_release`
+
+:    Whether to include pre-releases when fetching the latest version.
+
   `quiet`
 
 :    Whether to only print essential output.

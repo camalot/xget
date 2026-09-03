@@ -1,11 +1,15 @@
 {
   "cSpell.words": [
+    "anchore",
     "camalot",
     "eget",
     "goreleaser",
     "LOCALAPPDATA",
+    "pandoc",
+    "pipefail",
     "progressbar",
     "schollz",
+    "sigstore",
     "USERPROFILE",
     "xget",
     "Yedidia",

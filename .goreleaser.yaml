@@ -27,6 +27,22 @@ builds:
       - -X github.com/camalot/xget/internal/cli.version={{.Version}}
       - -X github.com/camalot/xget/internal/cli.commit={{.ShortCommit}}
       - -X github.com/camalot/xget/internal/cli.date={{.Date}}
+  - id: xget-android
+    main: ./cmd/xget
+    binary: xget
+    env:
+      - CGO_ENABLED=1
+      - CC={{ .Env.ANDROID_NDK_LATEST_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang
+      - CXX={{ .Env.ANDROID_NDK_LATEST_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang++
+    goos:
+      - android
+    goarch:
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/camalot/xget/internal/cli.version={{.Version}}
+      - -X github.com/camalot/xget/internal/cli.commit={{.ShortCommit}}
+      - -X github.com/camalot/xget/internal/cli.date={{.Date}}
 archives:
   - id: xget
     formats: [zip]

@@ -171,13 +171,21 @@ check_script_checksum() {
 os_extension="tar.gz"
 BINARY_FILE="$BINARY"
 os_raw="$(uname -s)"
+os_name="$(uname -o 2>/dev/null || echo "")"
 case "$os_raw" in
 Linux) os="linux" ;;
 Darwin) os="darwin" ;;
 # when MINGW32_NT or MSYS_NT, treat as Windows
-MINGW* | MSYS* | CYGWIN*) os="windows"; os_extension="zip"; BINARY_FILE="${BINARY}.exe" ;;
+MINGW* | MSYS* | CYGWIN*)
+	os="windows"
+	os_extension="zip"
+	BINARY_FILE="${BINARY}.exe"
+	;;
 *) os="" ;;
 esac
+
+# check for android specifically
+[ "$os_name" = "Android" ] && os="android"
 
 arch_raw="$(uname -m)"
 case "$arch_raw" in
