@@ -43,6 +43,7 @@ jobs:
           xget-version: v2.0.0-beta
           package: ogham/dog
           asset-filters: ~gnu\.zip$
+          skip-verify: true
 
 
       - name: Verify dog Installation
