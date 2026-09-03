@@ -33,7 +33,7 @@ jobs:
 
       - name: Verify xget Installation
         run: |
-          xget --version
+          xget version
           which xget
         
       - name: xget ogham/dog
