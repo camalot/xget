@@ -22,9 +22,10 @@ jobs:
           # verify the install script checksums were updated when being modified
           # get the expected checksum from install/xget.sh.sha256 and install/xget.ps1.sha256
           declare -A files=(
-            ["install/xget.sh"]="$(cat install/xget.sh.sha256)"
-            ["install/xget.ps1"]="$(cat install/xget.ps1.sha256)"
+            ["install/xget.sh"]="$(cat install/xget.sh.sha256 | awk '{print $1}')"
+            ["install/xget.ps1"]="$(cat install/xget.ps1.sha256 | awk '{print $1}')"
           )
+          failed=0
           for file in "${!files[@]}"; do
             expected="${files[$file]}"
             actual="$(sha256sum "$file" | awk '{print $1}')"
@@ -32,12 +33,14 @@ jobs:
               echo "❌ Checksum mismatch for $file"
               echo "   expected: $expected"
               echo "   actual  : $actual"
-              exit 1
+              failed=1
             else
               echo "✅ Checksum verified for $file"
             fi
           done
-
+          if [[ $failed -eq 1 ]]; then
+            exit 1
+          fi
 
   lint:
     permissions:
