@@ -36,18 +36,18 @@ jobs:
           xget version
           which xget
         
-      - name: xget ogham/dog
+      - name: xget bschaatsbergen/cidr
         uses: camalot/xget-action@main
         with:
           token: ${{ github.token }}
           xget-version: v2.0.0-beta
-          package: ogham/dog
-          asset-filters: ~gnu\.zip$
-          skip-verify: true
+          package: bschaatsbergen/cidr
+          asset-filters: ~\.tar\.gz$
 
 
-      - name: Verify dog Installation
+      - name: Verify cidr Installation
         run: |
-          dog --version
-          which dog
-          dog example.net A AAAA NS MX TXT
+          cidr --version
+          which cidr
+          cidr explain 10.0.0.0/16
+          cidr count 10.0.0.0/20
