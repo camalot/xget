@@ -1,0 +1,50 @@
+---
+name: 'Test xget Action'
+on:
+  workflow_dispatch: {}
+permissions: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: xget sharkdp/bat
+        uses: camalot/xget-action@main
+        with:
+          token: ${{ github.token }}
+          xget-version: v2.0.0-beta
+          package: sharkdp/bat
+          asset-filters: ~gnu\.tar\.gz$
+
+      - name: Verify bat Installation
+        run: |
+          bat --version
+          which bat
+          bat .github/workflows/xget.yml
+
+      - name: Verify xget Installation
+        run: |
+          xget --version
+          which xget
+        
+      - name: xget ogham/dog
+        uses: camalot/xget-action@main
+        with:
+          token: ${{ github.token }}
+          xget-version: v2.0.0-beta
+          package: ogham/dog
+
+      - name: Verify dog Installation
+        run: |
+          dog --version
+          which dog
+          dog example.net A AAAA NS MX TXT
