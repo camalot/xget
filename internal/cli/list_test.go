@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/installed"
 	"github.com/spf13/cobra"
 )
@@ -36,5 +37,81 @@ func TestPrintInstalledPackagesUsesTableFormat(t *testing.T) {
 	}
 	if strings.Contains(got, "Installed at:") || strings.Contains(got, "Download URL:") {
 		t.Fatalf("expected summary table, got detail output:\n%s", got)
+	}
+}
+
+func TestPrintInstalledPackagesAlignsHeaderWithRows(t *testing.T) {
+	cmd := &cobra.Command{}
+	buf := &bytes.Buffer{}
+	cmd.SetOut(buf)
+
+	printInstalledPackages(cmd, []installed.Package{
+		{Name: "bschaatsbergen/cidr", InstalledTag: "v2.3.0", CurrentTag: "v2.3.0", Source: "GitHub", InstallLocation: "/bin"},
+		{Name: "a/b", InstalledTag: "v1.0.0", CurrentTag: "v1.1.0", Source: "GitHub", InstallLocation: "/bin"},
+	})
+
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	if len(lines) != 4 {
+		t.Fatalf("expected header, separator, and 2 rows, got:\n%s", buf.String())
+	}
+	header, separator := lines[0], lines[1]
+	if len(separator) != len(header) {
+		t.Fatalf("separator width %d != header width %d:\n%s", len(separator), len(header), buf.String())
+	}
+	if strings.Trim(separator, "-") != "" {
+		t.Fatalf("separator = %q", separator)
+	}
+	// Every row must start its version column at the header's column offset.
+	column := strings.Index(header, "TAG/VERSION")
+	for _, line := range lines[2:] {
+		if !strings.HasPrefix(line[column:], "v") {
+			t.Fatalf("column misaligned in %q (expected a version at offset %d)\n%s", line, column, buf.String())
+		}
+	}
+}
+
+func runListConfigured(t *testing.T, cfg *config.Config) string {
+	t.Helper()
+	cmd := &cobra.Command{}
+	buf := &bytes.Buffer{}
+	cmd.SetOut(buf)
+	if err := listConfigured(cmd, cfg); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
+}
+
+func TestListConfiguredWithoutConfigFilePointsAtInstalled(t *testing.T) {
+	got := runListConfigured(t, config.Default())
+	if !strings.Contains(got, "no config file found") {
+		t.Fatalf("expected missing-config message, got %q", got)
+	}
+	if !strings.Contains(got, "xget list --installed") {
+		t.Fatalf("expected a pointer to --installed, got %q", got)
+	}
+}
+
+func TestListConfiguredWithEmptyConfigFileNamesThePath(t *testing.T) {
+	cfg := config.Default()
+	cfg.Path = "/home/user/.config/xget/.xget.yml"
+
+	got := runListConfigured(t, cfg)
+	if !strings.Contains(got, cfg.Path) {
+		t.Fatalf("expected the config path in the message, got %q", got)
+	}
+	if !strings.Contains(got, "xget list --installed") {
+		t.Fatalf("expected a pointer to --installed, got %q", got)
+	}
+}
+
+func TestListConfiguredPrintsSortedRepositories(t *testing.T) {
+	cfg := config.Default()
+	cfg.Path = "/tmp/.xget.yml"
+	cfg.Repositories["zyedidia/micro"] = config.Repository{Name: "zyedidia/micro"}
+	cfg.Repositories["a/b"] = config.Repository{Name: "a/b"}
+
+	got := runListConfigured(t, cfg)
+	if got != "a/b\nzyedidia/micro\n" {
+		t.Fatalf("output = %q", got)
 	}
 }

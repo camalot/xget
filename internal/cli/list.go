@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/engine"
@@ -63,8 +62,13 @@ func newListCommand() *cobra.Command {
 }
 
 func listConfigured(cmd *cobra.Command, cfg *config.Config) error {
+	out := cmd.OutOrStdout()
 	if len(cfg.Repositories) == 0 {
-		cmd.Println("no configured packages")
+		if cfg.Path == "" {
+			_, _ = fmt.Fprintln(out, "no config file found; run `xget list --installed` to show installed packages")
+		} else {
+			_, _ = fmt.Fprintf(out, "no packages configured in %s; run `xget list --installed` to show installed packages\n", cfg.Path)
+		}
 		return nil
 	}
 	names := make([]string, 0, len(cfg.Repositories))
@@ -73,7 +77,7 @@ func listConfigured(cmd *cobra.Command, cfg *config.Config) error {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		cmd.Println(name)
+		_, _ = fmt.Fprintln(out, name)
 	}
 	return nil
 }
@@ -139,13 +143,16 @@ func findInstalledPackage(packages []installed.Package, target string) (installe
 }
 
 func printInstalledPackages(cmd *cobra.Command, packages []installed.Package) {
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "PACKAGE\tTAG/VERSION\tLATEST\tLOCATION")
-	_, _ = fmt.Fprintln(w, "-------------------------------------------------------------------")
+	rows := make([][]string, 0, len(packages))
 	for _, pkg := range packages {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", pkg.Key(), pkg.InstalledTag, pkg.CurrentTag, displayLocation(pkg.InstallLocation))
+		rows = append(rows, []string{
+			pkg.Key(),
+			pkg.InstalledTag,
+			pkg.CurrentTag,
+			displayLocation(pkg.InstallLocation),
+		})
 	}
-	_ = w.Flush()
+	printTable(cmd.OutOrStdout(), []string{"PACKAGE", "TAG/VERSION", "LATEST", "LOCATION"}, rows)
 }
 
 func displayLocation(location string) string {
