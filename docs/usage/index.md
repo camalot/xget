@@ -20,6 +20,8 @@ Use `@latest` or `--tag latest` to explicitly select the latest stable release. 
 
 Use `xget list owner/repo` to show up to ten recent releases with their name, tag, and publication date. Add `--pre-release` to include prereleases. `xget list --installed` also shows when each package was last installed or upgraded.
 
+Rows with a newer available version are yellow in `xget list --installed` and `xget upgrade`. Pass `--no-color` to either command for plain output.
+
 ## Examples
 
 ```bash
@@ -122,7 +124,9 @@ Use `xget uninstall TARGET` or `xget remove TARGET` to remove a tracked package'
 
 ## GitHub rate limits
 
-GitHub limits unauthenticated API requests to 60 per hour. If you want to make more requests, use a personal access token and set it in either `GITHUB_TOKEN`, `EGET_GITHUB_TOKEN`, or `XGET_GITHUB_TOKEN` before running xget. If more than one is set, `XGET_GITHUB_TOKEN` takes precedence.
+GitHub limits unauthenticated API requests to 60 per hour. Use `xget rate` or the backwards-compatible `xget --rate` to inspect the active limit. When no token is configured, xget writes setup guidance to stderr; it does the same after GitHub responds with a rate-limit status.
+
+To make more requests, set a personal access token in `GITHUB_TOKEN`, `EGET_GITHUB_TOKEN`, or `XGET_GITHUB_TOKEN`; `XGET_GITHUB_TOKEN` takes precedence. xget loads environment files from the current directory in this order: `.secrets`, alphabetically sorted `*.secrets`, `.env`, then alphabetically sorted `*.env`. Earlier files win, and values already set by the shell always take precedence.
 
 You can also provide the token value by reading it from a file via `@/path/to/file`.
 

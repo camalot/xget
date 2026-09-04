@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -153,7 +154,7 @@ func TestUpgradeListsAvailableUpgrades(t *testing.T) {
 		"camalot/xget":        "v2.0.0-beta",
 	})
 
-	out, err := runCLI(t, "upgrade")
+	out, err := runCLI(t, "upgrade", "--no-color")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,6 +169,27 @@ func TestUpgradeListsAvailableUpgrades(t *testing.T) {
 	}
 	if !strings.Contains(out, "1 upgrade available.") {
 		t.Fatalf("missing count line:\n%s", out)
+	}
+}
+
+func TestUpgradeColorsAvailableUpgradeUnlessNoColor(t *testing.T) {
+	useTempInstalledStore(t, samplePackage("a/one", "v1.0.0"))
+	stubRefresh(t, map[string]string{"a/one": "v1.1.0"})
+
+	colored, err := runCLI(t, "upgrade")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(colored, "\x1b[33ma/one") {
+		t.Fatalf("expected yellow upgrade row, got:\n%s", colored)
+	}
+
+	plain, err := runCLI(t, "upgrade", "--no-color")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(plain, "\x1b[") {
+		t.Fatalf("expected no ANSI color codes, got:\n%s", plain)
 	}
 }
 
@@ -536,6 +558,33 @@ func TestUpgradeNamedAlreadyUpToDate(t *testing.T) {
 	}
 }
 
+func TestUpgradeNamedRefreshesOnlyRequestedPackage(t *testing.T) {
+	storePath := useTempInstalledStore(t,
+		samplePackage("a/one", "v1.0.0"),
+		samplePackage("invalid", "v1.0.0"),
+	)
+	original := refreshPackage
+	t.Cleanup(func() { refreshPackage = original })
+	refreshed := []string{}
+	refreshPackage = func(pkg installed.Package, opts options.Flags) (installed.Package, error) {
+		refreshed = append(refreshed, pkg.Name)
+		if pkg.Name == "invalid" {
+			return pkg, errors.New("invalid argument (must be of the form user/repo)")
+		}
+		pkg.CurrentTag = "v1.0.0"
+		pkg.RefreshedAt = time.Now().UTC()
+		return pkg, nil
+	}
+	stubEngine(t, storePath, nil)
+
+	if _, err := runCLI(t, "upgrade", "a/one"); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(refreshed, []string{"a/one"}) {
+		t.Fatalf("refreshed = %#v, want only a/one", refreshed)
+	}
+}
+
 func TestUpgradeNamedNotInstalled(t *testing.T) {
 	useTempInstalledStore(t, samplePackage("a/one", "v1.0.0"))
 	stubRefresh(t, nil)
@@ -587,7 +636,7 @@ func TestUpgradeTableAlignsColumns(t *testing.T) {
 	)
 	stubRefresh(t, map[string]string{"a/short": "v1.1.0", "a/a-much-longer-name": "v1.1.0"})
 
-	out, err := runCLI(t, "upgrade")
+	out, err := runCLI(t, "upgrade", "--no-color")
 	if err != nil {
 		t.Fatal(err)
 	}

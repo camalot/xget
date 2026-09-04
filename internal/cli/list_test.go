@@ -127,6 +127,27 @@ func TestListInstalledRefreshesAndPersistsLatestTag(t *testing.T) {
 	}
 }
 
+func TestListInstalledColorsAvailableUpgradeUnlessNoColor(t *testing.T) {
+	useTempInstalledStore(t, samplePackage("a/one", "v1.0.0"))
+	stubRefresh(t, map[string]string{"a/one": "v1.1.0"})
+
+	colored, err := runCLI(t, "list", "--installed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(colored, "\x1b[33mgithub:a/one") {
+		t.Fatalf("expected yellow installed row, got:\n%s", colored)
+	}
+
+	plain, err := runCLI(t, "list", "--installed", "--no-color")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(plain, "\x1b[") {
+		t.Fatalf("expected no ANSI color codes, got:\n%s", plain)
+	}
+}
+
 func runListConfigured(t *testing.T, cfg *config.Config) string {
 	t.Helper()
 	cmd := &cobra.Command{}

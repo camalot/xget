@@ -11,12 +11,14 @@ import (
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/engine"
 	"github.com/camalot/xget/internal/installed"
+	"github.com/camalot/xget/internal/semver"
 	"github.com/spf13/cobra"
 )
 
 type listFlags struct {
 	installed  bool
 	prerelease bool
+	noColor    bool
 	config     string
 }
 
@@ -39,7 +41,7 @@ func newListCommand() *cobra.Command {
 				}
 			}
 			if f.installed {
-				return listInstalled(cmd, cfg, args)
+				return listInstalled(cmd, cfg, args, f.noColor)
 			}
 			if len(args) == 0 {
 				return listConfigured(cmd, cfg)
@@ -63,6 +65,7 @@ func newListCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&f.installed, "installed", false, "show installed package metadata")
 	cmd.Flags().BoolVar(&f.prerelease, "pre-release", false, "include pre-releases")
+	cmd.Flags().BoolVar(&f.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 	return cmd
 }
@@ -88,7 +91,7 @@ func listConfigured(cmd *cobra.Command, cfg *config.Config) error {
 	return nil
 }
 
-func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string) error {
+func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string, noColor bool) error {
 	storePath, err := installed.DefaultPath()
 	if err != nil {
 		return err
@@ -106,14 +109,14 @@ func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string) error 
 		if !ok {
 			return fmt.Errorf("%s is not installed", args[0])
 		}
-		printInstalledPackages(cmd, []installed.Package{pkg})
+		printInstalledPackagesWithColor(cmd, []installed.Package{pkg}, !noColor)
 		return nil
 	}
 	if len(packages) == 0 {
 		cmd.Println("no installed packages")
 		return nil
 	}
-	printInstalledPackages(cmd, packages)
+	printInstalledPackagesWithColor(cmd, packages, !noColor)
 	return nil
 }
 
@@ -149,7 +152,12 @@ func findInstalledPackage(packages []installed.Package, target string) (installe
 }
 
 func printInstalledPackages(cmd *cobra.Command, packages []installed.Package) {
+	printInstalledPackagesWithColor(cmd, packages, false)
+}
+
+func printInstalledPackagesWithColor(cmd *cobra.Command, packages []installed.Package, colorUpgrades bool) {
 	rows := make([][]string, 0, len(packages))
+	coloredRows := make([]bool, 0, len(packages))
 	for _, pkg := range packages {
 		rows = append(rows, []string{
 			pkg.Key(),
@@ -158,8 +166,9 @@ func printInstalledPackages(cmd *cobra.Command, packages []installed.Package) {
 			displayLocation(installedLocation(pkg)),
 			formatDate(pkg.InstalledAt),
 		})
+		coloredRows = append(coloredRows, colorUpgrades && semver.IsUpgrade(pkg.InstalledTag, pkg.CurrentTag))
 	}
-	printTable(cmd.OutOrStdout(), []string{"PACKAGE", "TAG/VERSION", "LATEST", "LOCATION", "INSTALLED/UPDATED"}, rows)
+	printTableWithRowColors(cmd.OutOrStdout(), []string{"PACKAGE", "TAG/VERSION", "LATEST", "LOCATION", "INSTALLED/UPDATED"}, rows, coloredRows)
 }
 
 func printAvailableReleases(cmd *cobra.Command, releases []engine.Release) {

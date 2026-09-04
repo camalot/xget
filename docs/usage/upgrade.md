@@ -29,6 +29,8 @@ Every installed package is looked up against its source, the installed metadata
 store is refreshed with the newest release tag, and packages with a newer release
 are listed:
 
+Available upgrades are shown in yellow. Pass `--no-color` for plain output.
+
 ```text
 Name                 Version  Available  Source
 -----------------------------------------------

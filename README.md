@@ -221,6 +221,9 @@ and publication date. Add `--pre-release` to include prereleases. Use
 install or upgrade date, or `xget list TARGET --installed` to show one installed
 package.
 
+Rows with a newer available version are yellow in `xget list --installed` and
+`xget upgrade`. Pass `--no-color` to either command for plain output.
+
 ### Upgrading installed packages
 
 `xget upgrade` refreshes the installed metadata store and reports which packages
@@ -266,8 +269,8 @@ either would prevent the newer release from being downloaded; both are left
 untouched in the installed metadata store. When no output location is
 configured, the recorded `install_location` is used.
 
-GitHub limits API requests to 60 per hour for unauthenticated users. If you
-Use `xget rate` (or the backwards-compatible `xget --rate`) to inspect the
+GitHub limits API requests to 60 per hour for unauthenticated users. Use
+`xget rate` (or the backwards-compatible `xget --rate`) to inspect the
 current limit. When no token is configured, xget prints setup guidance to
 standard error. It also prints this guidance after a GitHub API response with
 status 429.
@@ -276,6 +279,11 @@ To make more requests, use a personal access token and set it in either
 `GITHUB_TOKEN`, `EGET_GITHUB_TOKEN`, or `XGET_GITHUB_TOKEN` before running
 xget. `XGET_GITHUB_TOKEN` takes precedence. A token can also be read from a
 file by using `@/path/to/file` as its value.
+
+xget loads environment files from the current directory before running a
+command. File values are considered in this order: `.secrets`, alphabetically
+sorted `*.secrets`, `.env`, then alphabetically sorted `*.env`. A value from an
+earlier file wins; environment variables already set by the shell always win.
 
 ``` text
 Download pre-built binaries from GitHub releases

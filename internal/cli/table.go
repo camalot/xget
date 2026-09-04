@@ -13,7 +13,13 @@ import (
 // which ends the column block and leaves the header aligned independently of the
 // rows.
 func printTable(out io.Writer, headers []string, rows [][]string) {
+	printTableWithRowColors(out, headers, rows, nil)
+}
+
+func printTableWithRowColors(out io.Writer, headers []string, rows [][]string, coloredRows []bool) {
 	const gutter = 2
+	const yellow = "\x1b[33m"
+	const reset = "\x1b[0m"
 
 	widths := make([]int, len(headers))
 	for i, header := range headers {
@@ -37,8 +43,12 @@ func printTable(out io.Writer, headers []string, rows [][]string) {
 
 	_, _ = fmt.Fprintln(out, padRow(headers, widths, gutter))
 	_, _ = fmt.Fprintln(out, strings.Repeat("-", total))
-	for _, row := range rows {
-		_, _ = fmt.Fprintln(out, padRow(row, widths, gutter))
+	for index, row := range rows {
+		line := padRow(row, widths, gutter)
+		if index < len(coloredRows) && coloredRows[index] {
+			line = yellow + line + reset
+		}
+		_, _ = fmt.Fprintln(out, line)
 	}
 }
 

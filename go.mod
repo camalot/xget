@@ -4,6 +4,7 @@ go 1.27.0
 
 require (
 	github.com/gobwas/glob v1.0.0
+	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.19.2
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/schollz/progressbar/v3 v3.19.1

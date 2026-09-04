@@ -20,8 +20,9 @@ var (
 )
 
 type upgradeFlags struct {
-	all    bool
-	config string
+	all     bool
+	noColor bool
+	config  string
 }
 
 type upgradeCandidate struct {
@@ -54,26 +55,50 @@ func newUpgradeCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			if len(args) > 0 {
+				if err := refreshNamedPackage(storePath, store, cfg, args[0]); err != nil {
+					return err
+				}
+				return upgradeNamed(cmd, cfg, storePath, store, args[0])
+			}
 			if err := refreshInstalledStore(storePath, store, cfg); err != nil {
 				return err
 			}
 
 			upgradable, pinned := upgradeCandidates(store)
-
-			if len(args) > 0 {
-				return upgradeNamed(cmd, cfg, storePath, store, args[0])
-			}
 			if f.all {
-				return upgradeAll(cmd, cfg, storePath, upgradable, pinned)
+				return upgradeAll(cmd, cfg, storePath, upgradable, pinned, !f.noColor)
 			}
-			printUpgradeReport(cmd, upgradable, pinned)
+			printUpgradeReport(cmd, upgradable, pinned, !f.noColor)
 			return nil
 		},
 	}
 
 	cmd.Flags().BoolVarP(&f.all, "all", "a", false, "upgrade every package with an available upgrade")
+	cmd.Flags().BoolVar(&f.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 	return cmd
+}
+
+func refreshNamedPackage(storePath string, store *installed.Store, cfg *config.Config, target string) error {
+	pkg, ok := findInstalledPackage(installed.SortedPackages(store), target)
+	if !ok {
+		return fmt.Errorf("%s is not installed", target)
+	}
+	opts, err := resolveInstalledOptions(cfg, pkg)
+	if err != nil {
+		return err
+	}
+	refreshed, err := refreshPackage(pkg, opts)
+	if err != nil {
+		return err
+	}
+	if refreshed.RefreshedAt.Equal(pkg.RefreshedAt) && refreshed.CurrentTag == pkg.CurrentTag {
+		return nil
+	}
+	store.Packages[pkg.Key()] = refreshed
+	return installed.Save(storePath, store)
 }
 
 // upgradeCandidates splits packages with an available upgrade into freely
@@ -97,7 +122,7 @@ func upgradeCandidates(store *installed.Store) (upgradable, pinned []upgradeCand
 	return upgradable, pinned
 }
 
-func printUpgradeReport(cmd *cobra.Command, upgradable, pinned []upgradeCandidate) {
+func printUpgradeReport(cmd *cobra.Command, upgradable, pinned []upgradeCandidate, colorUpgrades bool) {
 	out := cmd.OutOrStdout()
 
 	if len(upgradable) == 0 && len(pinned) == 0 {
@@ -106,7 +131,7 @@ func printUpgradeReport(cmd *cobra.Command, upgradable, pinned []upgradeCandidat
 	}
 
 	if len(upgradable) > 0 {
-		printUpgradeTable(out, upgradable)
+		printUpgradeTable(out, upgradable, colorUpgrades)
 		_, _ = fmt.Fprintln(out)
 		_, _ = fmt.Fprintf(out, "%s available.\n", pluralUpgrades(len(upgradable)))
 	}
@@ -116,7 +141,7 @@ func printUpgradeReport(cmd *cobra.Command, upgradable, pinned []upgradeCandidat
 			_, _ = fmt.Fprintln(out)
 		}
 		_, _ = fmt.Fprintln(out, "The following packages have an upgrade available, but require explicit targeting for upgrade:")
-		printUpgradeTable(out, pinned)
+		printUpgradeTable(out, pinned, colorUpgrades)
 	}
 }
 
@@ -127,8 +152,9 @@ func pluralUpgrades(count int) string {
 	return fmt.Sprintf("%d upgrades", count)
 }
 
-func printUpgradeTable(out io.Writer, candidates []upgradeCandidate) {
+func printUpgradeTable(out io.Writer, candidates []upgradeCandidate, colorUpgrades bool) {
 	rows := make([][]string, 0, len(candidates))
+	coloredRows := make([]bool, 0, len(candidates))
 	for _, candidate := range candidates {
 		rows = append(rows, []string{
 			candidate.pkg.Name,
@@ -136,11 +162,12 @@ func printUpgradeTable(out io.Writer, candidates []upgradeCandidate) {
 			candidate.pkg.CurrentTag,
 			candidate.pkg.Source,
 		})
+		coloredRows = append(coloredRows, colorUpgrades)
 	}
-	printTable(out, []string{"Name", "Version", "Available", "Source"}, rows)
+	printTableWithRowColors(out, []string{"Name", "Version", "Available", "Source"}, rows, coloredRows)
 }
 
-func upgradeAll(cmd *cobra.Command, cfg *config.Config, storePath string, upgradable, pinned []upgradeCandidate) error {
+func upgradeAll(cmd *cobra.Command, cfg *config.Config, storePath string, upgradable, pinned []upgradeCandidate, colorUpgrades bool) error {
 	out := cmd.OutOrStdout()
 
 	if len(upgradable) == 0 {
@@ -165,7 +192,7 @@ func upgradeAll(cmd *cobra.Command, cfg *config.Config, storePath string, upgrad
 			_, _ = fmt.Fprintln(out)
 		}
 		_, _ = fmt.Fprintln(out, "The following packages have an upgrade available, but require explicit targeting for upgrade:")
-		printUpgradeTable(out, pinned)
+		printUpgradeTable(out, pinned, colorUpgrades)
 	}
 
 	if len(failures) > 0 {

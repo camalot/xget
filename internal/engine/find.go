@@ -55,6 +55,9 @@ func (ge *GithubError) Error() string {
 		return fmt.Sprintf("%s: GitHub API rate limit exceeded. Set XGET_GITHUB_TOKEN, GITHUB_TOKEN, or EGET_GITHUB_TOKEN to a GitHub token and try again.", ge.Status)
 	}
 	if ge.Code == http.StatusForbidden {
+		if strings.Contains(strings.ToLower(msg.Message), "rate limit") && !GithubTokenConfigured() {
+			return fmt.Sprintf("%s: %s: %s. Set XGET_GITHUB_TOKEN, GITHUB_TOKEN, or EGET_GITHUB_TOKEN to a GitHub token and try again.", ge.Status, msg.Message, msg.Doc)
+		}
 		return fmt.Sprintf("%s: %s: %s", ge.Status, msg.Message, msg.Doc)
 	}
 	return fmt.Sprintf("%s (URL: %s)", ge.Status, ge.Url)

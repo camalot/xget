@@ -48,6 +48,20 @@ When multiple values are available, xget resolves them in this order:
 
 This means an explicit command-line flag always wins, followed by repo-specific settings, followed by global defaults.
 
+## Environment files
+
+Before running a command, xget loads environment files from the current
+directory. This lets a local token be supplied without exporting it manually.
+Files are loaded in descending priority:
+
+1. `.secrets`
+2. Alphabetically sorted `*.secrets`
+3. `.env`
+4. Alphabetically sorted `*.env`
+
+The first file that defines a variable wins. Variables already present in the
+parent shell are not replaced and therefore have the highest priority.
+
 ## Inheritance
 
 A repository section inherits any setting it does not define from the `global` section, so `global` acts as the default for every repository.
