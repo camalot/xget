@@ -47,6 +47,8 @@ archives:
   - id: xget
     formats: [zip]
     format_overrides:
+      - goos: android
+        formats: [tar.gz]
       - goos: linux
         formats: [tar.gz]
       - goos: darwin
