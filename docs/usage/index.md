@@ -35,6 +35,9 @@ xget --all --file '*' ActivityWatch/activitywatch
 xget list camalot/xget
 xget list --installed
 xget list camalot/xget --installed
+xget upgrade
+xget upgrade camalot/xget
+xget upgrade --all
 ```
 
 ## Basic command syntax
@@ -48,8 +51,10 @@ Usage:
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
+  config      Get, set, and edit xget configuration values
   help        Help about any command
   list        List available or installed packages
+  upgrade     List and apply available upgrades for installed packages
   version     Print the xget version
 
 Flags:

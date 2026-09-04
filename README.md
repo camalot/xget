@@ -215,6 +215,51 @@ Use `xget list TARGET` to list installable release assets for a target. Use
 `xget list --installed` to show installed package metadata, or
 `xget list TARGET --installed` to show one installed package.
 
+### Upgrading installed packages
+
+`xget upgrade` refreshes the installed metadata store and reports which packages
+have a newer release, similar to `winget upgrade`. Full details are in the
+[upgrade documentation](https://camalot.github.io/xget/usage/upgrade).
+
+```bash
+xget upgrade                      # list available upgrades
+xget upgrade bschaatsbergen/cidr  # upgrade one package
+xget upgrade --all                # upgrade everything that is not pinned
+```
+
+```text
+Name                 Version  Available  Source
+-----------------------------------------------
+bschaatsbergen/cidr  v2.2.0   v2.3.0     GitHub
+
+1 upgrade available.
+```
+
+Only packages with a newer release are listed. Tags are compared as semantic
+versions, including prerelease ordering, falling back to a plain difference
+check for tags that are not semver-shaped. Packages installed from a direct URL
+or a local file are skipped, since there is no release list to query.
+
+A package installed with a pinned `tag` is never upgraded by `--all`. Those are
+listed separately and must be named explicitly:
+
+```text
+The following packages have an upgrade available, but require explicit targeting for upgrade:
+Name                 Version  Available  Source
+-----------------------------------------------
+bschaatsbergen/cidr  v2.2.0   v2.3.0     GitHub
+```
+
+The package stays pinned afterward, with its stored `tag` updated to the newer
+release.
+
+The upgrade re-runs the download using options resolved from the `global` config
+section, then the matching `"owner/repo"` section, then the options stored at
+install time. The stored `tag` and `upgrade_only` are never applied, because
+either would prevent the newer release from being downloaded; both are left
+untouched in the installed metadata store. When no output location is
+configured, the recorded `install_location` is used.
+
 GitHub limits API requests to 60 per hour for unauthenticated users. If you
 would like to perform more requests (up to 5,000 per hour), you can set up a
 personal access token and assign it to an environment variable named either
@@ -233,8 +278,10 @@ Usage:
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
+  config      Get, set, and edit xget configuration values
   help        Help about any command
   list        List available or installed packages
+  upgrade     List and apply available upgrades for installed packages
   version     Print the xget version
 
 Flags:
@@ -317,6 +364,11 @@ Option precedence:
 2. Repository section (`"owner/repo"`) in config.
 3. Global section (`global`) in config.
 4. Built-in defaults.
+
+A repository section inherits any setting it does not define from the `global`
+section. The exceptions are `asset_filters`, `pre_release`, `tag`, and
+`verify_sha256`, which are repository-only and never inherited; `github_token`
+is global-only.
 
 Both global settings can be configured, as well as setting on a per-repository basis.
 

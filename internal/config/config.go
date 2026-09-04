@@ -191,6 +191,12 @@ func loadFromFile(path string) (*Config, error) {
 		if !section.IsSet("source") {
 			repo.SourceType = cfg.Global.SourceType
 		}
+		if !section.IsSet("system") {
+			repo.System = cfg.Global.System
+		}
+		if !section.IsSet("file") {
+			repo.File = cfg.Global.File
+		}
 		if !section.IsSet("target") {
 			repo.Target = cfg.Global.Target
 		}

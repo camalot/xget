@@ -153,6 +153,67 @@ asset_filters = [".zip"]
 	}
 }
 
+func TestLoadRepositorySystemAndFileFallBackToGlobal(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".xget.toml")
+	content := `[global]
+system = "linux/amd64"
+file = "global.bin"
+
+["owner/inherits"]
+asset_filters = [".zip"]
+
+["owner/overrides"]
+system = "darwin/arm64"
+file = "*.exe"
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	inherits := cfg.Repositories["owner/inherits"]
+	if inherits.System != "linux/amd64" {
+		t.Fatalf("expected repo system to fall back to global, got %q", inherits.System)
+	}
+	if inherits.File != "global.bin" {
+		t.Fatalf("expected repo file to fall back to global, got %q", inherits.File)
+	}
+
+	overrides := cfg.Repositories["owner/overrides"]
+	if overrides.System != "darwin/arm64" {
+		t.Fatalf("expected repo system to win, got %q", overrides.System)
+	}
+	if overrides.File != "*.exe" {
+		t.Fatalf("expected repo file to win, got %q", overrides.File)
+	}
+}
+
+func TestLoadRepositorySystemAndFileStayEmptyWithoutGlobal(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".xget.toml")
+	content := `["owner/repo"]
+asset_filters = [".zip"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	repo := cfg.Repositories["owner/repo"]
+	if repo.System != "" || repo.File != "" {
+		t.Fatalf("expected empty system/file, got %q/%q", repo.System, repo.File)
+	}
+}
+
 func TestSubstituteTemplateVarsUsesGivenSystem(t *testing.T) {
 	got := SubstituteTemplateVars("{{.OS}}_{{.Arch}}.tar.gz", "linux/arm64")
 	want := "linux_arm64.tar.gz"

@@ -469,11 +469,19 @@ func packageName(target string, finder Finder) string {
 	}
 }
 
-func RefreshInstalledPackage(pkg installed.Package) (installed.Package, error) {
+// RefreshInstalledPackage looks up the newest release for pkg. The caller
+// supplies the resolved options; Tag and UpgradeOnly are cleared here because
+// either would prevent the newest release from being reported.
+func RefreshInstalledPackage(pkg installed.Package, opts options.Flags) (installed.Package, error) {
 	if !strings.EqualFold(pkg.Source, "GitHub") {
 		return pkg, nil
 	}
-	opts := options.Flags{SourceType: pkg.Source}
+	opts.Tag = ""
+	opts.UpgradeOnly = false
+	opts.Source = false
+	if opts.SourceType == "" {
+		opts.SourceType = pkg.Source
+	}
 	finder, _, err := getFinder(pkg.Name, &opts)
 	if err != nil {
 		return pkg, err

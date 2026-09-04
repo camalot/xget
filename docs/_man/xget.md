@@ -8,7 +8,9 @@ header: xget Manual
   xget - easily install prebuilt binaries from GitHub
 
 # SYNOPSIS
-  xget `[version] [--help] [OPTIONS] TARGET`
+  xget `[--help] [OPTIONS] TARGET`
+
+  xget `COMMAND [ARGS] [OPTIONS]`
 
 # DESCRIPTION
   xget is a tool for downloading and extracting prebuilt binaries from releases
@@ -44,13 +46,43 @@ header: xget Manual
   GitHub limits API requests to 60 per hour for unauthenticated users. If you
   would like to perform more requests (up to 5,000 per hour), you can set up a
   personal access token and assign it to an environment variable named either
-  **`GITHUB_TOKEN`** or **`XGET_GITHUB_TOKEN`** when running xget. If both are set,
-  **`XGET_GITHUB_TOKEN`** will take precedence. xget will read this variable and
-  send the token as authorization with requests to GitHub. It is also possible to
-  read the token from a file by using `@/path/to/file` as the token value.
+  **`GITHUB_TOKEN`**, **`EGET_GITHUB_TOKEN`**, or **`XGET_GITHUB_TOKEN`** when
+  running xget. If more than one is set, **`XGET_GITHUB_TOKEN`** takes
+  precedence. xget will read this variable and send the token as authorization
+  with requests to GitHub. It is also possible to read the token from a file by
+  using `@/path/to/file` as the token value.
+
+  Successful installs are recorded in `~/.config/xget/.xget.installed.yml`. Each
+  record includes the repository or URL, source type, install location,
+  timestamps, selected asset, download URL, extracted files, effective install
+  options, SHA-256, and the installed and latest known tags. Records are keyed as
+  `<source>:<repo-or-url>`, such as `github:nektos/act`. Reinstalling a package
+  refreshes its existing record. This store is what `xget list --installed` and
+  `xget upgrade` read from.
 
   The behavior of xget is configurable in a number of ways via options.
   Documentation for these options is provided below.
+
+# COMMANDS
+  `xget upgrade [PACKAGE]`
+
+:    List and apply available upgrades for installed packages. With no arguments, the newest release of every installed package is looked up, the installed metadata store is refreshed, and packages with a newer release are listed. An upgrade is available only when the newest release is newer than the installed one; tags are compared as semantic versions, including prerelease ordering, falling back to a plain difference check for tags that are not semver-shaped. Packages installed from a direct URL or local file are skipped, since there is no release list to query. Pass a package to upgrade it, or `-a`/`--all` to upgrade everything that is not pinned. `PACKAGE` accepts the full name (`owner/repo`), the store key (`github:owner/repo`), or the bare repository name (`repo`). A package installed with a `tag` is pinned; it is listed separately, is never upgraded by `--all`, and must be named explicitly. Upgrading a pinned package re-pins it to the newer tag. The upgrade re-runs the download using options resolved from the `global` config section, then the matching `"owner/repo"` section, then the options stored at install time; `tag` and `upgrade_only` are never applied because either would prevent the newer release from being downloaded, and both are left untouched in the installed metadata store.
+
+  `xget list [TARGET]`
+
+:    List the installable release assets for `TARGET`. With no `TARGET`, list the repositories defined in the configuration file. With `--installed`, show installed package metadata instead, optionally for a single `TARGET`.
+
+  `xget config <SUBCOMMAND>`
+
+:    Get, set, and edit configuration values, in the same spirit as `git config`. See the CONFIGURATION section below.
+
+  `xget version`
+
+:    Print the xget version, commit, and build date.
+
+  `xget completion <SHELL>`
+
+:    Generate a shell completion script for `bash`, `zsh`, `fish`, or `powershell`.
 
 # OPTIONS
   `-t, --tag=`
@@ -93,7 +125,7 @@ header: xget Manual
 
 :   Download all projects defined in the configuration file.
 
-   --upgrade-only
+  `--upgrade-only`
 
 :    Only download the asset if the release is more recent than an existing asset with the same name in `$XGET_BIN`, or the current directory if `$XGET_BIN` is not defined.
 
@@ -127,9 +159,34 @@ header: xget Manual
 
 :    Disable SSL certificate verification for GET requests. Cannot be used in combination with a `GITHUB_TOKEN`.
 
+  `-c, --config=`
+
+:    Use the given configuration file instead of searching the default locations. Example: **`xget -c ./project.xget.toml owner/repo`**.
+
   `-h, --help`
 
 :    Show a help message.
+
+# ENVIRONMENT
+  `XGET_BIN`
+
+:    Directory to place extracted executables in when `--to` is not given. `EGET_BIN` is also honored for compatibility.
+
+  `XGET_GITHUB_TOKEN`, `EGET_GITHUB_TOKEN`, `GITHUB_TOKEN`
+
+:    GitHub API token used to raise the request rate limit. `XGET_GITHUB_TOKEN` takes precedence. A value of `@/path/to/file` reads the token from that file.
+
+  `XGET_CONFIG`, `EGET_CONFIG`
+
+:    Path to the configuration file, overriding the default search locations.
+
+  `XGET_EDITOR`, `VISUAL`, `EDITOR`
+
+:    Editor used by `xget config edit`, checked in that order. Falls back to `nano`, and to `notepad` on Windows when `nano` is not on `PATH`. The value may include arguments, which are passed before the file path.
+
+  `XDG_CONFIG_HOME`
+
+:    Base directory for the OS configuration path. Defaults to `~/.config` when unset.
 
 # CONFIGURATION
   xget checks for configuration in this order:
@@ -144,13 +201,22 @@ header: xget Manual
 
   xget also supports the legacy eget-compatible filename `.eget.toml` in those same locations, and accepts `.eget.yml` / `.eget.yaml` if present.
 
-  The previous documentation used `./xget.<ext>` and `xget/xget.<ext>` instead of the dot-prefixed `.xget.<ext>` paths, which were incorrect.
-
   Both global settings can be configured, as well as setting on a per-repository basis.
 
   Sections can be named either `global` or `"owner/repo"`, where `owner` and `repo`
   are the owner and repository name of the target repository (note that the `owner/repo` 
   format is quoted).
+
+  A repository section inherits any setting it does not define from the `global`
+  section. The only exceptions are `asset_filters`, `pre_release`, `tag`, and
+  `verify_sha256`, which are repository-only and are never inherited.
+
+  Values are resolved in this order, with each layer overriding the one before it:
+
+  1. Built-in defaults.
+  2. The `global` section.
+  3. The matching `"owner/repo"` section.
+  4. Command-line flags.
 
   For example, the following configuration file will set the `--to` flag to `~/bin` for 
   all repositories, and will set the `--to` flag to `~/.local/bin` for the `zyedidia/micro` 
@@ -189,21 +255,28 @@ header: xget Manual
 
 ## Available settings
 
+  Unless noted otherwise, a setting may appear in the `global` section, in a
+  `"owner/repo"` section, or both.
+
   `all`
 
 :    Whether to extract all candidate files.
 
   `asset_filters`
 
-:    An array of asset matchers. Literal values prefer exact basename match then contains matching. Regex prefixes: `~`, `=~`, and `re:`. Negative prefixes: `^` and `not:`. Use `~~`/`^^` or `text:` to force literal matching.
+:    An array of asset matchers. Literal values prefer exact basename match then contains matching. Regex prefixes: `~`, `=~`, and `re:`. Negative prefixes: `^` and `not:`. Use `~~`/`^^` or `text:` to force literal matching. Repository sections only.
 
-  `ignore`
+  `disable_ssl`
 
-:    An array of asset matchers to exclude. Supports the same matcher syntax as `asset_filters`.
+:    Whether to disable SSL certificate verification for download requests.
 
   `download_only`
 
 :    Whether to stop after downloading the asset (no extraction).
+
+  `download_source`
+
+:    Whether to download the repository source code instead of a release asset.
 
   `file`
 
@@ -211,11 +284,15 @@ header: xget Manual
 
   `github_token`
   
-:    GitHub API token to use for requests.
+:    GitHub API token to use for requests. Global section only. Prefer `XGET_GITHUB_TOKEN` or `GITHUB_TOKEN`; xget warns when this is set in a config file, since it stores the token in plaintext where it may be committed to source control.
+
+  `ignore`
+
+:    An array of asset matchers to exclude. Supports the same matcher syntax as `asset_filters`.
 
   `pre_release`
 
-:    Whether to include pre-releases when fetching the latest version.
+:    Whether to include pre-releases when fetching the latest version. Repository sections only.
 
   `quiet`
 
@@ -225,9 +302,17 @@ header: xget Manual
 
 :    Whether to show the SHA-256 hash of the downloaded asset.
 
+  `source`
+
+:    The source type for the target, such as `GitHub` or `URL`.
+
   `system`
 
-:    The target system to download for.
+:    The target system to download for, in `OS/Arch` notation, or `all`.
+
+  `tag`
+
+:    Pin the repository to a specific tagged release. Repository sections only. A package installed with a `tag` is not upgraded by `xget upgrade --all`.
 
   `target`
 
@@ -236,6 +321,61 @@ header: xget Manual
   `upgrade_only`
 
 :    Whether to only download if release is more recent than current version.
+
+  `verify_sha256`
+
+:    Verify the downloaded asset checksum against the given hash. Repository sections only.
+
+## Template variables
+
+  `asset_filters` and `ignore` entries sourced from the configuration file
+  support the template variables `{{.OS}}` and `{{.Arch}}`, which are replaced
+  with the effective target OS and architecture. Values passed on the command
+  line with `--asset` or `--ignore` are used verbatim.
+
+## The config command
+
+  `xget config` reads and writes configuration values, in the same spirit as
+  `git config`. Every subcommand accepts `-c`/`--config` to operate on a
+  specific file.
+
+  When `--config` is not given, the file is resolved using the search order
+  above. If no configuration file exists anywhere, a new one is created at
+  `$XDG_CONFIG_HOME/xget/.xget.yml`, or `~/.config/xget/.xget.yml` when
+  `XDG_CONFIG_HOME` is empty or unset. This applies on all platforms.
+
+  The format is determined by the file extension: `.toml` files are written as
+  TOML, `.yml` and `.yaml` files as YAML. Any other extension is rejected.
+  Writing rewrites the file, so comments and the original key ordering are not
+  preserved.
+
+  `xget config get <global|owner/repo> <key>`
+
+:    Print the value of a key. List values print one entry per line. If the section or key is not set, nothing is printed and xget exits with status 1.
+
+  `xget config set <global|owner/repo> <key>=<value>`
+
+:    Set a value. Scalar keys are replaced. List keys (`ignore`, `asset_filters`) append the value; repeat the command to add more entries, and appending a value that is already present is a no-op. Booleans accept `true`, `false`, `t`, `f`, `1`, and `0`.
+
+  `xget config clear <global|owner/repo> <key>`
+
+:    Remove a key entirely, including every entry of a list key. Exits with status 1 and prints nothing when the key was not set. Empty repository sections are kept, because a section with no keys is still meaningful for `--download-all`.
+
+  `xget config pop <global|owner/repo> <key>=<value>`
+
+:    Remove a single entry from a list key; the key itself is removed when its last entry is removed. For scalar keys this behaves like `clear` when the current value matches, and otherwise exits with status 1.
+
+  `xget config list`
+
+:    Print every value in the resolved file as `section.key=value`, with `global` first and remaining sections sorted alphabetically. List keys produce one line per entry.
+
+  `xget config path`
+
+:    Print the configuration file path that would be read from or written to, whether or not it exists.
+
+  `xget config edit`
+
+:    Open the configuration file in an editor, creating it and its parent directories first if needed. After the editor exits, xget re-reads the file and reports a parse error if the edit made it invalid. See the ENVIRONMENT section for editor selection.
 
 # FOR MAINTAINERS
 

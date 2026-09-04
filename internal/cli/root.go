@@ -123,12 +123,14 @@ func newRootCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 
 	cmd.InitDefaultCompletionCmd("completion")
-	cmd.AddCommand(newVersionCommand(), newListCommand(), newConfigCommand())
+	cmd.AddCommand(newVersionCommand(), newListCommand(), newConfigCommand(), newUpgradeCommand())
 
 	return cmd
 }
 
-func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, target string) (options.Flags, error) {
+// configOptionsForTarget resolves the global section followed by the matching
+// repository section, without applying any CLI flags.
+func configOptionsForTarget(cfg *config.Config, target string) (options.Flags, error) {
 	opts := options.Flags{
 		Source:      cfg.Global.Source,
 		System:      cfg.Global.System,
@@ -175,6 +177,15 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 			return options.Flags{}, err
 		}
 		opts.Output = expanded
+	}
+
+	return opts, nil
+}
+
+func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, target string) (options.Flags, error) {
+	opts, err := configOptionsForTarget(cfg, target)
+	if err != nil {
+		return options.Flags{}, err
 	}
 
 	if cmd.Flags().Changed("tag") {

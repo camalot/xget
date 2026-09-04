@@ -48,6 +48,23 @@ When multiple values are available, xget resolves them in this order:
 
 This means an explicit command-line flag always wins, followed by repo-specific settings, followed by global defaults.
 
+## Inheritance
+
+A repository section inherits any setting it does not define from the `global` section, so `global` acts as the default for every repository.
+
+The exceptions are `asset_filters`, `pre_release`, `tag`, and `verify_sha256`, which are repository-only settings and are never inherited. `github_token` is global-only.
+
+```yaml
+global:
+  system: linux/amd64
+  target: "~/bin"
+
+"zyedidia/micro":
+  target: "~/.local/bin/micro"
+```
+
+Here `zyedidia/micro` overrides `target` but still uses the global `system` value.
+
 ## Backward compatibility
 
 xget retains compatibility with earlier [zyedidia/eget](https://github.com/zyedidia/eget) behavior and filenames. In addition to `.eget.toml`, xget will also read `.eget.yml` and `.eget.yaml` if they are present. The keys remain the same across TOML and YAML; for example, `target`, `asset_filters`, `download_only`, and `verify_sha256` map to the same runtime flags.

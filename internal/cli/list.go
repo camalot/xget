@@ -26,10 +26,6 @@ func newListCommand() *cobra.Command {
 		Short: "List available or installed packages",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if f.installed {
-				return listInstalled(cmd, args)
-			}
-
 			cfg, err := config.Load(f.config)
 			if err != nil {
 				return err
@@ -38,6 +34,9 @@ func newListCommand() *cobra.Command {
 				if err := os.Setenv("XGET_GITHUB_TOKEN", cfg.Global.GithubToken); err != nil {
 					return err
 				}
+			}
+			if f.installed {
+				return listInstalled(cmd, cfg, args)
 			}
 			if len(args) == 0 {
 				return listConfigured(cmd, cfg)
@@ -79,7 +78,7 @@ func listConfigured(cmd *cobra.Command, cfg *config.Config) error {
 	return nil
 }
 
-func listInstalled(cmd *cobra.Command, args []string) error {
+func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string) error {
 	storePath, err := installed.DefaultPath()
 	if err != nil {
 		return err
@@ -88,7 +87,7 @@ func listInstalled(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := refreshInstalledStore(storePath, store); err != nil {
+	if err := refreshInstalledStore(storePath, store, cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not refresh installed metadata: %v\n", err)
 	}
 	packages := installed.SortedPackages(store)
@@ -108,10 +107,14 @@ func listInstalled(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func refreshInstalledStore(storePath string, store *installed.Store) error {
+func refreshInstalledStore(storePath string, store *installed.Store, cfg *config.Config) error {
 	changed := false
 	for name, pkg := range store.Packages {
-		refreshed, err := engine.RefreshInstalledPackage(pkg)
+		opts, err := resolveInstalledOptions(cfg, pkg)
+		if err != nil {
+			return err
+		}
+		refreshed, err := refreshPackage(pkg, opts)
 		if err != nil {
 			return err
 		}
