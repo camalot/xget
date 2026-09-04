@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -67,6 +68,37 @@ func TestPrintInstalledPackagesAlignsHeaderWithRows(t *testing.T) {
 		if !strings.HasPrefix(line[column:], "v") {
 			t.Fatalf("column misaligned in %q (expected a version at offset %d)\n%s", line, column, buf.String())
 		}
+	}
+}
+
+func TestInstalledLocationUsesDirectoryForLegacyFileRecord(t *testing.T) {
+	pkg := installed.Package{
+		InstallLocation: filepath.Join("home", "user", ".local", "bin", "eza.exe"),
+		ExtractedFiles:  []string{filepath.Join("home", "user", ".local", "bin", "eza.exe")},
+	}
+	if got, want := installedLocation(pkg), filepath.Join("home", "user", ".local", "bin"); got != want {
+		t.Fatalf("installedLocation() = %q, want %q", got, want)
+	}
+}
+
+func TestListInstalledRefreshesAndPersistsLatestTag(t *testing.T) {
+	storePath := useTempInstalledStore(t, samplePackage("bschaatsbergen/cidr", "v2.2.0"))
+	stubRefresh(t, map[string]string{"bschaatsbergen/cidr": "v2.3.0"})
+
+	out, err := runCLI(t, "list", "--installed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(collapseSpaces(out), "github:bschaatsbergen/cidr v2.2.0 v2.3.0") {
+		t.Fatalf("expected refreshed latest tag in output:\n%s", out)
+	}
+
+	store, err := installed.Load(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Packages["github:bschaatsbergen/cidr"].CurrentTag; got != "v2.3.0" {
+		t.Fatalf("current_tag = %q, want v2.3.0", got)
 	}
 }
 

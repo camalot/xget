@@ -142,7 +142,7 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 	}
 
 	tag := "latest"
-	if opts.Tag != "" {
+	if opts.Tag != "" && opts.Tag != "latest" {
 		tag = fmt.Sprintf("tags/%s", opts.Tag)
 	}
 
@@ -697,9 +697,9 @@ func Run(target string, opts options.Flags) error {
 		}
 		version := finderVersion(finder, opts)
 		now := time.Now().UTC()
-		installLocation := opts.Output
-		if installLocation == "" && len(extractedFiles) > 0 {
-			installLocation = filepath.Dir(extractedFiles[0])
+		installLocation, err := resolvedInstallLocation(extractedFiles)
+		if err != nil {
+			return err
 		}
 		pkg := installed.Package{
 			Name:            packageName(target, finder),
@@ -717,7 +717,6 @@ func Run(target string, opts options.Flags) error {
 		}
 		return installed.Upsert(storePath, pkg)
 	}
-
 	if opts.All {
 		for _, eb := range bins {
 			if err := extract(eb); err != nil {
@@ -730,4 +729,11 @@ func Run(target string, opts options.Flags) error {
 		return err
 	}
 	return recordInstall()
+}
+
+func resolvedInstallLocation(extractedFiles []string) (string, error) {
+	if len(extractedFiles) == 0 {
+		return "", nil
+	}
+	return filepath.Abs(filepath.Dir(extractedFiles[0]))
 }

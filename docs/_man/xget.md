@@ -10,6 +10,8 @@ header: xget Manual
 # SYNOPSIS
   xget `[--help] [OPTIONS] TARGET`
 
+  xget `install TARGET [OPTIONS]`
+
   xget `COMMAND [ARGS] [OPTIONS]`
 
 # DESCRIPTION
@@ -23,8 +25,8 @@ header: xget Manual
   you may use the `--download-only` option, and perform extraction manually.
 
   The **`PROJECT`** argument passed to xget should either be a GitHub
-  repository, formatted as **`user/repo`**, in which case xget will search the
-  release assets, a direct URL, in which case xget will directly download and
+  repository, formatted as **`user/repo`** or **`user/repo@TAG`**, in which
+  case xget will search the release assets, a direct URL, in which case xget will directly download and
   extract from the given URL, or a local file, in which case xget will extract
   directly from the local file.
 
@@ -64,6 +66,14 @@ header: xget Manual
   Documentation for these options is provided below.
 
 # COMMANDS
+  `xget install TARGET`
+
+:    Download and install a pre-built binary from GitHub releases. This is equivalent to the backwards-compatible `xget TARGET` form and accepts the same options.
+
+  `xget uninstall PACKAGE`, `xget remove PACKAGE`
+
+:    Remove a tracked package's extracted files and its installed metadata record. When no installed package matches, remove the target basename from `$XGET_BIN`, the current directory, or the directory selected with `--from`. `xget TARGET --remove` is retained as a backwards-compatible equivalent.
+
   `xget upgrade [PACKAGE]`
 
 :    List and apply available upgrades for installed packages. With no arguments, the newest release of every installed package is looked up, the installed metadata store is refreshed, and packages with a newer release are listed. An upgrade is available only when the newest release is newer than the installed one; tags are compared as semantic versions, including prerelease ordering, falling back to a plain difference check for tags that are not semver-shaped. Packages installed from a direct URL or local file are skipped, since there is no release list to query. Pass a package to upgrade it, or `-a`/`--all` to upgrade everything that is not pinned. `PACKAGE` accepts the full name (`owner/repo`), the store key (`github:owner/repo`), or the bare repository name (`repo`). A package installed with a `tag` is pinned; it is listed separately, is never upgraded by `--all`, and must be named explicitly. Upgrading a pinned package re-pins it to the newer tag. The upgrade re-runs the download using options resolved from the `global` config section, then the matching `"owner/repo"` section, then the options stored at install time; `tag` and `upgrade_only` are never applied because either would prevent the newer release from being downloaded, and both are left untouched in the installed metadata store.
@@ -87,7 +97,7 @@ header: xget Manual
 # OPTIONS
   `-t, --tag=`
 
-:    Use the given tagged release instead of the latest release. If the project does not have a tag that matches exactly, xget will look for a tag that contains the given string, and use the latest one. Example: **`xget -t nightly zyedidia/micro`**.
+:    Use the given tagged release instead of the latest release. `user/repo@TAG` is equivalent. Use `latest` to explicitly select the latest stable release; with `--pre-release`, it selects the newest release whether stable or prerelease. If the project does not have a tag that matches exactly, xget will look for a tag that contains the given string, and use the latest one. Example: **`xget -t nightly zyedidia/micro`**.
 
   `--pre-release`
 
@@ -153,7 +163,11 @@ header: xget Manual
 
   `--remove`
 
-:    Remove the target file from `$XGET_BIN` (or the current directory if unset). Note that this flag is boolean, and means xget will treat `TARGET` as a file to be removed.
+:    Uninstall the target package. This is equivalent to `xget uninstall TARGET`.
+
+  `--from=DIR`
+
+:    When no installed package matches, remove the target basename from `DIR` instead of `$XGET_BIN` or the current directory.
 
   `-k, --disable-ssl`
 

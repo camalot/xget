@@ -14,12 +14,18 @@ layout: default
 - a direct URL to a release asset, or
 - a local file to extract from.
 
-If a GitHub repository is provided, xget will search the latest release for assets that look like a binary for your system. If a direct URL is provided, xget skips detection and downloads the file directly. If a local file is provided, xget extracts its contents without any network call.
+If a GitHub repository is provided, xget will search the latest release for assets that look like a binary for your system. Append `@TAG` to select a release directly, such as `eza-community/eza@v0.23.5`; this is equivalent to `--tag TAG`. If a direct URL is provided, xget skips detection and downloads the file directly. If a local file is provided, xget extracts its contents without any network call.
+
+Use `@latest` or `--tag latest` to explicitly select the latest stable release. With `--pre-release`, `latest` selects the newest release regardless of whether it is stable or a prerelease.
 
 ## Examples
 
 ```bash
+xget install eza-community/eza --tag v0.23.5 --to ~/.local/bin --asset .zip --ignore .sbom.json
 xget zyedidia/micro --tag nightly
+xget slavaGanzin/await@2.1.0
+xget eza-community/eza --tag v0.23.5
+xget eza-community/eza@latest --pre-release
 xget jgm/pandoc --to /usr/local/bin
 xget junegunn/fzf
 xget neovim/neovim
@@ -42,18 +48,25 @@ xget upgrade --all
 
 ## Basic command syntax
 
+Use `xget install TARGET` to install a package. The original `xget TARGET`
+form remains supported and runs the same installation command for backwards
+compatibility.
+
 ```text
 Download pre-built binaries from GitHub releases
 
 Usage:
   xget [TARGET] [flags]
+  xget install TARGET [flags]
   xget [command]
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
   config      Get, set, and edit xget configuration values
   help        Help about any command
+  install     Download and install a pre-built binary from GitHub releases
   list        List available or installed packages
+  uninstall   Remove an installed package
   upgrade     List and apply available upgrades for installed packages
   version     Print the xget version
 
@@ -70,7 +83,8 @@ Flags:
       --pre-release              include pre-releases when fetching the latest version
   -q, --quiet                    only print essential output
       --rate                     show GitHub API rate limiting information
-  -r, --remove                   remove the given file from $XGET_BIN or the current directory
+      --from string              directory to remove an untracked target from
+    -r, --remove                   uninstall the target package
       --sha256                   show the SHA-256 hash of the downloaded asset
       --source                   download the source code for the target repo instead of a release
   -s, --system string            target system to download for (use all for all choices)
@@ -100,6 +114,8 @@ If xget downloads an asset called `xxx`, and there is also a matching checksum a
 Successful installs are recorded in `~/.config/xget/.xget.installed.yml`. Records include source type, repo or URL, install location, install and refresh timestamps, selected asset, download URL, extracted files, effective options, SHA-256, and installed/current tag when release metadata is available. Records are keyed as `<source>:<repo-or-url>`, such as `github:nektos/act`.
 
 Use `xget list TARGET` to list assets that can be installed for a target. Use `xget list --installed` to show all installed records, or `xget list TARGET --installed` to show one installed package.
+
+Use `xget uninstall TARGET` or `xget remove TARGET` to remove a tracked package's extracted files and record. The backwards-compatible `xget TARGET --remove` form does the same. When no installed record matches, xget removes the target basename from `$XGET_BIN`, the current directory, or a directory selected with `--from`.
 
 ## GitHub rate limits
 

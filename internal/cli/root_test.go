@@ -7,6 +7,28 @@ import (
 	"github.com/camalot/xget/internal/config"
 )
 
+func TestSplitTargetTag(t *testing.T) {
+	tests := []struct {
+		target string
+		repo   string
+		tag    string
+		ok     bool
+	}{
+		{target: "slavaGanzin/await@2.1.0", repo: "slavaGanzin/await", tag: "2.1.0", ok: true},
+		{target: "eza-community/eza@v0.23.5", repo: "eza-community/eza", tag: "v0.23.5", ok: true},
+		{target: "eza-community/eza@latest", repo: "eza-community/eza", tag: "latest", ok: true},
+		{target: "https://user@example.com/asset", repo: "https://user@example.com/asset"},
+		{target: "owner/repo@", repo: "owner/repo@"},
+	}
+
+	for _, test := range tests {
+		repo, tag, ok := splitTargetTag(test.target)
+		if repo != test.repo || tag != test.tag || ok != test.ok {
+			t.Errorf("splitTargetTag(%q) = (%q, %q, %t), want (%q, %q, %t)", test.target, repo, tag, ok, test.repo, test.tag, test.ok)
+		}
+	}
+}
+
 func TestRootCommandIncludesCompletionSubcommand(t *testing.T) {
 	cmd := newRootCommand()
 	if got := cmd.Commands(); len(got) == 0 {
@@ -40,6 +62,22 @@ func TestRootCommandIncludesListSubcommand(t *testing.T) {
 		}
 	}
 	t.Fatal("expected root command to include a list subcommand")
+}
+
+func TestRootCommandIncludesInstallSubcommandWithInstallFlags(t *testing.T) {
+	cmd := newRootCommand()
+	for _, sub := range cmd.Commands() {
+		if sub.Name() != "install" {
+			continue
+		}
+		for _, name := range []string{"tag", "to", "asset", "ignore"} {
+			if sub.Flags().Lookup(name) == nil {
+				t.Fatalf("expected install command to include --%s", name)
+			}
+		}
+		return
+	}
+	t.Fatal("expected root command to include an install subcommand")
 }
 
 func TestOptionsForTarget_UsesConfigIgnoreAndOverrides(t *testing.T) {

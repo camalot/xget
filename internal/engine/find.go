@@ -22,6 +22,7 @@ type GithubRelease struct {
 		Digest      string `json:"digest"`
 	} `json:"assets"`
 
+	Draft      bool      `json:"draft"`
 	Prerelease bool      `json:"prerelease"`
 	Tag        string    `json:"tag_name"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -224,7 +225,13 @@ func (f *GithubAssetFinder) getLatestTag() (string, error) {
 		return "", fmt.Errorf("no releases found")
 	}
 
-	return releases[0].Tag, nil
+	for _, release := range releases {
+		if !release.Draft {
+			return release.Tag, nil
+		}
+	}
+
+	return "", fmt.Errorf("no published releases found")
 }
 
 // A DirectAssetFinder returns the embedded URL directly as the only asset.

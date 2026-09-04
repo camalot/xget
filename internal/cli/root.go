@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/engine"
@@ -29,6 +30,7 @@ type rootFlags struct {
 	verify      string
 	rate        bool
 	remove      bool
+	from        string
 	downloadAll bool
 	disableSSL  bool
 	config      string
@@ -46,6 +48,24 @@ func ExitCodeFor(err error) int {
 	return 1
 }
 
+// splitTargetTag separates the repo and release tag in owner/repo@tag targets.
+// URLs and malformed repository targets are left unchanged for their respective
+// handlers to validate.
+func splitTargetTag(target string) (repo, tag string, ok bool) {
+	if strings.Contains(target, "://") {
+		return target, "", false
+	}
+	repo, tag, ok = strings.Cut(target, "@")
+	if !ok || tag == "" || strings.Count(repo, "/") != 1 {
+		return target, "", false
+	}
+	owner, name, valid := strings.Cut(repo, "/")
+	if !valid || owner == "" || name == "" {
+		return target, "", false
+	}
+	return repo, tag, true
+}
+
 func newRootCommand() *cobra.Command {
 	f := &rootFlags{}
 
@@ -55,51 +75,31 @@ func newRootCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(f.config)
-			if err != nil {
-				return err
-			}
-
-			if cfg.Global.GithubToken != "" && os.Getenv("XGET_GITHUB_TOKEN") == "" {
-				if err := os.Setenv("XGET_GITHUB_TOKEN", cfg.Global.GithubToken); err != nil {
-					return err
-				}
-			}
-
-			disableSSL := cfg.Global.DisableSSL
-			if cmd.Flags().Changed("disable-ssl") {
-				disableSSL = f.disableSSL
-			}
-			engine.SetDisableSSL(disableSSL)
-
-			if f.rate {
-				rdat, err := engine.GetRateLimit()
-				if err != nil {
-					return err
-				}
-				fmt.Println(rdat)
-				return nil
-			}
-
-			if f.downloadAll {
-				return engine.DownloadConfigRepositories(cfg)
-			}
-
-			if len(args) == 0 {
-				fmt.Println("no target given")
-				return cmd.Help()
-			}
-
-			target := args[0]
-			opts, err := optionsForTarget(cfg, cmd, f, target)
-			if err != nil {
-				return err
-			}
-			return engine.Run(target, opts)
-		},
+		RunE:          installRunE(f),
 	}
 
+	addInstallFlags(cmd, f)
+
+	cmd.InitDefaultCompletionCmd("completion")
+	cmd.AddCommand(newVersionCommand(), newListCommand(), newConfigCommand(), newUpgradeCommand(), newInstallCommand(f), newUninstallCommand(f))
+
+	return cmd
+}
+
+func newInstallCommand(f *rootFlags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           "install TARGET",
+		Short:         "Download and install a pre-built binary from GitHub releases",
+		Args:          cobra.ExactArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE:          installRunE(f),
+	}
+	addInstallFlags(cmd, f)
+	return cmd
+}
+
+func addInstallFlags(cmd *cobra.Command, f *rootFlags) {
 	cmd.Flags().StringVarP(&f.tag, "tag", "t", "", "tagged release to use instead of latest")
 	cmd.Flags().BoolVar(&f.prerelease, "pre-release", false, "include pre-releases when fetching the latest version")
 	cmd.Flags().BoolVar(&f.source, "source", false, "download the source code for the target repo instead of a release")
@@ -117,15 +117,63 @@ func newRootCommand() *cobra.Command {
 	cmd.Flags().StringVar(&f.verify, "verify", "", "verify the downloaded asset checksum; pass a hash or use --verify with no value to use GitHub's published SHA256 when available")
 	cmd.Flags().Lookup("verify").NoOptDefVal = "auto"
 	cmd.Flags().BoolVar(&f.rate, "rate", false, "show GitHub API rate limiting information")
-	cmd.Flags().BoolVarP(&f.remove, "remove", "r", false, "remove the given file from $XGET_BIN or the current directory")
+	cmd.Flags().BoolVarP(&f.remove, "remove", "r", false, "uninstall the target package")
+	cmd.Flags().StringVar(&f.from, "from", "", "directory to remove an untracked target from")
 	cmd.Flags().BoolVarP(&f.downloadAll, "download-all", "D", false, "download all projects defined in the config file")
 	cmd.Flags().BoolVarP(&f.disableSSL, "disable-ssl", "k", false, "disable SSL verification for download requests")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
+}
 
-	cmd.InitDefaultCompletionCmd("completion")
-	cmd.AddCommand(newVersionCommand(), newListCommand(), newConfigCommand(), newUpgradeCommand())
+func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load(f.config)
+		if err != nil {
+			return err
+		}
 
-	return cmd
+		if cfg.Global.GithubToken != "" && os.Getenv("XGET_GITHUB_TOKEN") == "" {
+			if err := os.Setenv("XGET_GITHUB_TOKEN", cfg.Global.GithubToken); err != nil {
+				return err
+			}
+		}
+
+		disableSSL := cfg.Global.DisableSSL
+		if cmd.Flags().Changed("disable-ssl") {
+			disableSSL = f.disableSSL
+		}
+		engine.SetDisableSSL(disableSSL)
+
+		if f.rate {
+			rdat, err := engine.GetRateLimit()
+			if err != nil {
+				return err
+			}
+			fmt.Println(rdat)
+			return nil
+		}
+
+		if f.downloadAll {
+			return engine.DownloadConfigRepositories(cfg)
+		}
+
+		if len(args) == 0 {
+			fmt.Println("no target given")
+			return cmd.Help()
+		}
+		if f.remove {
+			return uninstallPackage(cmd, args[0], f.from)
+		}
+
+		target, inlineTag, hasInlineTag := splitTargetTag(args[0])
+		opts, err := optionsForTarget(cfg, cmd, f, target)
+		if err != nil {
+			return err
+		}
+		if hasInlineTag && !cmd.Flags().Changed("tag") {
+			opts.Tag = inlineTag
+		}
+		return engine.Run(target, opts)
+	}
 }
 
 // configOptionsForTarget resolves the global section followed by the matching

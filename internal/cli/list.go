@@ -92,7 +92,7 @@ func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string) error 
 		return err
 	}
 	if err := refreshInstalledStore(storePath, store, cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not refresh installed metadata: %v\n", err)
+		return err
 	}
 	packages := installed.SortedPackages(store)
 	if len(args) > 0 {
@@ -149,10 +149,28 @@ func printInstalledPackages(cmd *cobra.Command, packages []installed.Package) {
 			pkg.Key(),
 			pkg.InstalledTag,
 			pkg.CurrentTag,
-			displayLocation(pkg.InstallLocation),
+			displayLocation(installedLocation(pkg)),
 		})
 	}
 	printTable(cmd.OutOrStdout(), []string{"PACKAGE", "TAG/VERSION", "LATEST", "LOCATION"}, rows)
+}
+
+func installedLocation(pkg installed.Package) string {
+	for _, extractedFile := range pkg.ExtractedFiles {
+		if samePath(pkg.InstallLocation, extractedFile) {
+			return filepath.Dir(pkg.InstallLocation)
+		}
+	}
+	return pkg.InstallLocation
+}
+
+func samePath(first, second string) bool {
+	if filepath.Clean(first) == filepath.Clean(second) {
+		return true
+	}
+	firstAbsolute, firstErr := filepath.Abs(first)
+	secondAbsolute, secondErr := filepath.Abs(second)
+	return firstErr == nil && secondErr == nil && strings.EqualFold(firstAbsolute, secondAbsolute)
 }
 
 func displayLocation(location string) string {

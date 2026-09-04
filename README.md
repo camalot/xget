@@ -47,7 +47,11 @@ the internal layout.
 ## Examples
 
 ``` shell
+xget install eza-community/eza --tag v0.23.5 --to ~/.local/bin --asset .zip --ignore .sbom.json
 xget zyedidia/micro --tag nightly
+xget slavaGanzin/await@2.1.0
+xget eza-community/eza --tag v0.23.5
+xget eza-community/eza@latest --pre-release
 xget jgm/pandoc --to /usr/local/bin
 xget junegunn/fzf
 xget neovim/neovim
@@ -274,13 +278,16 @@ Download pre-built binaries from GitHub releases
 
 Usage:
   xget [TARGET] [flags]
+  xget install TARGET [flags]
   xget [command]
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
   config      Get, set, and edit xget configuration values
   help        Help about any command
+  install     Download and install a pre-built binary from GitHub releases
   list        List available or installed packages
+  uninstall   Remove an installed package
   upgrade     List and apply available upgrades for installed packages
   version     Print the xget version
 
@@ -297,7 +304,8 @@ Flags:
       --pre-release              include pre-releases when fetching the latest version
   -q, --quiet                    only print essential output
       --rate                     show GitHub API rate limiting information
-  -r, --remove                   remove the given file from $XGET_BIN or the current directory
+      --from string              directory to remove an untracked target from
+    -r, --remove                   uninstall the target package
       --sha256                   show the SHA-256 hash of the downloaded asset
       --source                   download the source code for the target repo instead of a release
   -s, --system string            target system to download for (use all for all choices)
@@ -620,21 +628,20 @@ xget tacocontent/ironstate --asset '~\.zip$' --ignore '~\.zip\.sbom\.json$'
 ### How is this different from a package manager?
 
 xget only downloads pre-built binaries uploaded to GitHub by the developers of
-the repository. It does not maintain a central list of packages, nor does it do
-any dependency management. xget does not "install" executables by placing them
-in system-wide directories (such as `/usr/local/bin`) unless instructed, and it
-does not maintain a registry for uninstallation. xget works best for installing
-software that comes as a single binary with no additional files needed (CLI
-tools made in Go, Rust, or Haskell tend to fit this description).
+the repository. It does not maintain a central list of packages or manage
+dependencies. xget does not "install" executables into system-wide directories
+(such as `/usr/local/bin`) unless instructed. It works best for software that
+comes as a single binary with no additional files needed.
 
 ### Does xget keep track of installed binaries?
 
-xget does not maintain any sort of manifest containing information about
-installed binaries. In general, xget does not maintain any state across
-invocations. However, xget does support the `--upgrade-only` option, which
-will first check `XGET_BIN` to determine if you have already downloaded the
-tool you are trying to install -- if so it will only download a new version if
-the GitHub release is newer than the binary on your file system.
+xget records successful installs in `~/.config/xget/.xget.installed.yml`,
+including their extracted files. Use `xget uninstall owner/repo` (or
+`xget remove owner/repo`) to remove those files and the matching record. The
+legacy `xget owner/repo --remove` form remains supported.
+
+When no installed record matches, xget tries to remove the target basename from
+`$XGET_BIN`, the current directory, or a directory passed with `--from`.
 
 ### Is this secure?
 
@@ -676,12 +683,14 @@ However, here are some rules that will guarantee compatibility with xget.
 
 ### Does this work with monorepos?
 
-Yes, you can pass a tag or tag identifier with the `--tag TAG` option. If no
-tag exactly matches, xget will look for the latest release with a tag that
-contains `TAG`. So if your repository contains releases for multiple different
-just pass the appropriate tag (for the project you want) to xget, and
-it will find the latest release for that particular project (as long as
-releases for that project are given tags that contain the project name).
+Yes. Select a tag or tag fragment with either `xget owner/repo@TAG` or
+`xget owner/repo --tag TAG`. If no tag exactly matches, xget looks for the
+latest release whose tag contains `TAG`. This is useful when a repository has
+releases for multiple projects.
+
+Use `@latest` or `--tag latest` to explicitly request the latest stable
+release. Adding `--pre-release` instead selects the newest release, whether it
+is a stable release or a prerelease.
 
 ## Contributing
 

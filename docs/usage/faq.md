@@ -17,7 +17,9 @@ xget works best for installing standalone command-line tools that ship as a sing
 
 ## Does xget keep track of installed binaries?
 
-xget does not maintain a stateful manifest of installed software. It generally does not keep data across runs. The exception is `--upgrade-only`, which checks whether the binary already exists in `XGET_BIN` or in the current directory before downloading a newer release.
+xget records successful installs in `~/.config/xget/.xget.installed.yml`, including the files it extracted. Use `xget uninstall owner/repo` or `xget remove owner/repo` to remove a tracked package's files and record. The older `xget owner/repo --remove` form remains supported.
+
+When no installed package matches, xget removes the target basename from `$XGET_BIN`, the current directory, or a directory passed with `--from`.
 
 ## Is this secure?
 
@@ -45,6 +47,8 @@ xget should work with many common release patterns, but these rules make compati
 
 ## Does this work with monorepos?
 
-Yes. Use `--tag TAG` to select a release tag or a tag fragment. If an exact tag match is not found, xget will look for the latest release whose tag contains the given value. This is useful when a repo contains multiple projects and each one has its own release tags.
+Yes. Use `owner/repo@TAG` or `--tag TAG` to select a release tag or tag fragment. If an exact tag match is not found, xget will look for the latest release whose tag contains the given value. This is useful when a repo contains multiple projects and each one has its own release tags.
+
+Use `@latest` or `--tag latest` to explicitly select the latest stable release. Add `--pre-release` to select the newest release, whether it is stable or a prerelease.
 
 For more examples of matching and filtering, see [Asset Filtering](asset-filtering).
