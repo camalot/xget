@@ -123,7 +123,7 @@ func newRootCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 
 	cmd.InitDefaultCompletionCmd("completion")
-	cmd.AddCommand(newVersionCommand(), newListCommand())
+	cmd.AddCommand(newVersionCommand(), newListCommand(), newConfigCommand())
 
 	return cmd
 }

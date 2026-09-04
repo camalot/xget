@@ -346,6 +346,68 @@ global:
   target: "~/.local/bin"
 ```
 
+### Managing configuration with `xget config`
+
+`xget config` reads and writes configuration values from the command line, similar
+to `git config`. Full details are in the
+[config command documentation](https://camalot.github.io/xget/configuration/config).
+
+```bash
+# scalar keys are replaced
+xget config set global target=~/bin
+xget config set global upgrade_only=true
+
+# list keys (ignore, asset_filters) append; repeat to add more
+xget config set zyedidia/micro asset_filters=static
+xget config set zyedidia/micro asset_filters=.tar.gz
+
+# read values (list values print one per line)
+xget config get global target
+xget config get zyedidia/micro asset_filters
+
+# remove one list entry, or the whole key
+xget config pop zyedidia/micro asset_filters=.tar.gz
+xget config clear global target
+
+# inspect
+xget config list
+xget config path
+
+# open in an editor
+xget config edit
+```
+
+Every subcommand accepts `--config <file>` (`-c`) to operate on a specific file.
+
+Which file is written:
+
+1. `--config <file>` if given.
+2. `XGET_CONFIG` / `EGET_CONFIG` if set.
+3. The first existing file in the search order above.
+4. Otherwise a new `$XDG_CONFIG_HOME/xget/.xget.yml` is created, falling back to
+   `~/.config/xget/.xget.yml` when `XDG_CONFIG_HOME` is empty or unset. This
+   applies on Linux, macOS, and Windows.
+
+The file is written in the format matching its extension: `.toml` files stay TOML,
+`.yml`/`.yaml` files stay YAML. Writing rewrites the file, so comments and the
+original key ordering are not preserved.
+
+`xget config get`, `clear`, and `pop` exit with status `1` and print nothing when
+the requested key is not set.
+
+`xget config edit` opens the file with the first editor found in `XGET_EDITOR`,
+`VISUAL`, or `EDITOR`, falling back to `nano` (and to `notepad` on Windows when
+`nano` is not on `PATH`).
+
+```bash
+XGET_EDITOR=nano xget config edit
+```
+
+```powershell
+$Env:XGET_EDITOR = "code --wait"
+xget config edit
+```
+
 ## Template Variables in Asset Filters / Ignore Lists
 
 The `asset_filters` and `ignore` settings support template variables that are automatically replaced with the appropriate values based on your target system:
