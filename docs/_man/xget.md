@@ -74,13 +74,17 @@ header: xget Manual
 
 :    Remove a tracked package's extracted files and its installed metadata record. When no installed package matches, remove the target basename from `$XGET_BIN`, the current directory, or the directory selected with `--from`. `xget TARGET --remove` is retained as a backwards-compatible equivalent.
 
+  `xget rate`
+
+:    Show GitHub API rate limiting information. This is equivalent to the backwards-compatible `xget --rate` form. When no token is configured, setup guidance is written to standard error while rate information remains on standard output. xget also provides this guidance after a GitHub API response with status 429.
+
   `xget upgrade [PACKAGE]`
 
 :    List and apply available upgrades for installed packages. With no arguments, the newest release of every installed package is looked up, the installed metadata store is refreshed, and packages with a newer release are listed. An upgrade is available only when the newest release is newer than the installed one; tags are compared as semantic versions, including prerelease ordering, falling back to a plain difference check for tags that are not semver-shaped. Packages installed from a direct URL or local file are skipped, since there is no release list to query. Pass a package to upgrade it, or `-a`/`--all` to upgrade everything that is not pinned. `PACKAGE` accepts the full name (`owner/repo`), the store key (`github:owner/repo`), or the bare repository name (`repo`). A package installed with a `tag` is pinned; it is listed separately, is never upgraded by `--all`, and must be named explicitly. Upgrading a pinned package re-pins it to the newer tag. The upgrade re-runs the download using options resolved from the `global` config section, then the matching `"owner/repo"` section, then the options stored at install time; `tag` and `upgrade_only` are never applied because either would prevent the newer release from being downloaded, and both are left untouched in the installed metadata store.
 
   `xget list [TARGET]`
 
-:    List the installable release assets for `TARGET`. With no `TARGET`, list the repositories defined in the configuration file. With `--installed`, show installed package metadata instead, optionally for a single `TARGET`.
+:    Show up to ten recent releases for `TARGET`, including their name, tag, and publication date. Add `--pre-release` to include prereleases. With no `TARGET`, list the repositories defined in the configuration file. With `--installed`, show installed package metadata instead, including the last install or upgrade date, optionally for a single `TARGET`.
 
   `xget config <SUBCOMMAND>`
 

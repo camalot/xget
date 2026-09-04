@@ -215,9 +215,11 @@ SHA-256, and installed/current tag when release metadata is available. Records
 are keyed as `<source>:<repo-or-url>`, such as `github:nektos/act`, and
 reinstalling a package refreshes the existing record.
 
-Use `xget list TARGET` to list installable release assets for a target. Use
-`xget list --installed` to show installed package metadata, or
-`xget list TARGET --installed` to show one installed package.
+Use `xget list TARGET` to show up to ten recent releases with their name, tag,
+and publication date. Add `--pre-release` to include prereleases. Use
+`xget list --installed` to show installed package metadata, including the last
+install or upgrade date, or `xget list TARGET --installed` to show one installed
+package.
 
 ### Upgrading installed packages
 
@@ -265,13 +267,15 @@ untouched in the installed metadata store. When no output location is
 configured, the recorded `install_location` is used.
 
 GitHub limits API requests to 60 per hour for unauthenticated users. If you
-would like to perform more requests (up to 5,000 per hour), you can set up a
-personal access token and assign it to an environment variable named either
-`GITHUB_TOKEN`, `EGET_GITHUB_TOKEN` or `XGET_GITHUB_TOKEN` when running xget.
-If both are set, `XGET_GITHUB_TOKEN` will take precedence. xget will read this
-variable and send the token as authorization with requests to GitHub. It is
-also possible to read the token from a file by using `@/path/to/file` as the
-token value.
+Use `xget rate` (or the backwards-compatible `xget --rate`) to inspect the
+current limit. When no token is configured, xget prints setup guidance to
+standard error. It also prints this guidance after a GitHub API response with
+status 429.
+
+To make more requests, use a personal access token and set it in either
+`GITHUB_TOKEN`, `EGET_GITHUB_TOKEN`, or `XGET_GITHUB_TOKEN` before running
+xget. `XGET_GITHUB_TOKEN` takes precedence. A token can also be read from a
+file by using `@/path/to/file` as its value.
 
 ``` text
 Download pre-built binaries from GitHub releases
@@ -287,6 +291,7 @@ Available Commands:
   help        Help about any command
   install     Download and install a pre-built binary from GitHub releases
   list        List available or installed packages
+  rate        Show GitHub API rate limiting information
   uninstall   Remove an installed package
   upgrade     List and apply available upgrades for installed packages
   version     Print the xget version

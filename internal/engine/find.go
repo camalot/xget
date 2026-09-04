@@ -22,10 +22,18 @@ type GithubRelease struct {
 		Digest      string `json:"digest"`
 	} `json:"assets"`
 
-	Draft      bool      `json:"draft"`
-	Prerelease bool      `json:"prerelease"`
-	Tag        string    `json:"tag_name"`
-	CreatedAt  time.Time `json:"created_at"`
+	Draft       bool      `json:"draft"`
+	Prerelease  bool      `json:"prerelease"`
+	Name        string    `json:"name"`
+	Tag         string    `json:"tag_name"`
+	PublishedAt time.Time `json:"published_at"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type Release struct {
+	Name        string
+	Tag         string
+	PublishedAt time.Time
 }
 
 type GithubError struct {
@@ -43,6 +51,9 @@ func (ge *GithubError) Error() string {
 	var msg errResponse
 	_ = json.Unmarshal(ge.Body, &msg)
 
+	if ge.Code == http.StatusTooManyRequests && !GithubTokenConfigured() {
+		return fmt.Sprintf("%s: GitHub API rate limit exceeded. Set XGET_GITHUB_TOKEN, GITHUB_TOKEN, or EGET_GITHUB_TOKEN to a GitHub token and try again.", ge.Status)
+	}
 	if ge.Code == http.StatusForbidden {
 		return fmt.Sprintf("%s: %s: %s", ge.Status, msg.Message, msg.Doc)
 	}
@@ -61,6 +72,63 @@ type GithubAssetFinder struct {
 }
 
 var ErrNoUpgrade = errors.New("requested release is not more recent than current version")
+
+func ListReleases(repo string, includePrereleases bool) ([]Release, error) {
+	if strings.Count(repo, "/") != 1 {
+		return nil, fmt.Errorf("invalid argument (must be of the form user/repo)")
+	}
+
+	const limit = 10
+	releases := make([]Release, 0, limit)
+	for page := 1; len(releases) < limit; page++ {
+		url := fmt.Sprintf("https://api.github.com/repos/%s/releases?per_page=100&page=%d", repo, page)
+		resp, err := Get(url)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != http.StatusOK {
+			body, readErr := io.ReadAll(resp.Body)
+			closeErr := resp.Body.Close()
+			if readErr != nil {
+				return nil, readErr
+			}
+			if closeErr != nil {
+				return nil, closeErr
+			}
+			return nil, &GithubError{Status: resp.Status, Code: resp.StatusCode, Body: body, Url: url}
+		}
+		body, err := io.ReadAll(resp.Body)
+		closeErr := resp.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
+
+		var pageReleases []GithubRelease
+		if err := json.Unmarshal(body, &pageReleases); err != nil {
+			return nil, err
+		}
+		for _, release := range pageReleases {
+			if release.Draft || (!includePrereleases && release.Prerelease) {
+				continue
+			}
+			publishedAt := release.PublishedAt
+			if publishedAt.IsZero() {
+				publishedAt = release.CreatedAt
+			}
+			releases = append(releases, Release{Name: release.Name, Tag: release.Tag, PublishedAt: publishedAt})
+			if len(releases) == limit {
+				return releases, nil
+			}
+		}
+		if len(pageReleases) < 100 {
+			break
+		}
+	}
+	return releases, nil
+}
 
 func (f *GithubAssetFinder) Find() ([]string, error) {
 	if f.Prerelease && f.Tag == "latest" {

@@ -89,6 +89,11 @@ func getGithubToken() (string, error) {
 	return "", ErrNoToken
 }
 
+func GithubTokenConfigured() bool {
+	_, err := getGithubToken()
+	return err == nil
+}
+
 func SetAuthHeader(req *http.Request) *http.Request {
 	token, err := getGithubToken()
 	if err != nil && !errors.Is(err, ErrNoToken) {
@@ -177,6 +182,9 @@ func GetRateLimit() (RateLimit, error) {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return RateLimit{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return RateLimit{}, &GithubError{Status: resp.Status, Code: resp.StatusCode, Body: b, Url: url}
 	}
 
 	var parsed RateLimitJson

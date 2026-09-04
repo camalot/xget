@@ -36,6 +36,8 @@ type rootFlags struct {
 	config      string
 }
 
+var getRateLimit = engine.GetRateLimit
+
 func Execute() error {
 	root := newRootCommand()
 	return root.Execute()
@@ -81,8 +83,22 @@ func newRootCommand() *cobra.Command {
 	addInstallFlags(cmd, f)
 
 	cmd.InitDefaultCompletionCmd("completion")
-	cmd.AddCommand(newVersionCommand(), newListCommand(), newConfigCommand(), newUpgradeCommand(), newInstallCommand(f), newUninstallCommand(f))
+	cmd.AddCommand(newVersionCommand(), newListCommand(), newConfigCommand(), newUpgradeCommand(), newInstallCommand(f), newUninstallCommand(f), newRateCommand(f))
 
+	return cmd
+}
+
+func newRateCommand(f *rootFlags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           "rate",
+		Short:         "Show GitHub API rate limiting information",
+		Args:          cobra.NoArgs,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE:          rateRunE(f),
+	}
+	cmd.Flags().BoolVarP(&f.disableSSL, "disable-ssl", "k", false, "disable SSL verification for download requests")
+	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 	return cmd
 }
 
@@ -131,10 +147,8 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 			return err
 		}
 
-		if cfg.Global.GithubToken != "" && os.Getenv("XGET_GITHUB_TOKEN") == "" {
-			if err := os.Setenv("XGET_GITHUB_TOKEN", cfg.Global.GithubToken); err != nil {
-				return err
-			}
+		if err := configureGithubToken(cfg); err != nil {
+			return err
 		}
 
 		disableSSL := cfg.Global.DisableSSL
@@ -144,12 +158,7 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 		engine.SetDisableSSL(disableSSL)
 
 		if f.rate {
-			rdat, err := engine.GetRateLimit()
-			if err != nil {
-				return err
-			}
-			fmt.Println(rdat)
-			return nil
+			return printRateLimit(cmd)
 		}
 
 		if f.downloadAll {
@@ -174,6 +183,43 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 		}
 		return engine.Run(target, opts)
 	}
+}
+
+func rateRunE(f *rootFlags) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, _ []string) error {
+		cfg, err := config.Load(f.config)
+		if err != nil {
+			return err
+		}
+		if err := configureGithubToken(cfg); err != nil {
+			return err
+		}
+		disableSSL := cfg.Global.DisableSSL
+		if cmd.Flags().Changed("disable-ssl") {
+			disableSSL = f.disableSSL
+		}
+		engine.SetDisableSSL(disableSSL)
+		return printRateLimit(cmd)
+	}
+}
+
+func configureGithubToken(cfg *config.Config) error {
+	if cfg.Global.GithubToken != "" && os.Getenv("XGET_GITHUB_TOKEN") == "" {
+		return os.Setenv("XGET_GITHUB_TOKEN", cfg.Global.GithubToken)
+	}
+	return nil
+}
+
+func printRateLimit(cmd *cobra.Command) error {
+	rdat, err := getRateLimit()
+	if err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), rdat)
+	if !engine.GithubTokenConfigured() {
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "Tip: set XGET_GITHUB_TOKEN, GITHUB_TOKEN, or EGET_GITHUB_TOKEN to a GitHub token for higher API rate limits.")
+	}
+	return nil
 }
 
 // configOptionsForTarget resolves the global section followed by the matching

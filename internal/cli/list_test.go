@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/camalot/xget/internal/config"
+	"github.com/camalot/xget/internal/engine"
 	"github.com/camalot/xget/internal/installed"
 	"github.com/spf13/cobra"
 )
@@ -30,14 +31,38 @@ func TestPrintInstalledPackagesUsesTableFormat(t *testing.T) {
 	})
 
 	got := buf.String()
-	if !strings.Contains(got, "PACKAGE") || !strings.Contains(got, "TAG/VERSION") || !strings.Contains(got, "LATEST") || !strings.Contains(got, "LOCATION") {
+	if !strings.Contains(got, "PACKAGE") || !strings.Contains(got, "TAG/VERSION") || !strings.Contains(got, "LATEST") || !strings.Contains(got, "LOCATION") || !strings.Contains(got, "INSTALLED/UPDATED") {
 		t.Fatalf("expected table header, got:\n%s", got)
 	}
-	if !strings.Contains(got, "github:nektos/act") || !strings.Contains(got, "v0.2.89") || !strings.Contains(got, "~/.local/bin") {
+	if !strings.Contains(got, "github:nektos/act") || !strings.Contains(got, "v0.2.89") || !strings.Contains(got, "~/.local/bin") || !strings.Contains(got, "2026-09-01") {
 		t.Fatalf("expected installed package row, got:\n%s", got)
 	}
 	if strings.Contains(got, "Installed at:") || strings.Contains(got, "Download URL:") {
 		t.Fatalf("expected summary table, got detail output:\n%s", got)
+	}
+}
+
+func TestListTargetPrintsReleaseSummariesAndPassesPrereleaseFlag(t *testing.T) {
+	original := listReleases
+	t.Cleanup(func() { listReleases = original })
+	includePrereleases := false
+	listReleases = func(target string, include bool) ([]engine.Release, error) {
+		if target != "eza-community/eza" {
+			t.Errorf("target = %q", target)
+		}
+		includePrereleases = include
+		return []engine.Release{{Name: "eza v0.23.5", Tag: "v0.23.5", PublishedAt: time.Date(2026, 9, 4, 0, 0, 0, 0, time.UTC)}}, nil
+	}
+
+	out, err := runCLI(t, "list", "eza-community/eza", "--pre-release")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !includePrereleases {
+		t.Fatal("expected --pre-release to be passed to release lookup")
+	}
+	if !strings.Contains(collapseSpaces(out), "NAME TAG DATE") || !strings.Contains(collapseSpaces(out), "eza v0.23.5 v0.23.5 2026-09-04") {
+		t.Fatalf("expected release table, got:\n%s", out)
 	}
 }
 

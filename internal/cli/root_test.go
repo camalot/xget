@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/camalot/xget/internal/config"
+	"github.com/camalot/xget/internal/engine"
 )
 
 func TestSplitTargetTag(t *testing.T) {
@@ -78,6 +81,46 @@ func TestRootCommandIncludesInstallSubcommandWithInstallFlags(t *testing.T) {
 		return
 	}
 	t.Fatal("expected root command to include an install subcommand")
+}
+
+func TestRateCommandPrintsTokenGuidanceToStderr(t *testing.T) {
+	t.Setenv("XGET_GITHUB_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("EGET_GITHUB_TOKEN", "")
+	original := getRateLimit
+	t.Cleanup(func() { getRateLimit = original })
+	getRateLimit = func() (engine.RateLimit, error) {
+		return engine.RateLimit{Limit: 60, Remaining: 42}, nil
+	}
+
+	cmd := newRootCommand()
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+	cmd.SetArgs([]string{"rate"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "Limit: 60, Remaining: 42") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "XGET_GITHUB_TOKEN") {
+		t.Fatalf("token guidance must not be written to stdout: %q", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "XGET_GITHUB_TOKEN") {
+		t.Fatalf("stderr missing token guidance: %q", stderr.String())
+	}
+}
+
+func TestRootCommandIncludesRateSubcommand(t *testing.T) {
+	cmd := newRootCommand()
+	for _, sub := range cmd.Commands() {
+		if sub.Name() == "rate" {
+			return
+		}
+	}
+	t.Fatal("expected root command to include a rate subcommand")
 }
 
 func TestOptionsForTarget_UsesConfigIgnoreAndOverrides(t *testing.T) {

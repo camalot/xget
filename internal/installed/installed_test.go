@@ -60,8 +60,8 @@ func TestUpsertCreatesAndUpdatesPackageRecord(t *testing.T) {
 	if got.Asset != "repo-v2.zip" || got.InstalledTag != "v2.0.0" {
 		t.Fatalf("record was not updated: %#v", got)
 	}
-	if !got.InstalledAt.Equal(installedAt) {
-		t.Fatalf("expected InstalledAt to be preserved, got %s", got.InstalledAt)
+	if !got.InstalledAt.Equal(installedAt.Add(time.Hour)) {
+		t.Fatalf("expected InstalledAt to update, got %s", got.InstalledAt)
 	}
 	if !got.RefreshedAt.Equal(installedAt.Add(time.Hour)) {
 		t.Fatalf("expected RefreshedAt to update, got %s", got.RefreshedAt)

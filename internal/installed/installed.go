@@ -153,9 +153,6 @@ func Upsert(path string, pkg Package) error {
 	}
 	pkg.Repo = ""
 	key := pkg.Key()
-	if existing, ok := store.Packages[key]; ok && !existing.InstalledAt.IsZero() {
-		pkg.InstalledAt = existing.InstalledAt
-	}
 	store.Packages[key] = pkg
 	return Save(path, store)
 }

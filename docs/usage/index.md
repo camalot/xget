@@ -18,6 +18,8 @@ If a GitHub repository is provided, xget will search the latest release for asse
 
 Use `@latest` or `--tag latest` to explicitly select the latest stable release. With `--pre-release`, `latest` selects the newest release regardless of whether it is stable or a prerelease.
 
+Use `xget list owner/repo` to show up to ten recent releases with their name, tag, and publication date. Add `--pre-release` to include prereleases. `xget list --installed` also shows when each package was last installed or upgraded.
+
 ## Examples
 
 ```bash
@@ -66,6 +68,7 @@ Available Commands:
   help        Help about any command
   install     Download and install a pre-built binary from GitHub releases
   list        List available or installed packages
+  rate        Show GitHub API rate limiting information
   uninstall   Remove an installed package
   upgrade     List and apply available upgrades for installed packages
   version     Print the xget version

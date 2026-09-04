@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/engine"
@@ -14,9 +15,12 @@ import (
 )
 
 type listFlags struct {
-	installed bool
-	config    string
+	installed  bool
+	prerelease bool
+	config     string
 }
+
+var listReleases = engine.ListReleases
 
 func newListCommand() *cobra.Command {
 	f := &listFlags{}
@@ -46,17 +50,19 @@ func newListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			assets, err := engine.ListAvailable(target, opts)
+			if f.prerelease {
+				opts.Prerelease = true
+			}
+			releases, err := listReleases(target, opts.Prerelease)
 			if err != nil {
 				return err
 			}
-			for _, asset := range assets {
-				cmd.Println(asset)
-			}
+			printAvailableReleases(cmd, releases)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&f.installed, "installed", false, "show installed package metadata")
+	cmd.Flags().BoolVar(&f.prerelease, "pre-release", false, "include pre-releases")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 	return cmd
 }
@@ -150,9 +156,29 @@ func printInstalledPackages(cmd *cobra.Command, packages []installed.Package) {
 			pkg.InstalledTag,
 			pkg.CurrentTag,
 			displayLocation(installedLocation(pkg)),
+			formatDate(pkg.InstalledAt),
 		})
 	}
-	printTable(cmd.OutOrStdout(), []string{"PACKAGE", "TAG/VERSION", "LATEST", "LOCATION"}, rows)
+	printTable(cmd.OutOrStdout(), []string{"PACKAGE", "TAG/VERSION", "LATEST", "LOCATION", "INSTALLED/UPDATED"}, rows)
+}
+
+func printAvailableReleases(cmd *cobra.Command, releases []engine.Release) {
+	rows := make([][]string, 0, len(releases))
+	for _, release := range releases {
+		name := release.Name
+		if name == "" {
+			name = release.Tag
+		}
+		rows = append(rows, []string{name, release.Tag, formatDate(release.PublishedAt)})
+	}
+	printTable(cmd.OutOrStdout(), []string{"NAME", "TAG", "DATE"}, rows)
+}
+
+func formatDate(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format("2006-01-02")
 }
 
 func installedLocation(pkg installed.Package) string {
