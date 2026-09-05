@@ -9,6 +9,18 @@ parent: 🧭 Usage
 # Frequently Asked Questions
 {: .no_toc }
 
+## Why use xget instead of [zyedidia/eget](https://github.com/zyedidia/eget)
+
+- `xget` is a fork of `eget` with additional features and improvements. It aims to provide better compatibility with various release patterns, enhanced
+asset filtering, and more robust handling of pre-built binaries. While `eget` is no longer actively maintained, `xget` continues to evolve to meet the
+needs of users who rely on pre-built binaries from GitHub releases.
+- `xget` uses a up to date version of Go, as well as modern libraries and practices to ensure better performance, security, and maintainability compared to the original `eget`.
+- While introducing new features and improvements that enhance usability and performance,`xget` v2.0.0 is backwards compatible with the v1.x releases of `eget`. this means you can take your existing `eget` workflows and configurations and continue using them with `xget` without major changes. All you need to do is replace `eget` with `xget` in your commands, or create a symbolic link to `xget` named `eget`.
+
+## Is xget compatible with all operating systems?
+
+xget is designed to work on Unix-like systems such as Linux, macOS, and BSD variants, as well as Windows. However, the availability of pre-built binaries for your specific OS and architecture depends on the software you are trying to install. Always check the release assets to ensure compatibility.
+
 ## How is this different from a package manager?
 
 xget only downloads pre-built binaries uploaded to GitHub by the developers of the repository. It does not maintain a central package list or a registry, and it does not manage dependencies. xget does not install software into system-wide directories unless you tell it to do so.
@@ -23,7 +35,10 @@ When no installed package matches, xget removes the target basename from `$XGET_
 
 ## Is this secure?
 
-xget does not execute downloaded code. It only finds and extracts binaries from GitHub releases. If you trust the code you are downloading, then using xget is reasonable. If xget finds a checksum file such as `xxx.sha256` or `xxx.sha256sum`, it will automatically verify the download checksum. You can also use `--sha256` or `--verify-sha256` to validate checksums manually.
+xget does not execute downloaded code. It only finds and extracts binaries from GitHub releases. If you trust the code you are downloading, then using xget is
+reasonable. If xget finds a checksum file such as `xxx.sha256` or `xxx.sha256sum`, it will automatically verify the download checksum. You can also use
+`--sha256` or `--verify / --verify-sha256` to validate checksums manually. If downloading a package directly from GitHub, if the asset in the release
+has a sha256 checksum associated with the asset, xget will automatically verify it.
 
 ## Does this work only for GitHub repositories?
 

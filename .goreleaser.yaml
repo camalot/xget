@@ -3,10 +3,12 @@ version: 2
 project_name: xget
 metadata:
   mod_timestamp: "{{ .CommitTimestamp }}"
-  
 
 release:
   prerelease: auto
+  # XGET_DRY_RUN=true builds everything and writes the package manifests to
+  # dist/ without creating a GitHub release or pushing to the tap repos.
+  disable: '{{ envOrDefault "XGET_DRY_RUN" "false" }}'
 
 before:
   hooks:
@@ -33,10 +35,11 @@ builds:
   - id: xget-android
     main: ./cmd/xget
     binary: xget
+    skip: '{{ envOrDefault "XGET_SKIP_ANDROID" "false" }}'
     env:
       - CGO_ENABLED=1
-      - CC={{ .Env.ANDROID_NDK_LATEST_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang
-      - CXX={{ .Env.ANDROID_NDK_LATEST_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang++
+      - CC={{ envOrDefault "ANDROID_NDK_LATEST_HOME" "" }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang
+      - CXX={{ envOrDefault "ANDROID_NDK_LATEST_HOME" "" }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang++
     goos:
       - android
     goarch:
@@ -46,6 +49,7 @@ builds:
       - -X github.com/camalot/xget/internal/cli.version={{.Version}}
       - -X github.com/camalot/xget/internal/cli.commit={{.ShortCommit}}
       - -X github.com/camalot/xget/internal/cli.date={{.Date}}
+
 archives:
   - id: xget
     formats: [zip]
@@ -81,31 +85,85 @@ sboms:
     artifacts: archive
 
 snapshot:
-  version_template: "{{ .Tag }}-next"
+  version_template: "{{ .Version }}-SNAPSHOT-{{.ShortCommit}}"
 
-# brews:
+winget:
+  - name: xget
+    skip_upload: true
+    publisher: camalot
+    author: Ryan Conrad
+    package_name: xget
+    package_identifier: camalot.xget
+    # Explicit so the manifests can also be rendered with the release pipe disabled.
+    url_template: "https://github.com/camalot/xget/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    short_description: xget is a tool for downloading binaries from the GitHub releases.
+    description: xget is a tool for downloading binaries from the GitHub releases.
+    license: MIT
+    commit_msg_template: "{{ .PackageIdentifier }}: {{ .Tag }}"
+    license_url: https://github.com/camalot/xget/blob/main/LICENSE
+    copyright: "Ryan Conrad"
+    release_notes: "{{.Changelog}}"
+    tags:
+      - installer
+      - github
+      - cli
+      - download
+    repository:
+      owner: camalot
+      name: xget-winget
+      branch: main
+      token: '{{ envOrDefault "XGET_APP_TOKEN" "" }}'
+    commit_author:
+      name: xget-bot
+      email: xget-bot@noreply.github.com
 # https://goreleaser.com/customization/publish/homebrew_casks/
-#   - repository:
-#       owner: camalot
-#       name: xget-tap
-#     directory: Formula
+homebrew_casks:
+  - repository:
+      owner: camalot
+      name: xget-tap
+      branch: main
+      token: '{{ envOrDefault "XGET_APP_TOKEN" "" }}'
+    skip_upload: '{{ if eq (envOrDefault "XGET_DRY_RUN" "false") "true" }}true{{ else }}auto{{ end }}'
+    homepage: https://github.com/camalot/xget
+    description: xget is a tool for downloading binaries from the GitHub releases.
+    url:
+      template: "https://github.com/camalot/xget/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    binaries:
+      - xget
+    manpages:
+      - xget.1
+    generate_completions_from_executable:
+      executable: xget
+      args:
+        - "completion"
+      base_name: xget
+      shell_parameter_format: cobra
+      shells:
+        - bash
+        - zsh
+        - fish
+        - pwsh
+    commit_author:
+      name: xget-bot
+      email: xget-bot@noreply.github.com
 
-# scoops:
 # https://goreleaser.com/customization/publish/scoop/
-#   - repository:
-#       owner: camalot
-#       name: xget-scoop
-#       branch: main
+scoops:
+  - repository:
+      owner: camalot
+      name: xget-scoop
+      branch: main
+      token: '{{ envOrDefault "XGET_APP_TOKEN" "" }}'
+    skip_upload: '{{ if eq (envOrDefault "XGET_DRY_RUN" "false") "true" }}true{{ else }}auto{{ end }}'
+    url_template: "https://github.com/camalot/xget/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
 
-#     commit_msg_template: "chore: update scoop manifest {{ .Version }}"
-#     homepage: https://github.com/camalot/xget
-#     description: xget is a tool for downloading binaries from the GitHub releases.
-#     license: MIT
-#     skip_upload: auto
-#     goamd64: v1
-#     commit_author:
-#       name: xget-bot
-#       email: xget-bot@noreply.github.com
+    commit_msg_template: "chore: update scoop manifest {{ .Version }}"
+    homepage: https://github.com/camalot/xget
+    description: xget is a tool for downloading binaries from the GitHub releases.
+    license: MIT
+    commit_author:
+      name: xget-bot
+      email: xget-bot@noreply.github.com
 
 changelog:
   sort: asc

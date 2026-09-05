@@ -180,6 +180,10 @@ header: xget Manual
 
 :    Disable SSL certificate verification for GET requests. Cannot be used in combination with a `GITHUB_TOKEN`.
 
+  `--non-interactive`
+
+:    Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes `Interactive user request while execution is in non-interactive mode` to stderr and exits with code 16.
+
   `-c, --config=`
 
 :    Use the given configuration file instead of searching the default locations. Example: **`xget -c ./project.xget.toml owner/repo`**.
@@ -187,6 +191,23 @@ header: xget Manual
   `-h, --help`
 
 :    Show a help message.
+
+  `-v, --version`
+
+:    Print the xget version. Equivalent to **`xget version`**.
+
+# EXIT STATUS
+  `0`
+
+:    Success.
+
+  `1`
+
+:    General error.
+
+  `16`
+
+:    An interactive action was required while running with `--non-interactive`.
 
 # ENVIRONMENT
   `XGET_BIN`

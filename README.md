@@ -33,23 +33,6 @@ most software that is distributed via single binaries on GitHub releases. First
 try using xget on your software, it may already just work. Otherwise, see the
 FAQ for a clear set of rules to make your software compatible with xget.
 
-For more in-depth documentation, see [DOCS.md](DOCS.md).
-
-## Project structure
-
-xget now uses a structured Cobra/Viper architecture to make future command and
-configuration extensions easier:
-
-- `cmd/xget/main.go`: application entrypoint.
-- `internal/cli/root.go`: root Cobra command and flag wiring.
-- `internal/config`: configuration loading and normalization (TOML + YAML).
-- `internal/options`: runtime option model used by the engine.
-- `internal/engine`: find/detect/verify/extract/download runtime flow.
-- `internal/version`: version string used by the CLI and release builds.
-
-This preserves compatibility with existing eget/xget behavior while modernizing
-the internal layout.
-
 ## Examples
 
 ``` shell
@@ -75,9 +58,11 @@ xget list --installed
 xget list camalot/xget --installed
 ```
 
+<!-- markdownlint-disable MD041 -->
+
 ## How to get xget
 
-Before you can get anything, you have to get xget. If you already have xget and want to upgrade, use `xget camalot/xget`.
+Before you can get anything, you have to get xget. If you already have xget and want to upgrade, use `xget upgrade camalot/xget`.
 
 ### Quick-install script
 
@@ -186,6 +171,19 @@ to install `xget` (with binary caching) and run it in a single step:
   with:
     package: junegunn/fzf
 ```
+
+You can also use the action to just install `xget` on the GitHub Actions runner without installing any packages. You can then use `xget` in subsequent steps to install other tools as needed.
+
+``` yaml
+- uses: camalot/xget-action@v1
+- shell: bash
+  run: |
+    xget install eza-community/eza --to ~/.local/bin
+    xget install junegunn/fzf --to ~/.local/bin
+    xget install bschaatsbergen/cidr --to ~/.local/bin
+```
+
+The `xget-action` uses the `--non-interactive` flag by default to ensure that installations do not prompt for user input, which is suitable for automated CI/CD environments.
 
 See the [xget-action README](https://github.com/camalot/xget-action#readme)
 for the full list of inputs/outputs and more examples.
@@ -320,6 +318,7 @@ Flags:
   -f, --file string              glob to select files for extraction
   -h, --help                     help for xget
       --ignore strings           exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times
+      --non-interactive          fail instead of prompting when user input is required
       --pre-release              include pre-releases when fetching the latest version
   -q, --quiet                    only print essential output
       --rate                     show GitHub API rate limiting information
@@ -333,6 +332,7 @@ Flags:
       --upgrade-only             only download if release is more recent than current version
       --verify string[="auto"]   verify the downloaded asset checksum; pass a hash or use --verify with no value to use GitHub's published SHA256 when available
       --verify-sha256 string     verify the downloaded asset checksum against the one provided
+  -v, --version                  version for xget
 
 Use "xget [command] --help" for more information about a command.
 ```
@@ -355,6 +355,14 @@ Flags:
 
 Use "xget completion [command] --help" for more information about a command.
 ```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. |
+| `1` | General error. |
+| `16` | An interactive action was required while running with `--non-interactive`. |
 
 ## Configuration
 

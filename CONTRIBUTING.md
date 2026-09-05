@@ -166,6 +166,25 @@ Before submitting a pull request, test your changes thoroughly:
    go test ./...
    ```
 
+2. **Test the Packaging (optional)**
+
+   To verify the scoop manifest, homebrew cask, and winget manifests without
+   publishing a release:
+
+   ```bash
+   task release:dry-run
+   ```
+
+   This sets `XGET_DRY_RUN=true`, which disables the GitHub release and forces
+   `skip_upload` on every package pipe. The rendered manifests are written to
+   `dist/scoop/`, `dist/homebrew/`, and `dist/winget/`. The android build is
+   skipped locally because it needs the Android NDK; run it with
+   `task release:dry-run SKIP_ANDROID=false` if the NDK is installed.
+
+   The same pipeline can be run in CI with the **release dry-run** workflow
+   (`workflow_dispatch`), which builds every target and uploads the manifests as
+   a workflow artifact.
+
 ### Submitting a Pull Request
 
 Once your changes are ready:

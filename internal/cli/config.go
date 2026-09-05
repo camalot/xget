@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/camalot/xget/internal/config"
+	"github.com/camalot/xget/internal/engine"
 	"github.com/spf13/cobra"
 )
 
@@ -216,6 +217,9 @@ func newConfigEditCommand(f *configFlags) *cobra.Command {
 			"(and notepad on Windows when nano is unavailable).",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if engine.NonInteractive() {
+				return engine.ErrNonInteractive
+			}
 			doc, err := openDocument(f)
 			if err != nil {
 				return err

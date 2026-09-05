@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -34,6 +35,8 @@ type rootFlags struct {
 	downloadAll bool
 	disableSSL  bool
 	config      string
+
+	nonInteractive bool
 }
 
 var getRateLimit = engine.GetRateLimit
@@ -43,11 +46,26 @@ func Execute() error {
 	return root.Execute()
 }
 
+// Process exit codes returned by xget.
+const (
+	// ExitCodeSuccess indicates the command completed without error.
+	ExitCodeSuccess = 0
+	// ExitCodeError indicates a general failure.
+	ExitCodeError = 1
+	// ExitCodeNonInteractive indicates user input was required while running
+	// with --non-interactive.
+	ExitCodeNonInteractive = 16
+)
+
+// ExitCodeFor maps an error returned by Execute to a process exit code.
 func ExitCodeFor(err error) int {
 	if err == nil {
-		return 0
+		return ExitCodeSuccess
 	}
-	return 1
+	if errors.Is(err, engine.ErrNonInteractive) {
+		return ExitCodeNonInteractive
+	}
+	return ExitCodeError
 }
 
 // splitTargetTag separates the repo and release tag in owner/repo@tag targets.
@@ -74,10 +92,17 @@ func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "xget [TARGET]",
 		Short:         "Download pre-built binaries from GitHub releases",
+		Version:       versionString(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.MaximumNArgs(1),
 		RunE:          installRunE(f),
+	}
+	cmd.SetVersionTemplate("{{.Version}}\n")
+
+	cmd.PersistentFlags().BoolVar(&f.nonInteractive, "non-interactive", false, "fail instead of prompting when user input is required")
+	cmd.PersistentPreRun = func(*cobra.Command, []string) {
+		engine.SetNonInteractive(f.nonInteractive)
 	}
 
 	addInstallFlags(cmd, f)

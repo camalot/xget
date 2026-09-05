@@ -340,7 +340,26 @@ func writeFile(data []byte, rename string, mode fs.FileMode) error {
 	return err
 }
 
+// ErrNonInteractive is returned when user input is required but xget is
+// running in non-interactive mode.
+var ErrNonInteractive = errors.New("interactive user request while execution is in non-interactive mode")
+
+var runtimeNonInteractive bool
+
+// SetNonInteractive toggles non-interactive mode for the current process.
+func SetNonInteractive(disable bool) {
+	runtimeNonInteractive = disable
+}
+
+// NonInteractive reports whether prompting the user is forbidden.
+func NonInteractive() bool {
+	return runtimeNonInteractive
+}
+
 func userSelect(choices []interface{}) (int, error) {
+	if runtimeNonInteractive {
+		return 0, ErrNonInteractive
+	}
 	for i, c := range choices {
 		fmt.Fprintf(os.Stderr, "(%d) %v\n", i+1, c)
 	}
@@ -552,6 +571,9 @@ func Run(target string, opts options.Flags) error {
 
 	url, candidates, err := detector.Detect(assets)
 	if len(candidates) != 0 && err != nil {
+		if runtimeNonInteractive {
+			return ErrNonInteractive
+		}
 		fmt.Fprintf(os.Stderr, "%v: please select manually\n", err)
 		choices := make([]interface{}, len(candidates))
 		for i := range candidates {
@@ -631,6 +653,9 @@ func Run(target string, opts options.Flags) error {
 
 	bin, bins, err := extractor.Extract(body, opts.All)
 	if len(bins) != 0 && err != nil && !opts.All {
+		if runtimeNonInteractive {
+			return ErrNonInteractive
+		}
 		fmt.Fprintf(os.Stderr, "%v: please select manually\n", err)
 		choices := make([]interface{}, len(bins)+1)
 		for i := range bins {

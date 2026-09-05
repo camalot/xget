@@ -85,6 +85,7 @@ Flags:
   -f, --file string              glob to select files for extraction
   -h, --help                     help for xget
       --ignore strings           exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times
+      --non-interactive          fail instead of prompting when user input is required
       --pre-release              include pre-releases when fetching the latest version
   -q, --quiet                    only print essential output
       --rate                     show GitHub API rate limiting information
@@ -98,9 +99,18 @@ Flags:
       --upgrade-only             only download if release is more recent than current version
       --verify string[="auto"]   verify the downloaded asset checksum; pass a hash or use --verify with no value to use GitHub's published SHA256 when available
       --verify-sha256 string     verify the downloaded asset checksum against the one provided
+  -v, --version                  version for xget
 
 Use "xget [command] --help" for more information about a command.
 ```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. |
+| `1` | General error. |
+| `16` | An interactive action was required while running with `--non-interactive`. |
 
 ## Extract behavior
 

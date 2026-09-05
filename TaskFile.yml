@@ -20,6 +20,30 @@ tasks:
       - gofmt -l .
       - go test ./...
 
+  manpage:
+    desc: Generate xget.1 (falls back to a stub when pandoc is unavailable)
+    status:
+      - test -f xget.1
+    cmds:
+      - cmd: pandoc docs/_man/xget.md -s -t man -o xget.1
+        ignore_error: true
+      - cmd: test -f xget.1 || printf '.TH XGET 1\n.SH NAME\nxget \\- placeholder man page\n' > xget.1
+
+  release:dry-run:
+    desc: Build the release and render the winget/scoop/homebrew manifests into dist/ without publishing anything
+    deps:
+      - manpage
+    env:
+      XGET_DRY_RUN: "true"
+      # cgo cross-compilation for android needs the NDK, which is only present in CI.
+      XGET_SKIP_ANDROID: '{{.SKIP_ANDROID | default "true"}}'
+    cmds:
+      - goreleaser release --clean --skip=validate,announce,sign,sbom
+      - echo "--- dist/scoop/xget.json ---"
+      - cat dist/scoop/xget.json
+      - echo "--- dist/homebrew/Casks/xget.rb ---"
+      - cat dist/homebrew/Casks/xget.rb
+
 
 
   ironstate:

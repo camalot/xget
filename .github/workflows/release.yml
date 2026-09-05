@@ -48,6 +48,13 @@ jobs:
       - uses: anchore/sbom-action/download-syft@v0
       - uses: sigstore/cosign-installer@v4.1.2
 
+      - uses: actions/create-github-app-token@v3.2.0
+        id: xget-bot-token
+        with:
+          client-id: ${{ vars.XGET_APP_CLIENT_ID }}
+          installation-id: ${{ vars.XGET_APP_INSTALL_ID }}
+          private-key: ${{ secrets.XGET_APP_PRIVATE_KEY }}
+
       - uses: goreleaser/goreleaser-action@v7
         id: goreleaser
         with:
@@ -55,7 +62,8 @@ jobs:
           version: latest
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          XGET_APP_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
 
       - uses: actions/attest-build-provenance@v4
         with:

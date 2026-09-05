@@ -1,0 +1,57 @@
+name: release dry-run
+
+# Runs the full goreleaser pipeline (including the winget, scoop, and homebrew
+# cask pipes) without creating a GitHub release or pushing to the tap repos.
+# The rendered manifests are uploaded as a workflow artifact for inspection.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to render the manifests for (defaults to the latest reachable tag)
+        required: false
+        type: string
+
+permissions: {}
+
+jobs:
+  dry-run:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # goreleaser's changelog needs full history
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
+      - name: Generate man page
+        run: pandoc docs/_man/xget.md -s -t man -o xget.1
+
+      - uses: anchore/sbom-action/download-syft@v0
+
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --skip=validate,announce,sign
+        env:
+          XGET_DRY_RUN: "true"
+          GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packaging-manifests
+          path: |
+            dist/scoop/**
+            dist/homebrew/**
+            dist/winget/**
+            dist/checksums.txt
+          if-no-files-found: error

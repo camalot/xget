@@ -15,6 +15,12 @@ nav_order: 1
 [![Release](https://img.shields.io/github/release/camalot/xget.svg?label=Release)](https://github.com/camalot/xget/releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/camalot/xget/blob/master/LICENSE)
 
+<!-- markdownlint-disable MD033 -->
+<p align="center">
+  <img src="https://github.com/camalot/xget/raw/refs/heads/main/docs/assets/images/xget-logo-800x484.png" alt="xget logo" width="800">
+</p>
+<!-- markdownlint-enable MD033 -->
+
 **xget** is the best way to easily get pre-built binaries for your favorite
 tools. It downloads and extracts pre-built binaries from releases on GitHub. To
 use it, provide a repository and xget will search through the assets from the
