@@ -119,7 +119,7 @@ winget:
     short_description: xget is a tool for downloading binaries from the GitHub releases.
     description: xget is a tool for downloading binaries from the GitHub releases.
     license: MIT
-    commit_msg_template: "{{ .PackageIdentifier }}: {{ .Tag }}"
+    commit_msg_template: "chore(winget): update manifest {{ .ProjectName }}@{{ .Version }}"
     license_url: https://github.com/camalot/xget/blob/main/LICENSE
     copyright: "Ryan Conrad"
     release_notes: "{{.Changelog}}"
@@ -130,7 +130,7 @@ winget:
       - download
     repository:
       owner: camalot
-      name: xget-winget
+      name: scoop
       branch: main
       token: '{{ envOrDefault "XGET_APP_TOKEN" "" }}'
     commit_author:
@@ -140,10 +140,11 @@ winget:
 homebrew_casks:
   - repository:
       owner: camalot
-      name: xget-tap
+      name: scoop
       branch: main
       token: '{{ envOrDefault "XGET_APP_TOKEN" "" }}'
     skip_upload: '{{ if eq (envOrDefault "XGET_DRY_RUN" "false") "true" }}true{{ else }}auto{{ end }}'
+    commit_msg_template: "chore(homebrew): update manifest {{ .ProjectName }}@{{ .Version }}"
     homepage: https://github.com/camalot/xget
     description: xget is a tool for downloading binaries from the GitHub releases.
     url:
@@ -171,13 +172,13 @@ homebrew_casks:
 scoops:
   - repository:
       owner: camalot
-      name: xget-scoop
+      name: scoop
       branch: main
       token: '{{ envOrDefault "XGET_APP_TOKEN" "" }}'
     skip_upload: '{{ if eq (envOrDefault "XGET_DRY_RUN" "false") "true" }}true{{ else }}auto{{ end }}'
     url_template: "https://github.com/camalot/xget/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
 
-    commit_msg_template: "chore: update scoop manifest {{ .Version }}"
+    commit_msg_template: "chore(scoop): update manifest {{ .ProjectName }}@{{ .Version }}"
     homepage: https://github.com/camalot/xget
     description: xget is a tool for downloading binaries from the GitHub releases.
     license: MIT
