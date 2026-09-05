@@ -132,7 +132,7 @@ winget:
       owner: camalot
       name: scoop
       branch: main
-      token: '{{ envOrDefault "XGET_APP_TOKEN" "" }}'
+      token: '{{ .Env.XGET_APP_TOKEN }}'
     commit_author:
       name: xget-bot
       email: xget-bot@noreply.github.com
@@ -142,7 +142,7 @@ homebrew_casks:
       owner: camalot
       name: scoop
       branch: main
-      token: '{{ envOrDefault "XGET_APP_TOKEN" "" }}'
+      token: '{{ .Env.XGET_APP_TOKEN }}'
     skip_upload: '{{ if eq (envOrDefault "XGET_DRY_RUN" "false") "true" }}true{{ else }}auto{{ end }}'
     commit_msg_template: "chore(homebrew): update manifest {{ .ProjectName }}@{{ .Version }}"
     homepage: https://github.com/camalot/xget
@@ -174,7 +174,7 @@ scoops:
       owner: camalot
       name: scoop
       branch: main
-      token: '{{ envOrDefault "XGET_APP_TOKEN" "" }}'
+      token: '{{ .Env.XGET_APP_TOKEN }}'
     skip_upload: '{{ if eq (envOrDefault "XGET_DRY_RUN" "false") "true" }}true{{ else }}auto{{ end }}'
     url_template: "https://github.com/camalot/xget/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
 
