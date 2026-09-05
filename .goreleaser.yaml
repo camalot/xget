@@ -187,6 +187,8 @@ scoops:
       email: xget-bot@noreply.github.com
 
 changelog:
+  # if release-notes are passed, then disable generation
+  disable: '{{ if ne (envOrDefault "XGET_RELEASE_NOTES" "") "" }}true{{ else }}false{{ end }}'
   sort: asc
   filters:
     exclude:

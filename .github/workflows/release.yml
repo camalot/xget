@@ -1,10 +1,13 @@
 name: release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Render manifests/build artifacts without creating a tag, release, changelog commit, or pushing to the tap repo
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -21,12 +24,22 @@ jobs:
 
       - uses: ./.github/actions/verify-sha256
 
-  release:
+
+  version:
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
+      statuses: write
+      issues: write
+      pull-requests: write
     runs-on: ubuntu-latest
+    outputs:
+      ver_major_minor_patch: ${{ steps.get.outputs.major_minor_patch }}
+      ver_major_minor: ${{ steps.get.outputs.major_minor }}
+      ver_major: ${{ steps.get.outputs.major }}
+      tag: ${{ steps.get.outputs.tag_major_minor_patch }}
+      tag_major: ${{ steps.get.outputs.tag_major }}
+      tag_major_minor: ${{ steps.get.outputs.tag_major_minor }}
+      tag_major_minor_patch: ${{ steps.get.outputs.tag_major_minor_patch }}
     needs:
       - verify
     steps:
@@ -35,22 +48,25 @@ jobs:
           fetch-depth: 0 # goreleaser's changelog needs full history
           persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
 
-      - uses: actions/setup-go@v7
+      - name: Determine next version
+        id: get
+        uses: camalot/actions/version/get@v1
         with:
-          go-version-file: go.mod
+          default_version: v1.0.0
+          fail_on_default: true
+          fail_on_same_version: true
+          token: ${{ github.token }}
 
-      # - name: Install pandoc
-      #   run: sudo apt-get update && sudo apt-get install -y pandoc
-      - uses: camalot/xget-action@v1
-        with:
-          package: jgm/pandoc
-          asset-filters: ".tar.gz"
-      - name: Generate man page
-        run: pandoc docs/_man/xget.md -s -t man -o xget.1
-
-      - uses: anchore/sbom-action/download-syft@v0
-      - uses: sigstore/cosign-installer@v4.1.2
-
+  release:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    needs:
+      - verify
+      - version
+    steps:
       - uses: actions/create-github-app-token@v3.2.0
         id: xget-bot-token
         with:
@@ -63,16 +79,104 @@ jobs:
           permission_id-token: write
           permission_attestations: write
 
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # goreleaser's changelog needs full history
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # setup git using gh
+      - name: Setup git
+        run: |
+          gh auth setup-git
+          git config --global user.name "xget-bot"
+          git config --global user.email "xget-bot@noreply.github.com"
+        env:
+          GH_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+
+      # - name: Install pandoc
+      #   run: sudo apt-get update && sudo apt-get install -y pandoc
+      - uses: camalot/xget-action@v1
+
+      - shell: bash
+        run: |
+          set -euo pipefail
+          echo "Installing pandoc"
+          xget install jgm/pandoc --asset ".tar.gz" --non-interactive
+          xget install orhun/git-cliff --asset ".tar.gz" --non-interactive --file "git-cliff"
+
+          git-cliff --github-token "${GH_TOKEN}" --unreleased --tag "${GC_TAG}" --prepend CHANGELOG.md --output RELEASE_NOTES.md
+
+          # send the release notes to the GITHUB_SUMMARY
+          echo "### Release Notes for ${GC_TAG}" >> $GITHUB_STEP_SUMMARY
+          cat RELEASE_NOTES.md >> $GITHUB_STEP_SUMMARY
+
+          echo "XGET_RELEASE_NOTES=1" >> $GITHUB_ENV
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "Dry run: skipping changelog commit and tag creation"
+            exit 0
+          fi
+
+          git add CHANGELOG.md
+          git commit -m "docs: update changelog for ${GC_TAG}"
+          git push origin HEAD
+          git tag "${GC_TAG}"
+          git push origin "${GC_TAG}"
+          echo "Release notes for ${GC_TAG} have been committed and tagged."
+
+        env:
+          GH_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          GC_TAG: ${{ needs.version.outputs.tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+
+      - name: Generate man page
+        run: pandoc docs/_man/xget.md -s -t man -o xget.1
+
+      - uses: anchore/sbom-action/download-syft@v0
+      - uses: sigstore/cosign-installer@v4.1.2
+
       - uses: goreleaser/goreleaser-action@v7
         id: goreleaser
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean
+          # dry runs also skip validate (no new tag exists yet), announce, and sign
+          args: release --clean --release-notes RELEASE_NOTES.md${{ inputs.dry_run == true && ' --skip=validate,announce,sign' || '' }}
         env:
           GITHUB_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
           XGET_APP_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          # the tag isn't created/pushed in a dry run, so goreleaser can't discover it via `git describe`
+          GORELEASER_CURRENT_TAG: ${{ needs.version.outputs.tag }}
+          XGET_DRY_RUN: ${{ inputs.dry_run }}
+
+      - name: Upload packaging manifests
+        if: ${{ inputs.dry_run == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaging-manifests
+          path: |
+            dist/scoop/**
+            dist/homebrew/**
+            dist/winget/**
+            dist/checksums.txt
+          if-no-files-found: error
 
       - uses: actions/attest-build-provenance@v4
+        if: ${{ inputs.dry_run != true }}
         with:
           subject-path: "dist/*.zip,dist/*.tar.gz,dist/checksums.txt"
+
+      # if anything after the tag was pushed fails, don't leave a dangling tag/release behind
+      - name: Rollback tag/release on failure
+        if: ${{ failure() && inputs.dry_run != true }}
+        run: |
+          set -uo pipefail
+          echo "Rolling back ${GC_TAG} due to workflow failure"
+          gh release delete "${GC_TAG}" --cleanup-tag --yes || git push origin --delete "${GC_TAG}" || true
+        env:
+          GH_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          GC_TAG: ${{ needs.version.outputs.tag }}

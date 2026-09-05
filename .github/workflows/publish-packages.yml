@@ -1,0 +1,64 @@
+name: publish packages
+
+# Manually re-runs only the winget/scoop/homebrew cask publish pipes for a tag
+# that already has a GitHub release (e.g. because that step failed on the
+# initial run). Rebuilds the archives locally so checksums match what's
+# already uploaded, but skips creating/updating the GitHub release itself.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish package manifests for (e.g. v2.0.1)
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  publish:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          fetch-depth: 0 # goreleaser's changelog needs full history
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: camalot/xget-action@v1
+        with:
+          package: jgm/pandoc
+          asset-filters: ".tar.gz"
+
+      - name: Generate man page
+        run: pandoc docs/_man/xget.md -s -t man -o xget.1
+
+      - uses: anchore/sbom-action/download-syft@v0
+
+      - uses: actions/create-github-app-token@v3.2.0
+        id: xget-bot-token
+        with:
+          client-id: ${{ vars.XGET_APP_CLIENT_ID }}
+          installation-id: ${{ vars.XGET_APP_INSTALL_ID }}
+          private-key: ${{ secrets.XGET_APP_PRIVATE_KEY }}
+          # the app installation must also have access to camalot/scoop (winget/scoop/homebrew manifests)
+          repositories: xget,scoop
+          permission_content: write
+
+      - uses: goreleaser/goreleaser-action@v7
+        id: goreleaser
+        with:
+          distribution: goreleaser
+          version: latest
+          # skip=github leaves the already-published GitHub release/assets alone
+          args: release --clean --skip=validate,announce,sign,sbom,github
+        env:
+          GITHUB_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          XGET_APP_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
