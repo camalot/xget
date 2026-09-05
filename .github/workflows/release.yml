@@ -57,6 +57,11 @@ jobs:
           client-id: ${{ vars.XGET_APP_CLIENT_ID }}
           installation-id: ${{ vars.XGET_APP_INSTALL_ID }}
           private-key: ${{ secrets.XGET_APP_PRIVATE_KEY }}
+          # the app installation must also have access to camalot/scoop (winget/scoop/homebrew manifests)
+          repositories: xget,scoop
+          permission_content: write
+          permission_id-token: write
+          permission_attestations: write
 
       - uses: goreleaser/goreleaser-action@v7
         id: goreleaser
