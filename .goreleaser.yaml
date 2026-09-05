@@ -32,7 +32,7 @@ builds:
       - -X github.com/camalot/xget/internal/cli.date={{.Date}}
     hooks:
       pre:
-        - go tool go-winres make --in winres/winres.json --arch={{ .Arch }} --product-version={{ .Version }} --file-version={{ .Version }} --out cmd/xget/rsrc
+        - go tool go-winres make --in winres/winres.json --arch={{ .Arch }} --product-version={{ .Version }} --file-version={{ .Version }} --out ./cmd/xget/rsrc
 
       post:
         - rm -f cmd/xget/rsrc_*.syso
