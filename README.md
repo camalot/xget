@@ -9,7 +9,7 @@
 
 <!-- markdownlint-disable MD033 -->
 <p align="center">
-  <img src="https://github.com/camalot/xget/raw/refs/heads/main/docs/assets/images/xget-logo.png" alt="xget logo" width="1355">
+  <img src="https://github.com/camalot/xget/raw/refs/heads/main/docs/assets/images/xget-logo-800x484.png" alt="xget logo" width="800">
 </p>
 <!-- markdownlint-enable MD033 -->
 
