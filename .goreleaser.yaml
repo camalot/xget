@@ -1,6 +1,9 @@
 version: 2
 
 project_name: xget
+metadata:
+  mod_timestamp: "{{ .CommitTimestamp }}"
+  
 
 release:
   prerelease: auto
@@ -79,6 +82,30 @@ sboms:
 
 snapshot:
   version_template: "{{ .Tag }}-next"
+
+# brews:
+# https://goreleaser.com/customization/publish/homebrew_casks/
+#   - repository:
+#       owner: camalot
+#       name: xget-tap
+#     directory: Formula
+
+# scoops:
+# https://goreleaser.com/customization/publish/scoop/
+#   - repository:
+#       owner: camalot
+#       name: xget-scoop
+#       branch: main
+
+#     commit_msg_template: "chore: update scoop manifest {{ .Version }}"
+#     homepage: https://github.com/camalot/xget
+#     description: xget is a tool for downloading binaries from the GitHub releases.
+#     license: MIT
+#     skip_upload: auto
+#     goamd64: v1
+#     commit_author:
+#       name: xget-bot
+#       email: xget-bot@noreply.github.com
 
 changelog:
   sort: asc
