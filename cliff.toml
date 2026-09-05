@@ -207,7 +207,7 @@ body = """
 {#- VERSION HEADER -#}
 {%- set c_version = self::clean_version(version=version, unreleased="unreleased", prefix="v", include_prefix=true) -%}
   {%- if github %}
-    ## [{{ c_version }}]({{ self::remote_url()}}/releases/tag/v{{ c_version }})
+    ## [{{ c_version }}]({{ self::remote_url()}}/releases/tag/{{ c_version }})
   {%- else %}
     ## {{ c_version }}
   {%- endif -%}
