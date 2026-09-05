@@ -15,13 +15,33 @@ before:
     - go mod tidy
 
 builds:
-  - id: xget
+  - id: xget-windows
     main: ./cmd/xget
     binary: xget
     env:
       - CGO_ENABLED=0
     goos:
       - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/camalot/xget/internal/cli.version={{.Version}}
+      - -X github.com/camalot/xget/internal/cli.commit={{.ShortCommit}}
+      - -X github.com/camalot/xget/internal/cli.date={{.Date}}
+    hooks:
+      pre:
+        - go tool go-winres make --in winres/winres.json --arch={{ .Arch }} --product-version={{ .Version }} --file-version={{ .Version }} --out cmd/xget/rsrc
+
+      post:
+        - rm -f cmd/xget/rsrc_*.syso
+  - id: xget-unix
+    main: ./cmd/xget
+    binary: xget
+    env:
+      - CGO_ENABLED=0
+    goos:
       - linux
       - darwin
     goarch:

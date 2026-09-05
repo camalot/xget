@@ -29,8 +29,10 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install pandoc
-        run: sudo apt-get update && sudo apt-get install -y pandoc
+      - uses: camalot/xget-action@v1
+        with:
+          package: jgm/pandoc
+          asset-filters: ".tar.gz"
 
       - name: Generate man page
         run: pandoc docs/_man/xget.md -s -t man -o xget.1

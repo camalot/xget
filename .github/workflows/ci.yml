@@ -101,8 +101,12 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - name: Install pandoc
-        run: sudo apt-get update && sudo apt-get install -y pandoc
+      # - name: Install pandoc
+      #   run: sudo apt-get update && sudo apt-get install -y pandoc
+      - uses: camalot/xget-action@v1
+        with:
+          package: jgm/pandoc
+          asset-filters: ".tar.gz"
       - name: Generate man page
         run: pandoc docs/_man/xget.md -s -t man -o xget.1
       - uses: goreleaser/goreleaser-action@v7

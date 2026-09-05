@@ -30,6 +30,8 @@ cov_cfg
 cov_cli
 cover
 
+*windows_*.syso
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/windows,powershell,visualstudiocode,go
 # Edit at https://www.toptal.com/developers/gitignore?templates=windows,powershell,visualstudiocode,go

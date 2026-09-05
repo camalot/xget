@@ -49,5 +49,5 @@ jobs:
         run: |
           cidr --version
           which cidr
-          cidr explain 10.0.0.0/16
-          cidr count 10.0.0.0/20
+          cidr explain 10.0.0.0/16 | bat
+          cidr count 10.0.0.0/20 | bat
