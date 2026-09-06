@@ -357,11 +357,11 @@ func NonInteractive() bool {
 }
 
 func userSelect(choices []interface{}) (int, error) {
-	if runtimeNonInteractive {
-		return 0, ErrNonInteractive
-	}
 	for i, c := range choices {
 		fmt.Fprintf(os.Stderr, "(%d) %v\n", i+1, c)
+	}
+	if runtimeNonInteractive {
+		return 0, ErrNonInteractive
 	}
 	var choice int
 	for {
@@ -571,9 +571,6 @@ func Run(target string, opts options.Flags) error {
 
 	url, candidates, err := detector.Detect(assets)
 	if len(candidates) != 0 && err != nil {
-		if runtimeNonInteractive {
-			return ErrNonInteractive
-		}
 		fmt.Fprintf(os.Stderr, "%v: please select manually\n", err)
 		choices := make([]interface{}, len(candidates))
 		for i := range candidates {
@@ -653,9 +650,6 @@ func Run(target string, opts options.Flags) error {
 
 	bin, bins, err := extractor.Extract(body, opts.All)
 	if len(bins) != 0 && err != nil && !opts.All {
-		if runtimeNonInteractive {
-			return ErrNonInteractive
-		}
 		fmt.Fprintf(os.Stderr, "%v: please select manually\n", err)
 		choices := make([]interface{}, len(bins)+1)
 		for i := range bins {

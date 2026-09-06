@@ -77,14 +77,14 @@ Available Commands:
 
 Flags:
       --all                      extract all candidate files
-  -a, --asset strings            filter assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not:, escapes: ~~ and ^^, explicit literal: text: (for example ^musl, not:~.*\.sbom\.json$, text:~literal)
+  -a, --asset strings            filter assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not:, escapes: ~~ and ^^, explicit literal: text: (for example ^musl, not:~.*\.sbom\.json$, text:~literal); quote patterns starting with ~ so your shell doesn't expand it to a home directory path
   -c, --config string            path to the config file to use
   -k, --disable-ssl              disable SSL verification for download requests
   -D, --download-all             download all projects defined in the config file
   -d, --download-only            stop after downloading the asset (no extraction)
   -f, --file string              glob to select files for extraction
   -h, --help                     help for xget
-      --ignore strings           exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times
+      --ignore strings           exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times; quote patterns starting with ~ so your shell doesn't expand it to a home directory path
       --non-interactive          fail instead of prompting when user input is required
       --pre-release              include pre-releases when fetching the latest version
   -q, --quiet                    only print essential output

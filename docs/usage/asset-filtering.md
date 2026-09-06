@@ -29,6 +29,15 @@ xget can narrow the assets it considers by using `--asset` and `--ignore` matche
 - `--ignore 'not:arm64'` (inverted ignore; keeps only matches for `arm64`)
 
 > Patterns beginning with `~` are treated as regex. Patterns beginning with `^` are treated as negative by default. If you need a literal value that starts with either symbol, escape it or use `text:`.
+<!-- -->
+
+> [!IMPORTANT]
+> **Shell quoting caveat:** always quote matchers that start with `~` (for example
+> `--ignore '~\.sha512$'`). Unquoted, most shells — including PowerShell, bash, and
+> zsh — expand a leading `~` to your home directory *before* xget ever sees the
+> argument, silently turning your regex into an unrelated path and disabling the
+> filter. Single quotes are safest since they also prevent `$` from being treated
+> as variable interpolation.
 
 Examples:
 

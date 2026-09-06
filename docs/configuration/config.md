@@ -83,6 +83,14 @@ xget config set zyedidia/micro asset_filters=static
 xget config set zyedidia/micro asset_filters=.tar.gz
 ```
 
+> [!IMPORTANT]
+> **Shell quoting caveat:** always quote matchers that start with `~` (for example
+> `--ignore '~\.sha512$'`). Unquoted, most shells — including PowerShell, bash, and
+> zsh — expand a leading `~` to your home directory *before* xget ever sees the
+> argument, silently turning your regex into an unrelated path and disabling the
+> filter. Single quotes are safest since they also prevent `$` from being treated
+> as variable interpolation.
+
 Boolean values accept `true`, `false`, `t`, `f`, `1`, and `0` (and their
 capitalized spellings). Anything else is rejected.
 

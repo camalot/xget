@@ -156,6 +156,8 @@ header: xget Manual
 
   Patterns beginning with `~` are parsed as regex, and patterns beginning with `^` are parsed as negative by default. Use `~~`, `^^`, or `text:` for literal prefixes.
 
+  Always quote matchers starting with `~` (for example `--ignore '~\.sha512$'`). Unquoted, shells such as PowerShell, bash, and zsh expand a leading `~` to the home directory before xget receives the argument, silently disabling the filter.
+
   `--sha256`
 
 :    Show the SHA-256 hash of the downloaded asset. This can be used to verify that the asset is not corrupted.

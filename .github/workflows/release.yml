@@ -100,6 +100,17 @@ jobs:
       # - name: Install pandoc
       #   run: sudo apt-get update && sudo apt-get install -y pandoc
       - uses: camalot/xget-action@v1
+        with:
+          token: ${{ steps.xget-bot-token.outputs.token }}
+          package: jgm/pandoc
+          asset-filters: ".tar.gz"
+
+      - uses: camalot/xget-action@v1
+        with:
+          token: ${{ steps.xget-bot-token.outputs.token }}
+          package: orhun/git-cliff
+          asset-filters: ".tar.gz"
+          ignore: ".sha512,.sha256,.sig,.sbom.json"
 
       - shell: bash
         run: |
