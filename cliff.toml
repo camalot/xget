@@ -59,7 +59,9 @@ body = """
 {%- endmacro -%}
 
 {%- macro user_url(name) -%}
-  [@{{name | lower }}](<REMOTE_URL>/{{name | lower }})
+  {%- if name -%}
+    [@{{name | lower }}](<REMOTE_URL>/{{name | lower }})
+  {%- endif -%}
 {%- endmacro -%}
 
 {%- macro get_remote_header() -%}
@@ -125,11 +127,13 @@ body = """
 
 {%- macro print_contributors(contributors) -%}
   {%- for contrib in contributors %}
+    {%- if contrib.username %}
     - {{ self::user_url(name=contrib.username) }}
     {%- if contrib.pr_number %} in \
       {#- defined with !#!\\d+ to get processed by the post processor after #\\d+ #}
       [!#!{{ contrib.pr_number }}]({{ self::remote_url() }}/pull/{{ contrib.pr_number }})
     {% endif %}
+    {%- endif %}
   {%- endfor -%}
 {%- endmacro -%}
 
