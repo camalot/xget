@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -22,14 +23,32 @@ func useTempInstalledStore(t *testing.T, packages ...installed.Package) string {
 	t.Setenv("EGET_CONFIG", "")
 
 	storePath := filepath.Join(home, ".config", "xget", ".xget.installed.yml")
-	store := &installed.Store{Packages: map[string]installed.Package{}}
+	store := &installed.Store{Packages: map[string][]installed.Package{}}
 	for _, pkg := range packages {
-		store.Packages[pkg.Key()] = pkg
+		store.Set(pkg)
 	}
 	if err := installed.Save(storePath, store); err != nil {
 		t.Fatal(err)
 	}
 	return storePath
+}
+
+func storedPackages(t *testing.T, storePath, key string) []installed.Package {
+	t.Helper()
+	store, err := installed.Load(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return store.Packages[key]
+}
+
+func storedPackage(t *testing.T, storePath, key string) installed.Package {
+	t.Helper()
+	records := storedPackages(t, storePath, key)
+	if len(records) != 1 {
+		t.Fatalf("expected one record for %s, got %d", key, len(records))
+	}
+	return records[0]
 }
 
 func writeUpgradeConfig(t *testing.T, content string) string {
@@ -90,25 +109,30 @@ func stubEngine(t *testing.T, storePath string, fail map[string]error) *[]struct
 		if err != nil {
 			return err
 		}
-		for key, pkg := range store.Packages {
-			if pkg.Name != target {
-				continue
+		for _, records := range store.Packages {
+			for index, pkg := range records {
+				if pkg.Name != target {
+					continue
+				}
+				if opts.Output != "" && !installed.SamePath(pkg.InstallLocation, opts.Output) {
+					continue
+				}
+				pkg.InstalledTag = opts.Tag
+				pkg.CurrentTag = opts.Tag
+				pkg.Options = installed.Options{
+					Tag:          opts.Tag,
+					Prerelease:   opts.Prerelease,
+					Output:       opts.Output,
+					ExtractFile:  opts.ExtractFile,
+					All:          opts.All,
+					DownloadOnly: opts.DLOnly,
+					UpgradeOnly:  opts.UpgradeOnly,
+					Asset:        opts.Asset,
+					Ignore:       opts.Ignore,
+					Verify:       opts.Verify,
+				}
+				records[index] = pkg
 			}
-			pkg.InstalledTag = opts.Tag
-			pkg.CurrentTag = opts.Tag
-			pkg.Options = installed.Options{
-				Tag:          opts.Tag,
-				Prerelease:   opts.Prerelease,
-				Output:       opts.Output,
-				ExtractFile:  opts.ExtractFile,
-				All:          opts.All,
-				DownloadOnly: opts.DLOnly,
-				UpgradeOnly:  opts.UpgradeOnly,
-				Asset:        opts.Asset,
-				Ignore:       opts.Ignore,
-				Verify:       opts.Verify,
-			}
-			store.Packages[key] = pkg
 		}
 		return installed.Save(storePath, store)
 	}
@@ -128,6 +152,217 @@ func samplePackage(name, installedTag string) installed.Package {
 			Asset:       []string{".tar.gz"},
 			Ignore:      []string{".sbom.json"},
 		},
+	}
+}
+
+func samplePackageAt(name, installedTag, location string) installed.Package {
+	pkg := samplePackage(name, installedTag)
+	pkg.InstallLocation = location
+	pkg.Options.Output = location
+	return pkg
+}
+
+func upgradeOutputs(calls []struct {
+	Target string
+	Opts   options.Flags
+}) []string {
+	outputs := make([]string, 0, len(calls))
+	for _, call := range calls {
+		outputs = append(outputs, call.Opts.Output)
+	}
+	sort.Strings(outputs)
+	return outputs
+}
+
+func TestUpgradeAllUpgradesEveryOutOfDateLocation(t *testing.T) {
+	storePath := useTempInstalledStore(t,
+		samplePackageAt("jgm/pandoc", "3.10", "/mnt/test/bin"),
+		samplePackageAt("jgm/pandoc", "3.10", "/opt/local/bin"),
+	)
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+	calls := stubEngine(t, storePath, nil)
+
+	out, err := runCLI(t, "upgrade", "--all")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 2 {
+		t.Fatalf("engine calls = %+v, want one per location", *calls)
+	}
+	if got := upgradeOutputs(*calls); !reflect.DeepEqual(got, []string{"/mnt/test/bin", "/opt/local/bin"}) {
+		t.Fatalf("outputs = %#v", got)
+	}
+	if !strings.Contains(out, "in /mnt/test/bin") || !strings.Contains(out, "in /opt/local/bin") {
+		t.Fatalf("expected a progress line per location:\n%s", out)
+	}
+
+	for _, pkg := range storedPackages(t, storePath, "github:jgm/pandoc") {
+		if pkg.InstalledTag != "3.11" {
+			t.Fatalf("%s installed_tag = %q, want 3.11", pkg.InstallLocation, pkg.InstalledTag)
+		}
+	}
+}
+
+func TestUpgradeListsEveryInstallLocation(t *testing.T) {
+	useTempInstalledStore(t,
+		samplePackageAt("jgm/pandoc", "3.10", "/mnt/test/bin"),
+		samplePackageAt("jgm/pandoc", "3.10", "/opt/local/bin"),
+	)
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+
+	out, err := runCLI(t, "upgrade", "--no-color")
+	if err != nil {
+		t.Fatal(err)
+	}
+	collapsed := collapseSpaces(out)
+	if !strings.Contains(collapsed, "jgm/pandoc 3.10 3.11 /mnt/test/bin GitHub") ||
+		!strings.Contains(collapsed, "jgm/pandoc 3.10 3.11 /opt/local/bin GitHub") {
+		t.Fatalf("expected one row per location:\n%s", out)
+	}
+	if !strings.Contains(out, "2 upgrades available.") {
+		t.Fatalf("expected both locations counted:\n%s", out)
+	}
+}
+
+func TestUpgradeNamedUpgradesEveryLocation(t *testing.T) {
+	storePath := useTempInstalledStore(t,
+		samplePackageAt("jgm/pandoc", "3.10", "/mnt/test/bin"),
+		samplePackageAt("jgm/pandoc", "3.10", "/opt/local/bin"),
+	)
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+	calls := stubEngine(t, storePath, nil)
+
+	if _, err := runCLI(t, "upgrade", "jgm/pandoc"); err != nil {
+		t.Fatal(err)
+	}
+	if got := upgradeOutputs(*calls); !reflect.DeepEqual(got, []string{"/mnt/test/bin", "/opt/local/bin"}) {
+		t.Fatalf("outputs = %#v", got)
+	}
+}
+
+func TestUpgradeToSelectsASingleLocation(t *testing.T) {
+	storePath := useTempInstalledStore(t,
+		samplePackageAt("jgm/pandoc", "3.10", "/mnt/test/bin"),
+		samplePackageAt("jgm/pandoc", "3.10", "/opt/local/bin"),
+	)
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+	calls := stubEngine(t, storePath, nil)
+
+	if _, err := runCLI(t, "upgrade", "jgm/pandoc", "--to", "/opt/local/bin"); err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 1 || (*calls)[0].Opts.Output != "/opt/local/bin" {
+		t.Fatalf("calls = %+v", *calls)
+	}
+	for _, pkg := range storedPackages(t, storePath, "github:jgm/pandoc") {
+		want := "3.10"
+		if pkg.InstallLocation == "/opt/local/bin" {
+			want = "3.11"
+		}
+		if pkg.InstalledTag != want {
+			t.Fatalf("%s installed_tag = %q, want %q", pkg.InstallLocation, pkg.InstalledTag, want)
+		}
+	}
+}
+
+func TestUpgradeAllHonorsToFilter(t *testing.T) {
+	storePath := useTempInstalledStore(t,
+		samplePackageAt("jgm/pandoc", "3.10", "/mnt/test/bin"),
+		samplePackageAt("jgm/pandoc", "3.10", "/opt/local/bin"),
+	)
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+	calls := stubEngine(t, storePath, nil)
+
+	if _, err := runCLI(t, "upgrade", "--all", "--to", "/mnt/test/bin"); err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 1 || (*calls)[0].Opts.Output != "/mnt/test/bin" {
+		t.Fatalf("calls = %+v", *calls)
+	}
+}
+
+func TestUpgradeToUntrackedLocationErrors(t *testing.T) {
+	storePath := useTempInstalledStore(t, samplePackageAt("jgm/pandoc", "3.10", "/mnt/test/bin"))
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+	calls := stubEngine(t, storePath, nil)
+
+	_, err := runCLI(t, "upgrade", "jgm/pandoc", "--to", "/nowhere/bin")
+	if err == nil || err.Error() != "package jgm/pandoc is not installed to /nowhere/bin" {
+		t.Fatalf("error = %v", err)
+	}
+	if len(*calls) != 0 {
+		t.Fatalf("unexpected calls: %+v", *calls)
+	}
+}
+
+func TestUpgradeInlineTagInstallsRequestedVersion(t *testing.T) {
+	storePath := useTempInstalledStore(t, samplePackageAt("jgm/pandoc", "3.11", "/mnt/test/bin"))
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+	calls := stubEngine(t, storePath, nil)
+
+	out, err := runCLI(t, "upgrade", "jgm/pandoc@3.10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 1 || (*calls)[0].Opts.Tag != "3.10" {
+		t.Fatalf("calls = %+v, want a 3.10 install", *calls)
+	}
+	if !strings.Contains(out, "Installing jgm/pandoc 3.10 in /mnt/test/bin") {
+		t.Fatalf("output:\n%s", out)
+	}
+	if got := storedPackage(t, storePath, "github:jgm/pandoc").InstalledTag; got != "3.10" {
+		t.Fatalf("installed_tag = %q, want 3.10", got)
+	}
+}
+
+func TestUpgradeTagFlagInstallsRequestedVersionInEveryLocation(t *testing.T) {
+	storePath := useTempInstalledStore(t,
+		samplePackageAt("jgm/pandoc", "3.11", "/mnt/test/bin"),
+		samplePackageAt("jgm/pandoc", "3.11", "/opt/local/bin"),
+	)
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+	calls := stubEngine(t, storePath, nil)
+
+	if _, err := runCLI(t, "upgrade", "jgm/pandoc", "--tag", "3.10"); err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 2 {
+		t.Fatalf("calls = %+v", *calls)
+	}
+	for _, call := range *calls {
+		if call.Opts.Tag != "3.10" {
+			t.Fatalf("tag = %q, want 3.10", call.Opts.Tag)
+		}
+	}
+}
+
+func TestUpgradeTagWithoutPackageErrors(t *testing.T) {
+	useTempInstalledStore(t, samplePackage("a/one", "v1.0.0"))
+	stubRefresh(t, nil)
+
+	if _, err := runCLI(t, "upgrade", "--tag", "v1.0.0"); err == nil || !strings.Contains(err.Error(), "--tag requires a package name") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestUpgradeNamedReportsEachUpToDateLocation(t *testing.T) {
+	storePath := useTempInstalledStore(t,
+		samplePackageAt("jgm/pandoc", "3.11", "/mnt/test/bin"),
+		samplePackageAt("jgm/pandoc", "3.11", "/opt/local/bin"),
+	)
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+	calls := stubEngine(t, storePath, nil)
+
+	out, err := runCLI(t, "upgrade", "jgm/pandoc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 0 {
+		t.Fatalf("unexpected calls: %+v", *calls)
+	}
+	if !strings.Contains(out, "jgm/pandoc is already up to date (3.11) in /mnt/test/bin.") ||
+		!strings.Contains(out, "jgm/pandoc is already up to date (3.11) in /opt/local/bin.") {
+		t.Fatalf("output:\n%s", out)
 	}
 }
 
@@ -158,10 +393,10 @@ func TestUpgradeListsAvailableUpgrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "Name") || !strings.Contains(out, "Available") || !strings.Contains(out, "Source") {
+	if !strings.Contains(out, "Name") || !strings.Contains(out, "Available") || !strings.Contains(out, "Location") || !strings.Contains(out, "Source") {
 		t.Fatalf("missing headers:\n%s", out)
 	}
-	if !strings.Contains(collapseSpaces(out), "bschaatsbergen/cidr v2.2.0 v2.3.0 GitHub") {
+	if !strings.Contains(collapseSpaces(out), "bschaatsbergen/cidr v2.2.0 v2.3.0 /home/user/.local/bin GitHub") {
 		t.Fatalf("missing upgrade row:\n%s", out)
 	}
 	if strings.Contains(out, "camalot/xget") {
@@ -221,7 +456,7 @@ func TestUpgradeRefreshesAndPersistsLatestTag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg := store.Packages["github:bschaatsbergen/cidr"]
+	pkg := store.Packages["github:bschaatsbergen/cidr"][0]
 	if pkg.CurrentTag != "v2.3.0" {
 		t.Fatalf("current_tag = %q, want v2.3.0", pkg.CurrentTag)
 	}
@@ -349,7 +584,7 @@ func TestUpgradeAllLeavesUnpinnedPackagesUnpinned(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg := store.Packages["github:bschaatsbergen/cidr"]
+	pkg := store.Packages["github:bschaatsbergen/cidr"][0]
 	if pkg.Options.Tag != "" {
 		t.Fatalf("options.tag = %q, want empty", pkg.Options.Tag)
 	}
@@ -394,7 +629,7 @@ func TestUpgradeAllSkipsPinnedAndListsThem(t *testing.T) {
 	if !strings.Contains(out, "require explicit targeting for upgrade:") {
 		t.Fatalf("missing pinned notice:\n%s", out)
 	}
-	if !strings.Contains(collapseSpaces(out), "bschaatsbergen/cidr v2.2.0 v2.3.0 GitHub") {
+	if !strings.Contains(collapseSpaces(out), "bschaatsbergen/cidr v2.2.0 v2.3.0 /home/user/.local/bin GitHub") {
 		t.Fatalf("missing pinned row:\n%s", out)
 	}
 }
@@ -467,11 +702,7 @@ func TestUpgradeAllContinuesAfterFailure(t *testing.T) {
 		t.Fatalf("missing failure message:\n%s", out)
 	}
 
-	store, err := installed.Load(storePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if store.Packages["github:b/two"].InstalledTag != "v1.1.0" {
+	if storedPackage(t, storePath, "github:b/two").InstalledTag != "v1.1.0" {
 		t.Fatal("second package should still have been upgraded")
 	}
 }
@@ -494,7 +725,7 @@ func TestUpgradeNamedPinnedPackageRepins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg := store.Packages["github:bschaatsbergen/cidr"]
+	pkg := store.Packages["github:bschaatsbergen/cidr"][0]
 	if pkg.Options.Tag != "v2.3.0" {
 		t.Fatalf("options.tag = %q, want v2.3.0", pkg.Options.Tag)
 	}
@@ -517,11 +748,7 @@ func TestUpgradeNamedPreservesUpgradeOnlyOption(t *testing.T) {
 		t.Fatal("upgrade_only must not be forwarded to the engine")
 	}
 
-	store, err := installed.Load(storePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !store.Packages["github:a/one"].Options.UpgradeOnly {
+	if !storedPackage(t, storePath, "github:a/one").Options.UpgradeOnly {
 		t.Fatal("stored upgrade_only option should be preserved")
 	}
 }

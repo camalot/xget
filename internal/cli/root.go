@@ -160,7 +160,7 @@ func addInstallFlags(cmd *cobra.Command, f *rootFlags) {
 	cmd.Flags().Lookup("verify").NoOptDefVal = "auto"
 	cmd.Flags().BoolVar(&f.rate, "rate", false, "show GitHub API rate limiting information")
 	cmd.Flags().BoolVarP(&f.remove, "remove", "r", false, "uninstall the target package")
-	cmd.Flags().StringVar(&f.from, "from", "", "directory to remove an untracked target from")
+	cmd.Flags().StringVar(&f.from, "from", "", "install location to remove the package from, or the directory to remove an untracked target from")
 	cmd.Flags().BoolVarP(&f.downloadAll, "download-all", "D", false, "download all projects defined in the config file")
 	cmd.Flags().BoolVarP(&f.disableSSL, "disable-ssl", "k", false, "disable SSL verification for download requests")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
@@ -197,7 +197,7 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 			return cmd.Help()
 		}
 		if f.remove {
-			return uninstallPackage(cmd, args[0], f.from)
+			return uninstallPackage(cmd, args[0], f.from, false)
 		}
 
 		target, inlineTag, hasInlineTag := splitTargetTag(args[0])

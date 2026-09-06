@@ -29,7 +29,7 @@ xget works best for installing standalone command-line tools that ship as a sing
 
 ## Does xget keep track of installed binaries?
 
-xget records successful installs in `~/.config/xget/.xget.installed.yml`, including the files it extracted. Use `xget uninstall owner/repo` or `xget remove owner/repo` to remove a tracked package's files and record. The older `xget owner/repo --remove` form remains supported.
+xget records successful installs in `~/.config/xget/.xget.installed.yml`, including the files it extracted. Use `xget uninstall owner/repo` or `xget remove owner/repo` to remove a tracked package's files and record. The older `xget owner/repo --remove` form remains supported. A package installed to more than one location is tracked once per location: pick one with `--from <path>` or remove every copy with `--all`.
 
 When no installed package matches, xget removes the target basename from `$XGET_BIN`, the current directory, or a directory passed with `--from`.
 

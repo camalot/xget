@@ -56,7 +56,11 @@ func TestUpsertCreatesAndUpdatesPackageRecord(t *testing.T) {
 	if len(store.Packages) != 1 {
 		t.Fatalf("expected one package, got %d", len(store.Packages))
 	}
-	got := store.Packages["github:owner/repo"]
+	records := store.Packages["github:owner/repo"]
+	if len(records) != 1 {
+		t.Fatalf("expected one record, got %d", len(records))
+	}
+	got := records[0]
 	if got.Asset != "repo-v2.zip" || got.InstalledTag != "v2.0.0" {
 		t.Fatalf("record was not updated: %#v", got)
 	}
@@ -105,11 +109,134 @@ func TestLoadMigratesNameKeyedRepoRecords(t *testing.T) {
 	if len(store.Packages) != 1 {
 		t.Fatalf("expected one package, got %d", len(store.Packages))
 	}
-	got, ok := store.Packages["github:nektos/act"]
-	if !ok {
+	records, ok := store.Packages["github:nektos/act"]
+	if !ok || len(records) != 1 {
 		t.Fatalf("expected migrated github key, got %#v", store.Packages)
 	}
+	got := records[0]
 	if got.Name != "nektos/act" || got.Repo != "" || got.CurrentTag != "v0.2.89" || got.InstalledTag != "v0.2.89" {
 		t.Fatalf("unexpected migrated package: %#v", got)
+	}
+}
+
+func multiLocationPackage(location, tag string) Package {
+	return Package{
+		Name:            "jgm/pandoc",
+		InstallLocation: location,
+		InstalledTag:    tag,
+		CurrentTag:      tag,
+		Source:          "GitHub",
+	}
+}
+
+func TestUpsertTracksEachInstallLocationSeparately(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".xget.installed.yml")
+
+	if err := Upsert(path, multiLocationPackage(filepath.FromSlash("/mnt/test/bin"), "3.10")); err != nil {
+		t.Fatal(err)
+	}
+	if err := Upsert(path, multiLocationPackage(filepath.FromSlash("/opt/local/bin"), "3.10")); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records := store.Packages["github:jgm/pandoc"]
+	if len(records) != 2 {
+		t.Fatalf("expected both locations to be tracked, got %#v", records)
+	}
+
+	// Reinstalling one location must not disturb the other.
+	if err := Upsert(path, multiLocationPackage(filepath.FromSlash("/opt/local/bin"), "3.11")); err != nil {
+		t.Fatal(err)
+	}
+	store, err = Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records = store.Packages["github:jgm/pandoc"]
+	if len(records) != 2 {
+		t.Fatalf("expected two records, got %#v", records)
+	}
+	for _, pkg := range records {
+		want := "3.10"
+		if SamePath(pkg.InstallLocation, filepath.FromSlash("/opt/local/bin")) {
+			want = "3.11"
+		}
+		if pkg.InstalledTag != want {
+			t.Fatalf("%s installed_tag = %q, want %q", pkg.InstallLocation, pkg.InstalledTag, want)
+		}
+	}
+}
+
+func TestRemoveDropsOnlyTheMatchingLocation(t *testing.T) {
+	store := &Store{Packages: map[string][]Package{}}
+	first := multiLocationPackage(filepath.FromSlash("/mnt/test/bin"), "3.10")
+	second := multiLocationPackage(filepath.FromSlash("/opt/local/bin"), "3.10")
+	store.Set(first)
+	store.Set(second)
+
+	store.Remove(first)
+	records := store.Packages["github:jgm/pandoc"]
+	if len(records) != 1 || !SamePath(records[0].InstallLocation, second.InstallLocation) {
+		t.Fatalf("records = %#v, want only %s", records, second.InstallLocation)
+	}
+
+	store.Remove(second)
+	if _, ok := store.Packages["github:jgm/pandoc"]; ok {
+		t.Fatalf("expected the key to be dropped, got %#v", store.Packages)
+	}
+}
+
+func TestLoadReadsSingleRecordAndListLayouts(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".xget.installed.yml")
+	content := `packages:
+  "github:jgm/pandoc":
+    name: jgm/pandoc
+    install_location: /mnt/test/bin
+    installed_tag: "3.10"
+    current_tag: "3.10"
+    source: GitHub
+  "github:nektos/act":
+    - name: nektos/act
+      install_location: /opt/local/bin
+      installed_tag: v0.2.89
+      current_tag: v0.2.89
+      source: GitHub
+    - name: nektos/act
+      install_location: /usr/local/bin
+      installed_tag: v0.2.88
+      current_tag: v0.2.89
+      source: GitHub
+`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+	if got := store.Packages["github:jgm/pandoc"]; len(got) != 1 || got[0].InstalledTag != "3.10" {
+		t.Fatalf("single record was not migrated to a list: %#v", got)
+	}
+	if got := store.Packages["github:nektos/act"]; len(got) != 2 {
+		t.Fatalf("expected both act records, got %#v", got)
+	}
+}
+
+func TestSortedPackagesReturnsEveryLocation(t *testing.T) {
+	store := &Store{Packages: map[string][]Package{}}
+	store.Set(multiLocationPackage(filepath.FromSlash("/opt/local/bin"), "3.10"))
+	store.Set(multiLocationPackage(filepath.FromSlash("/mnt/test/bin"), "3.10"))
+
+	packages := SortedPackages(store)
+	if len(packages) != 2 {
+		t.Fatalf("expected two entries, got %#v", packages)
+	}
+	if packages[0].InstallLocation != filepath.FromSlash("/mnt/test/bin") {
+		t.Fatalf("expected locations to be sorted, got %#v", packages)
 	}
 }

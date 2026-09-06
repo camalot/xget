@@ -10,6 +10,7 @@ import (
 
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/engine"
+	"github.com/camalot/xget/internal/home"
 	"github.com/camalot/xget/internal/installed"
 	"github.com/camalot/xget/internal/semver"
 	"github.com/spf13/cobra"
@@ -105,11 +106,11 @@ func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string, noColo
 	}
 	packages := installed.SortedPackages(store)
 	if len(args) > 0 {
-		pkg, ok := findInstalledPackage(packages, args[0])
-		if !ok {
+		matches := findInstalledPackages(packages, args[0])
+		if len(matches) == 0 {
 			return fmt.Errorf("%s is not installed", args[0])
 		}
-		printInstalledPackagesWithColor(cmd, []installed.Package{pkg}, !noColor)
+		printInstalledPackagesWithColor(cmd, matches, !noColor)
 		return nil
 	}
 	if len(packages) == 0 {
@@ -122,18 +123,20 @@ func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string, noColo
 
 func refreshInstalledStore(storePath string, store *installed.Store, cfg *config.Config) error {
 	changed := false
-	for name, pkg := range store.Packages {
-		opts, err := resolveInstalledOptions(cfg, pkg)
-		if err != nil {
-			return err
-		}
-		refreshed, err := refreshPackage(pkg, opts)
-		if err != nil {
-			return err
-		}
-		if !refreshed.RefreshedAt.Equal(pkg.RefreshedAt) || refreshed.CurrentTag != pkg.CurrentTag {
-			store.Packages[name] = refreshed
-			changed = true
+	for key, records := range store.Packages {
+		for index, pkg := range records {
+			opts, err := resolveInstalledOptions(cfg, pkg)
+			if err != nil {
+				return err
+			}
+			refreshed, err := refreshPackage(pkg, opts)
+			if err != nil {
+				return err
+			}
+			if !refreshed.RefreshedAt.Equal(pkg.RefreshedAt) || refreshed.CurrentTag != pkg.CurrentTag {
+				store.Packages[key][index] = refreshed
+				changed = true
+			}
 		}
 	}
 	if !changed {
@@ -142,13 +145,51 @@ func refreshInstalledStore(storePath string, store *installed.Store, cfg *config
 	return installed.Save(storePath, store)
 }
 
-func findInstalledPackage(packages []installed.Package, target string) (installed.Package, bool) {
+// findInstalledPackages returns every tracked install location matching target,
+// which may be a store key, a full repo name, or a bare package name.
+func findInstalledPackages(packages []installed.Package, target string) []installed.Package {
+	matches := []installed.Package{}
 	for _, pkg := range packages {
 		if strings.EqualFold(pkg.Key(), target) || pkg.Name == target || strings.HasSuffix(pkg.Name, "/"+target) {
-			return pkg, true
+			matches = append(matches, pkg)
 		}
 	}
-	return installed.Package{}, false
+	return matches
+}
+
+// selectInstalledLocation narrows matches to the single record installed at
+// location. An empty location leaves matches untouched.
+func selectInstalledLocation(matches []installed.Package, target, location string) ([]installed.Package, error) {
+	if location == "" {
+		return matches, nil
+	}
+	expanded, err := home.Expand(location)
+	if err != nil {
+		return nil, err
+	}
+	for _, pkg := range matches {
+		if installed.SamePath(installedLocation(pkg), expanded) {
+			return []installed.Package{pkg}, nil
+		}
+	}
+	return nil, fmt.Errorf("package %s is not installed to %s", installedTargetName(matches, target), location)
+}
+
+// errAmbiguousLocation asks the user to pick one of several tracked locations.
+func errAmbiguousLocation(matches []installed.Package, target, flag string) error {
+	locations := make([]string, 0, len(matches))
+	for _, pkg := range matches {
+		locations = append(locations, "  "+displayLocation(installedLocation(pkg)))
+	}
+	return fmt.Errorf("%s is installed to multiple locations; select one with %s:\n%s",
+		installedTargetName(matches, target), flag, strings.Join(locations, "\n"))
+}
+
+func installedTargetName(matches []installed.Package, target string) string {
+	if len(matches) > 0 && matches[0].Name != "" {
+		return matches[0].Name
+	}
+	return target
 }
 
 func printInstalledPackages(cmd *cobra.Command, packages []installed.Package) {
@@ -200,12 +241,7 @@ func installedLocation(pkg installed.Package) string {
 }
 
 func samePath(first, second string) bool {
-	if filepath.Clean(first) == filepath.Clean(second) {
-		return true
-	}
-	firstAbsolute, firstErr := filepath.Abs(first)
-	secondAbsolute, secondErr := filepath.Abs(second)
-	return firstErr == nil && secondErr == nil && strings.EqualFold(firstAbsolute, secondAbsolute)
+	return installed.SamePath(first, second)
 }
 
 func displayLocation(location string) string {

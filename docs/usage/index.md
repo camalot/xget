@@ -48,6 +48,10 @@ xget list camalot/xget --installed
 xget upgrade
 xget upgrade camalot/xget
 xget upgrade --all
+xget upgrade jgm/pandoc --to ~/.local/bin
+xget upgrade jgm/pandoc@3.10
+xget uninstall jgm/pandoc --from ~/.local/bin
+xget uninstall jgm/pandoc --all
 ```
 
 ## Basic command syntax
@@ -89,7 +93,7 @@ Flags:
       --pre-release              include pre-releases when fetching the latest version
   -q, --quiet                    only print essential output
       --rate                     show GitHub API rate limiting information
-      --from string              directory to remove an untracked target from
+      --from string              install location to remove the package from, or the directory to remove an untracked target from
     -r, --remove                   uninstall the target package
       --sha256                   show the SHA-256 hash of the downloaded asset
       --source                   download the source code for the target repo instead of a release
@@ -131,9 +135,27 @@ Successful installs are recorded in `~/.config/xget/.xget.installed.yml`. Record
 
 Pass `--untracked` to keep a single install out of the store, for example `xget install jgm/pandoc --untracked`. Nothing is written for that run, and any record that already exists for the target is left untouched, so a previously tracked install remains visible to `xget list --installed`, `xget upgrade`, and `xget uninstall`.
 
+### Installing to more than one location
+
+Installing the same package to a different directory adds a second record rather than replacing the first, so each location is tracked, listed, and upgraded on its own:
+
+```bash
+xget install jgm/pandoc --to ~/.local/bin
+xget install jgm/pandoc --to /mnt/test/bin
+```
+
+```text
+PACKAGE            TAG/VERSION  LATEST  LOCATION       INSTALLED/UPDATED
+---------------------------------------------------------------------------
+github:jgm/pandoc  3.11         3.11    /mnt/test/bin  2026-09-05
+github:jgm/pandoc  3.11         3.11    ~/.local/bin   2026-09-05
+```
+
+Reinstalling to a location that is already tracked updates that record in place. `xget upgrade --to <path>` and `xget uninstall --from <path>` narrow those commands to a single copy.
+
 Use `xget list TARGET` to list assets that can be installed for a target. Use `xget list --installed` to show all installed records, or `xget list TARGET --installed` to show one installed package.
 
-Use `xget uninstall TARGET` or `xget remove TARGET` to remove a tracked package's extracted files and record. The backwards-compatible `xget TARGET --remove` form does the same. When no installed record matches, xget removes the target basename from `$XGET_BIN`, the current directory, or a directory selected with `--from`.
+Use `xget uninstall TARGET` or `xget remove TARGET` to remove a tracked package's extracted files and record. The backwards-compatible `xget TARGET --remove` form does the same. When a package is tracked in more than one location, select one with `--from <path>` or remove every copy with `--all`. When no installed record matches, xget removes the target basename from `$XGET_BIN`, the current directory, or a directory selected with `--from`.
 
 ## GitHub rate limits
 

@@ -32,15 +32,18 @@ are listed:
 Available upgrades are shown in yellow. Pass `--no-color` for plain output.
 
 ```text
-Name                 Version  Available  Source
------------------------------------------------
-bschaatsbergen/cidr  v2.2.0   v2.3.0     GitHub
+Name                 Version  Available  Location      Source
+-------------------------------------------------------------
+bschaatsbergen/cidr  v2.2.0   v2.3.0     ~/.local/bin  GitHub
 
 1 upgrade available.
 ```
 
 Only packages with an available upgrade are listed. When there are none, xget
 prints `No available upgrades.`
+
+A package installed to several locations is listed once per location, and each
+location is counted and upgraded on its own.
 
 An upgrade is available when the newest release is *newer* than the installed
 one. Tags are compared as semantic versions, including prerelease ordering, so
@@ -57,9 +60,9 @@ release. These are never upgraded by `--all` and are listed separately:
 
 ```text
 The following packages have an upgrade available, but require explicit targeting for upgrade:
-Name                 Version  Available  Source
------------------------------------------------
-bschaatsbergen/cidr  v2.2.0   v2.3.0     GitHub
+Name                 Version  Available  Location      Source
+-------------------------------------------------------------
+bschaatsbergen/cidr  v2.2.0   v2.3.0     ~/.local/bin  GitHub
 ```
 
 Upgrading one requires naming it:
@@ -84,6 +87,45 @@ xget upgrade --all       # upgrade everything that is not pinned
 If a package is already current, xget reports it and exits successfully. During
 `--all`, a package that fails to upgrade is reported and the remaining packages
 are still attempted; xget exits with status `1` at the end.
+
+## Packages installed to more than one location
+
+Each install location is tracked separately, so a package installed to both
+`~/.local/bin` and `/mnt/test/bin` is upgraded in both places:
+
+```bash
+xget upgrade jgm/pandoc   # upgrades every out-of-date location
+xget upgrade --all        # same, for every package
+```
+
+Use `--to <path>` to act on a single tracked location:
+
+```bash
+xget upgrade jgm/pandoc --to '~/.local/bin'
+```
+
+The path is matched against the tracked install locations after `~` expansion
+and absolute-path resolution. If the package is not installed there, xget fails
+with `package jgm/pandoc is not installed to ~/.local/bin`. `--to` also narrows
+`xget upgrade` and `xget upgrade --all` when no package is named.
+
+## Installing a specific version
+
+A tag may be given either inline or as a flag:
+
+```bash
+xget upgrade jgm/pandoc@3.10
+xget upgrade jgm/pandoc --tag 3.10
+```
+
+The requested tag is installed as-is instead of the newest release, so a lower
+tag downgrades the package. The "already up to date" check is skipped, which also
+makes this the way to reinstall the version that is already present. The tag
+applies to every tracked location unless `--to` selects one. `--tag` requires a
+package name; the inline form takes precedence only when `--tag` is not given.
+
+Downgrading does not pin the package: a later `xget upgrade` will offer the
+newest release again. Use `xget install <package> --tag <tag>` to pin it.
 
 ## Options used for the upgrade
 

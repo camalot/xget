@@ -7,6 +7,7 @@ import (
 
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/engine"
+	"github.com/camalot/xget/internal/home"
 	"github.com/camalot/xget/internal/installed"
 	"github.com/camalot/xget/internal/options"
 	"github.com/camalot/xget/internal/semver"
@@ -23,6 +24,8 @@ type upgradeFlags struct {
 	all     bool
 	noColor bool
 	config  string
+	to      string
+	tag     string
 }
 
 type upgradeCandidate struct {
@@ -39,6 +42,8 @@ func newUpgradeCommand() *cobra.Command {
 		Long: "List and apply available upgrades for installed packages.\n\n" +
 			"With no arguments, the latest release of every installed package is looked up,\n" +
 			"the installed metadata store is refreshed, and available upgrades are listed.\n\n" +
+			"A package installed to several locations is upgraded in every out-of-date\n" +
+			"location unless --to selects one of them.\n\n" +
 			"Packages pinned to a tag are listed separately and are never upgraded by --all;\n" +
 			"they must be named explicitly.",
 		Args: cobra.MaximumNArgs(1),
@@ -57,16 +62,24 @@ func newUpgradeCommand() *cobra.Command {
 			}
 
 			if len(args) > 0 {
-				if err := refreshNamedPackage(storePath, store, cfg, args[0]); err != nil {
-					return err
-				}
-				return upgradeNamed(cmd, cfg, storePath, store, args[0])
+				return upgradeNamed(cmd, f, cfg, storePath, store, args[0])
+			}
+			if f.tag != "" {
+				return fmt.Errorf("--tag requires a package name")
 			}
 			if err := refreshInstalledStore(storePath, store, cfg); err != nil {
 				return err
 			}
 
 			upgradable, pinned := upgradeCandidates(store)
+			if f.to != "" {
+				location, err := home.Expand(f.to)
+				if err != nil {
+					return err
+				}
+				upgradable = candidatesAtLocation(upgradable, location)
+				pinned = candidatesAtLocation(pinned, location)
+			}
 			if f.all {
 				return upgradeAll(cmd, cfg, storePath, upgradable, pinned, !f.noColor)
 			}
@@ -77,28 +90,48 @@ func newUpgradeCommand() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&f.all, "all", "a", false, "upgrade every package with an available upgrade")
 	cmd.Flags().BoolVar(&f.noColor, "no-color", false, "disable colored output")
+	cmd.Flags().StringVar(&f.to, "to", "", "only upgrade the copy installed to this tracked location")
+	cmd.Flags().StringVarP(&f.tag, "tag", "t", "", "install this tag instead of the latest release; allows downgrades")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 	return cmd
 }
 
-func refreshNamedPackage(storePath string, store *installed.Store, cfg *config.Config, target string) error {
-	pkg, ok := findInstalledPackage(installed.SortedPackages(store), target)
-	if !ok {
-		return fmt.Errorf("%s is not installed", target)
+// refreshNamedPackages looks up the latest release for each tracked location of
+// a package and persists any metadata that changed.
+func refreshNamedPackages(storePath string, store *installed.Store, cfg *config.Config, matches []installed.Package) ([]installed.Package, error) {
+	changed := false
+	refreshedMatches := make([]installed.Package, 0, len(matches))
+	for _, pkg := range matches {
+		opts, err := resolveInstalledOptions(cfg, pkg)
+		if err != nil {
+			return nil, err
+		}
+		refreshed, err := refreshPackage(pkg, opts)
+		if err != nil {
+			return nil, err
+		}
+		if !refreshed.RefreshedAt.Equal(pkg.RefreshedAt) || refreshed.CurrentTag != pkg.CurrentTag {
+			store.Set(refreshed)
+			changed = true
+		}
+		refreshedMatches = append(refreshedMatches, refreshed)
 	}
-	opts, err := resolveInstalledOptions(cfg, pkg)
-	if err != nil {
-		return err
+	if changed {
+		if err := installed.Save(storePath, store); err != nil {
+			return nil, err
+		}
 	}
-	refreshed, err := refreshPackage(pkg, opts)
-	if err != nil {
-		return err
+	return refreshedMatches, nil
+}
+
+func candidatesAtLocation(candidates []upgradeCandidate, location string) []upgradeCandidate {
+	kept := make([]upgradeCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if installed.SamePath(installedLocation(candidate.pkg), location) {
+			kept = append(kept, candidate)
+		}
 	}
-	if refreshed.RefreshedAt.Equal(pkg.RefreshedAt) && refreshed.CurrentTag == pkg.CurrentTag {
-		return nil
-	}
-	store.Packages[pkg.Key()] = refreshed
-	return installed.Save(storePath, store)
+	return kept
 }
 
 // upgradeCandidates splits packages with an available upgrade into freely
@@ -160,11 +193,12 @@ func printUpgradeTable(out io.Writer, candidates []upgradeCandidate, colorUpgrad
 			candidate.pkg.Name,
 			candidate.pkg.InstalledTag,
 			candidate.pkg.CurrentTag,
+			displayLocation(installedLocation(candidate.pkg)),
 			candidate.pkg.Source,
 		})
 		coloredRows = append(coloredRows, colorUpgrades)
 	}
-	printTableWithRowColors(out, []string{"Name", "Version", "Available", "Source"}, rows, coloredRows)
+	printTableWithRowColors(out, []string{"Name", "Version", "Available", "Location", "Source"}, rows, coloredRows)
 }
 
 func upgradeAll(cmd *cobra.Command, cfg *config.Config, storePath string, upgradable, pinned []upgradeCandidate, colorUpgrades bool) error {
@@ -180,8 +214,9 @@ func upgradeAll(cmd *cobra.Command, cfg *config.Config, storePath string, upgrad
 
 	failures := []string{}
 	for _, candidate := range upgradable {
-		_, _ = fmt.Fprintf(out, "Upgrading %s from %s to %s\n", candidate.pkg.Name, candidate.pkg.InstalledTag, candidate.pkg.CurrentTag)
-		if err := applyUpgrade(cfg, storePath, candidate.pkg); err != nil {
+		location := displayLocation(installedLocation(candidate.pkg))
+		_, _ = fmt.Fprintf(out, "Upgrading %s from %s to %s in %s\n", candidate.pkg.Name, candidate.pkg.InstalledTag, candidate.pkg.CurrentTag, location)
+		if err := applyUpgrade(cfg, storePath, candidate.pkg, candidate.pkg.CurrentTag); err != nil {
 			_, _ = fmt.Fprintf(out, "failed to upgrade %s: %v\n", candidate.pkg.Name, err)
 			failures = append(failures, candidate.pkg.Name)
 		}
@@ -201,21 +236,68 @@ func upgradeAll(cmd *cobra.Command, cfg *config.Config, storePath string, upgrad
 	return nil
 }
 
-func upgradeNamed(cmd *cobra.Command, cfg *config.Config, storePath string, store *installed.Store, target string) error {
+// upgradeNamed upgrades every tracked location of a package, or only the one
+// selected with --to. An explicit tag is installed as-is, so a lower tag
+// downgrades the package.
+func upgradeNamed(cmd *cobra.Command, f *upgradeFlags, cfg *config.Config, storePath string, store *installed.Store, argument string) error {
 	out := cmd.OutOrStdout()
-	pkg, ok := findInstalledPackage(installed.SortedPackages(store), target)
-	if !ok {
+	target, inlineTag, _ := splitTargetTag(argument)
+	tag := f.tag
+	if tag == "" {
+		tag = inlineTag
+	}
+
+	matches := findInstalledPackages(installed.SortedPackages(store), target)
+	if len(matches) == 0 {
 		return fmt.Errorf("%s is not installed", target)
 	}
-	if !strings.EqualFold(pkg.Source, "GitHub") {
-		return fmt.Errorf("%s was installed from %s, so no upgrade can be determined", pkg.Name, pkg.Source)
+	matches, err := selectInstalledLocation(matches, target, f.to)
+	if err != nil {
+		return err
 	}
-	if !semver.IsUpgrade(pkg.InstalledTag, pkg.CurrentTag) {
-		_, _ = fmt.Fprintf(out, "%s is already up to date (%s).\n", pkg.Name, pkg.InstalledTag)
+	for _, pkg := range matches {
+		if !strings.EqualFold(pkg.Source, "GitHub") {
+			return fmt.Errorf("%s was installed from %s, so no upgrade can be determined", pkg.Name, pkg.Source)
+		}
+	}
+
+	if tag != "" {
+		for _, pkg := range matches {
+			_, _ = fmt.Fprintf(out, "Installing %s %s in %s\n", pkg.Name, tag, displayLocation(installedLocation(pkg)))
+			if err := applyUpgrade(cfg, storePath, pkg, tag); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
-	_, _ = fmt.Fprintf(out, "Upgrading %s from %s to %s\n", pkg.Name, pkg.InstalledTag, pkg.CurrentTag)
-	return applyUpgrade(cfg, storePath, pkg)
+
+	matches, err = refreshNamedPackages(storePath, store, cfg, matches)
+	if err != nil {
+		return err
+	}
+
+	upgraded := 0
+	for _, pkg := range matches {
+		if !semver.IsUpgrade(pkg.InstalledTag, pkg.CurrentTag) {
+			continue
+		}
+		_, _ = fmt.Fprintf(out, "Upgrading %s from %s to %s in %s\n", pkg.Name, pkg.InstalledTag, pkg.CurrentTag, displayLocation(installedLocation(pkg)))
+		if err := applyUpgrade(cfg, storePath, pkg, pkg.CurrentTag); err != nil {
+			return err
+		}
+		upgraded++
+	}
+	if upgraded > 0 {
+		return nil
+	}
+	if len(matches) == 1 {
+		_, _ = fmt.Fprintf(out, "%s is already up to date (%s).\n", matches[0].Name, matches[0].InstalledTag)
+		return nil
+	}
+	for _, pkg := range matches {
+		_, _ = fmt.Fprintf(out, "%s is already up to date (%s) in %s.\n", pkg.Name, pkg.InstalledTag, displayLocation(installedLocation(pkg)))
+	}
+	return nil
 }
 
 // resolveInstalledOptions layers the global config section, then the matching
@@ -277,12 +359,12 @@ func resolveInstalledOptions(cfg *config.Config, pkg installed.Package) (options
 	return opts, nil
 }
 
-func applyUpgrade(cfg *config.Config, storePath string, pkg installed.Package) error {
+func applyUpgrade(cfg *config.Config, storePath string, pkg installed.Package, tag string) error {
 	opts, err := resolveInstalledOptions(cfg, pkg)
 	if err != nil {
 		return err
 	}
-	opts.Tag = pkg.CurrentTag
+	opts.Tag = tag
 	if err := runEngine(pkg.Name, opts); err != nil {
 		return err
 	}
@@ -297,8 +379,7 @@ func restoreStoredOptions(storePath string, pkg installed.Package) error {
 	if err != nil {
 		return err
 	}
-	key := pkg.Key()
-	current, ok := store.Packages[key]
+	current, ok := store.Find(pkg.Key(), pkg.InstallLocation)
 	if !ok {
 		return nil
 	}
@@ -307,6 +388,6 @@ func restoreStoredOptions(storePath string, pkg installed.Package) error {
 		restored.Tag = current.InstalledTag
 	}
 	current.Options = restored
-	store.Packages[key] = current
+	store.Set(current)
 	return installed.Save(storePath, store)
 }

@@ -225,6 +225,27 @@ record that already exists for the target is left untouched, so a previously
 tracked install remains visible to `xget list --installed`, `xget upgrade`, and
 `xget uninstall`.
 
+### Installing to more than one location
+
+Installing the same package to a different directory adds a second record rather
+than replacing the first, so each location is tracked and upgraded on its own:
+
+```bash
+xget install jgm/pandoc --to ~/.local/bin
+xget install jgm/pandoc --to /mnt/test/bin
+```
+
+```text
+PACKAGE            TAG/VERSION  LATEST  LOCATION       INSTALLED/UPDATED
+---------------------------------------------------------------------------
+github:jgm/pandoc  3.11         3.11    /mnt/test/bin  2026-09-05
+github:jgm/pandoc  3.11         3.11    ~/.local/bin   2026-09-05
+```
+
+Reinstalling to a location that is already tracked updates that record in place.
+`xget upgrade` and `xget uninstall` accept a location to narrow the operation to
+a single copy; see the sections below.
+
 Use `xget list TARGET` to show up to ten recent releases with their name, tag,
 and publication date. Add `--pre-release` to include prereleases. Use
 `xget list --installed` to show installed package metadata, including the last
@@ -244,15 +265,27 @@ have a newer release, similar to `winget upgrade`. Full details are in the
 xget upgrade                      # list available upgrades
 xget upgrade bschaatsbergen/cidr  # upgrade one package
 xget upgrade --all                # upgrade everything that is not pinned
+xget upgrade jgm/pandoc --to ~/.local/bin  # upgrade only that copy
+xget upgrade jgm/pandoc@3.10               # install a specific tag
+xget upgrade jgm/pandoc --tag 3.10         # same, as a flag
 ```
 
 ```text
-Name                 Version  Available  Source
------------------------------------------------
-bschaatsbergen/cidr  v2.2.0   v2.3.0     GitHub
+Name                 Version  Available  Location      Source
+-------------------------------------------------------------
+bschaatsbergen/cidr  v2.2.0   v2.3.0     ~/.local/bin  GitHub
 
 1 upgrade available.
 ```
+
+A package tracked in several locations is listed once per location and every
+out-of-date copy is upgraded. Use `--to <path>` to upgrade only the copy in that
+tracked location; if the package is not installed there, xget reports
+`package jgm/pandoc is not installed to <path>`.
+
+An explicit tag, given either as `PACKAGE@TAG` or with `--tag`, is installed as
+requested instead of the newest release, which is how you downgrade or reinstall
+a specific version.
 
 Only packages with a newer release are listed. Tags are compared as semantic
 versions, including prerelease ordering, falling back to a plain difference
@@ -328,7 +361,7 @@ Flags:
       --pre-release              include pre-releases when fetching the latest version
   -q, --quiet                    only print essential output
       --rate                     show GitHub API rate limiting information
-      --from string              directory to remove an untracked target from
+      --from string              install location to remove the package from, or the directory to remove an untracked target from
     -r, --remove                   uninstall the target package
       --sha256                   show the SHA-256 hash of the downloaded asset
       --source                   download the source code for the target repo instead of a release
@@ -681,6 +714,10 @@ xget records successful installs in `~/.config/xget/.xget.installed.yml`,
 including their extracted files. Use `xget uninstall owner/repo` (or
 `xget remove owner/repo`) to remove those files and the matching record. The
 legacy `xget owner/repo --remove` form remains supported.
+
+A package installed to more than one location is tracked once per location. Pick
+one with `--from <path>`, or remove every copy with `--all`; without either,
+xget lists the tracked locations and stops.
 
 When no installed record matches, xget tries to remove the target basename from
 `$XGET_BIN`, the current directory, or a directory passed with `--from`.

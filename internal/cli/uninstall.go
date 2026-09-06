@@ -13,22 +13,27 @@ import (
 )
 
 func newUninstallCommand(f *rootFlags) *cobra.Command {
+	all := false
 	cmd := &cobra.Command{
-		Use:           "uninstall PACKAGE",
-		Aliases:       []string{"remove"},
-		Short:         "Remove an installed package",
+		Use:     "uninstall PACKAGE",
+		Aliases: []string{"remove"},
+		Short:   "Remove an installed package",
+		Long: "Remove an installed package.\n\n" +
+			"A package installed to several locations must be narrowed with --from, or\n" +
+			"removed from every location with --all.",
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return uninstallPackage(cmd, args[0], f.from)
+			return uninstallPackage(cmd, args[0], f.from, all)
 		},
 	}
-	cmd.Flags().StringVar(&f.from, "from", "", "directory to remove an untracked target from")
+	cmd.Flags().StringVar(&f.from, "from", "", "install location to remove the package from, or the directory to remove an untracked target from")
+	cmd.Flags().BoolVarP(&all, "all", "a", false, "remove the package from every tracked install location")
 	return cmd
 }
 
-func uninstallPackage(cmd *cobra.Command, target, from string) error {
+func uninstallPackage(cmd *cobra.Command, target, from string, all bool) error {
 	storePath, err := installed.DefaultPath()
 	if err != nil {
 		return err
@@ -39,19 +44,31 @@ func uninstallPackage(cmd *cobra.Command, target, from string) error {
 	}
 
 	packageTarget, _, _ := splitTargetTag(target)
-	if pkg, ok := findInstalledPackage(installed.SortedPackages(store), packageTarget); ok {
+	matches := findInstalledPackages(installed.SortedPackages(store), packageTarget)
+	if len(matches) == 0 {
+		return removeUntrackedTarget(cmd, target, from)
+	}
+	if !all {
+		matches, err = selectInstalledLocation(matches, packageTarget, from)
+		if err != nil {
+			return err
+		}
+		if len(matches) > 1 {
+			return errAmbiguousLocation(matches, packageTarget, "--from, or remove them all with --all")
+		}
+	}
+
+	for _, pkg := range matches {
 		if err := removeInstalledFiles(pkg); err != nil {
 			return err
 		}
-		delete(store.Packages, pkg.Key())
+		store.Remove(pkg)
 		if err := installed.Save(storePath, store); err != nil {
 			return err
 		}
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Uninstalled `%s`\n", pkg.Name)
-		return nil
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Uninstalled `%s` from `%s`\n", pkg.Name, displayLocation(installedLocation(pkg)))
 	}
-
-	return removeUntrackedTarget(cmd, target, from)
+	return nil
 }
 
 func removeInstalledFiles(pkg installed.Package) error {

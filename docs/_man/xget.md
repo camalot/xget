@@ -66,6 +66,12 @@ header: xget Manual
   `xget upgrade` read from. Use `--untracked` to skip recording a single install
   without disturbing an existing record for that target.
 
+  A package may be installed to several locations. Each install location is
+  tracked separately, so installing to a new directory adds a record instead of
+  replacing the existing one, while reinstalling to an already tracked directory
+  updates that record in place. `xget upgrade` and `xget uninstall` act on every
+  tracked location unless one is selected with `--to` or `--from`.
+
   The behavior of xget is configurable in a number of ways via options.
   Documentation for these options is provided below.
 
@@ -76,7 +82,7 @@ header: xget Manual
 
   `xget uninstall PACKAGE`, `xget remove PACKAGE`
 
-:    Remove a tracked package's extracted files and its installed metadata record. When no installed package matches, remove the target basename from `$XGET_BIN`, the current directory, or the directory selected with `--from`. `xget TARGET --remove` is retained as a backwards-compatible equivalent.
+:    Remove a tracked package's extracted files and its installed metadata record. When the package is tracked in more than one install location, the tracked locations are listed and one must be selected with `--from`, or all of them removed with `-a`/`--all`. When no installed package matches, remove the target basename from `$XGET_BIN`, the current directory, or the directory selected with `--from`. `xget TARGET --remove` is retained as a backwards-compatible equivalent.
 
   `xget rate`
 
@@ -86,9 +92,11 @@ header: xget Manual
 
 :    List and apply available upgrades for installed packages. With no arguments, the newest release of every installed package is looked up, the installed metadata store is refreshed, and packages with a newer release are listed in yellow. Pass `--no-color` for plain output. An upgrade is available only when the newest release is newer than the installed one; tags are compared as semantic versions, including prerelease ordering, falling back to a plain difference check for tags that are not semver-shaped. Packages installed from a direct URL or local file are skipped, since there is no release list to query. Pass a package to upgrade it, or `-a`/`--all` to upgrade everything that is not pinned. `PACKAGE` accepts the full name (`owner/repo`), the store key (`github:owner/repo`), or the bare repository name (`repo`). A package installed with a `tag` is pinned; it is listed separately, is never upgraded by `--all`, and must be named explicitly. Upgrading a pinned package re-pins it to the newer tag. The upgrade re-runs the download using options resolved from the `global` config section, then the matching `"owner/repo"` section, then the options stored at install time; `tag` and `upgrade_only` are never applied because either would prevent the newer release from being downloaded, and both are left untouched in the installed metadata store.
 
+  A package tracked in more than one install location is listed once per location, and every out-of-date location is upgraded. `--to=DIR` restricts the upgrade to the copy installed in that tracked location; xget fails with **`package owner/repo is not installed to DIR`** when no record matches. `-t`, `--tag=` or the inline `PACKAGE@TAG` form installs that exact release instead of the newest one, which allows downgrading and reinstalling; the up-to-date check is skipped for an explicit tag, and `--tag` requires a package name. Example: **`xget upgrade jgm/pandoc@3.10 --to '~/.local/bin'`**.
+
   `xget list [TARGET]`
 
-:    Show up to ten recent releases for `TARGET`, including their name, tag, and publication date. Add `--pre-release` to include prereleases. With no `TARGET`, list the repositories defined in the configuration file. With `--installed`, show installed package metadata instead, including the last install or upgrade date; rows with a newer available version are yellow unless `--no-color` is set.
+:    Show up to ten recent releases for `TARGET`, including their name, tag, and publication date. Add `--pre-release` to include prereleases. With no `TARGET`, list the repositories defined in the configuration file. With `--installed`, show installed package metadata instead, including the last install or upgrade date; rows with a newer available version are yellow unless `--no-color` is set. A package tracked in more than one install location is shown once per location.
 
   `xget config <SUBCOMMAND>`
 
@@ -181,7 +189,7 @@ header: xget Manual
 
   `--from=DIR`
 
-:    When no installed package matches, remove the target basename from `DIR` instead of `$XGET_BIN` or the current directory.
+:    Select the tracked install location to uninstall from when a package is installed to more than one place. When no installed package matches, remove the target basename from `DIR` instead of `$XGET_BIN` or the current directory.
 
   `-k, --disable-ssl`
 

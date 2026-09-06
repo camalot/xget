@@ -118,12 +118,46 @@ func TestListInstalledRefreshesAndPersistsLatestTag(t *testing.T) {
 		t.Fatalf("expected refreshed latest tag in output:\n%s", out)
 	}
 
-	store, err := installed.Load(storePath)
+	if got := storedPackage(t, storePath, "github:bschaatsbergen/cidr").CurrentTag; got != "v2.3.0" {
+		t.Fatalf("current_tag = %q, want v2.3.0", got)
+	}
+}
+
+func TestListInstalledShowsEveryInstallLocation(t *testing.T) {
+	useTempInstalledStore(t,
+		samplePackageAt("jgm/pandoc", "3.11", "/mnt/test/bin"),
+		samplePackageAt("jgm/pandoc", "3.11", "/opt/local/bin"),
+	)
+	stubRefresh(t, map[string]string{"jgm/pandoc": "3.11"})
+
+	out, err := runCLI(t, "list", "--installed")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := store.Packages["github:bschaatsbergen/cidr"].CurrentTag; got != "v2.3.0" {
-		t.Fatalf("current_tag = %q, want v2.3.0", got)
+	collapsed := collapseSpaces(out)
+	if !strings.Contains(collapsed, "github:jgm/pandoc 3.11 3.11 /mnt/test/bin") ||
+		!strings.Contains(collapsed, "github:jgm/pandoc 3.11 3.11 /opt/local/bin") {
+		t.Fatalf("expected one row per location:\n%s", out)
+	}
+}
+
+func TestListInstalledTargetShowsEveryInstallLocation(t *testing.T) {
+	useTempInstalledStore(t,
+		samplePackageAt("jgm/pandoc", "3.11", "/mnt/test/bin"),
+		samplePackageAt("jgm/pandoc", "3.11", "/opt/local/bin"),
+		samplePackage("a/one", "v1.0.0"),
+	)
+	stubRefresh(t, nil)
+
+	out, err := runCLI(t, "list", "jgm/pandoc", "--installed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(out, "github:jgm/pandoc") != 2 {
+		t.Fatalf("expected both locations:\n%s", out)
+	}
+	if strings.Contains(out, "a/one") {
+		t.Fatalf("unrelated package listed:\n%s", out)
 	}
 }
 
