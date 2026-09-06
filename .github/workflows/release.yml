@@ -109,7 +109,8 @@ jobs:
         with:
           token: ${{ steps.xget-bot-token.outputs.token }}
           package: orhun/git-cliff
-          asset-filters: ".tar.gz"
+          asset-filters: "gnu.tar.gz"
+          file-filter: "git-cliff"
           ignore: ".sha512,.sha256,.sig,.sbom.json"
 
       - shell: bash
