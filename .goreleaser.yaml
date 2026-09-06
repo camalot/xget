@@ -109,7 +109,7 @@ snapshot:
 
 winget:
   - name: xget
-    skip_upload: true
+    skip_upload: '{{ if eq (envOrDefault "XGET_DRY_RUN" "false") "true" }}true{{ else }}auto{{ end }}'
     publisher: camalot
     author: Ryan Conrad
     package_name: xget
@@ -121,7 +121,7 @@ winget:
     license: MIT
     commit_msg_template: "chore(winget): update manifest {{ .ProjectName }}@{{ .Version }}"
     license_url: https://github.com/camalot/xget/blob/main/LICENSE
-    copyright: "Ryan Conrad"
+    copyright: "Copyright © 2026 Ryan Conrad"
     release_notes: "{{.Changelog}}"
     tags:
       - installer
