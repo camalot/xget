@@ -134,8 +134,8 @@ winget:
       branch: main
       token: '{{ .Env.XGET_APP_TOKEN }}'
     commit_author:
-      name: xget-bot
-      email: xget-bot@noreply.github.com
+      name: xget-bot[bot]
+      email: 325102936+xget-bot[bot]@users.noreply.github.com
 # https://goreleaser.com/customization/publish/homebrew_casks/
 homebrew_casks:
   - repository:
@@ -165,8 +165,8 @@ homebrew_casks:
         - fish
         - pwsh
     commit_author:
-      name: xget-bot
-      email: xget-bot@noreply.github.com
+      name: xget-bot[bot]
+      email: 325102936+xget-bot[bot]@users.noreply.github.com
 
 # https://goreleaser.com/customization/publish/scoop/
 scoops:
@@ -183,8 +183,8 @@ scoops:
     description: xget is a tool for downloading binaries from the GitHub releases.
     license: MIT
     commit_author:
-      name: xget-bot
-      email: xget-bot@noreply.github.com
+      name: xget-bot[bot]
+      email: 325102936+xget-bot[bot]@users.noreply.github.com
 
 changelog:
   # if release-notes are passed, then disable generation
