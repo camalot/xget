@@ -126,14 +126,17 @@ jobs:
           echo "XGET_RELEASE_NOTES=1" >> $GITHUB_ENV
 
           if [[ "${DRY_RUN}" == "true" ]]; then
-            echo "Dry run: skipping changelog commit and tag creation"
+            # goreleaser reads the tag's contents via `git tag`, so it needs a local tag even
+            # though nothing is committed/pushed in a dry run
+            echo "Dry run: creating local-only tag ${GC_TAG} for goreleaser (not pushing)"
+            git tag -a "${GC_TAG}" -m "docs: update changelog for ${GC_TAG}"
             exit 0
           fi
 
           git add CHANGELOG.md
           git commit -m "docs: update changelog for ${GC_TAG}"
           git push origin HEAD
-          git tag "${GC_TAG}"
+          git tag -a "${GC_TAG}" -m "docs: update changelog for ${GC_TAG}"
           git push origin "${GC_TAG}"
           echo "Release notes for ${GC_TAG} have been committed and tagged."
 
