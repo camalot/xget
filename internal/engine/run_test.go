@@ -70,6 +70,26 @@ func TestResolvedInstallLocation(t *testing.T) {
 	}
 }
 
+func TestShouldRecordInstall(t *testing.T) {
+	tests := []struct {
+		name string
+		opts options.Flags
+		want bool
+	}{
+		{name: "default", opts: options.Flags{}, want: true},
+		{name: "untracked", opts: options.Flags{Untracked: true}, want: false},
+		{name: "stdout", opts: options.Flags{Output: "-"}, want: false},
+		{name: "untracked with output", opts: options.Flags{Untracked: true, Output: "/usr/local/bin"}, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := shouldRecordInstall(test.opts); got != test.want {
+				t.Fatalf("shouldRecordInstall = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
 // Regression: --non-interactive must still print the candidate list to stderr
 // before failing, so users can see why detection was ambiguous.
 func TestUserSelectNonInteractivePrintsChoicesBeforeError(t *testing.T) {

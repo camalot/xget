@@ -47,12 +47,11 @@ if ($FileHash.Hash -ne $ExpectedHash) {
 iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
 ```
 
-<!-- ### Homebrew
+### Homebrew
 
 ``` shell
-brew install xget
+brew install camalot/scoop/xget
 ```
--->
 
 <!-- ### Chocolatey
 
@@ -60,18 +59,24 @@ brew install xget
 choco install xget
 ``` -->
 
-<!-- ### Scoop
+### Scoop
 
 ``` shell
-scoop bucket add main
+scoop bucket add https://github.com/camalot/scoop
 scoop install xget
-``` -->
+```
 
 <!-- ### Winget
 
 ``` shell
 winget install camalot.xget
 ``` -->
+
+### eget
+
+``` shell
+eget camalot/xget --asset '^.sbom.json'
+```
 
 ### Pre-built binaries
 

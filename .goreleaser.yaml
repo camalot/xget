@@ -186,6 +186,25 @@ scoops:
       name: xget-bot[bot]
       email: 325102936+xget-bot[bot]@users.noreply.github.com
 
+# disabled for now. i want to create the nupkg and publish to camalot/scoop and then from there to chocolatey.
+# chocolateys:
+#   - owners: camalot
+#     api_key: '{{ .Env.CHOCOLATEY_API_KEY }}'
+#     skip_publish: '{{ if eq (envOrDefault "XGET_DRY_RUN" "false") "true" }}true{{ else }}auto{{ end }}'
+#     package_source_url: https://github.com/camalot/xget
+#     project_url: https://github.com/camalot/xget
+#     project_source_url: https://github.com/camalot/xget
+#     docs_url: https://github.com/camalot/xget#readme
+#     bug_tracker_url: https://github.com/camalot/xget/issues
+#     tags: download eget github-release package-manager
+#     summary: xget is a tool for downloading binaries from the GitHub releases.
+#     description: xget is a tool for downloading binaries from the GitHub releases.
+#     authors: camalot
+#     icon_url: https://raw.githubusercontent.com/camalot/xget/refs/heads/main/winres/xget-logo-256x256.png
+#     copyright: '2026 Ryan Conrad'
+#     license_url: https://github.com/camalot/xget/blob/main/LICENSE
+#     require_license_acceptance: false
+
 changelog:
   # if release-notes are passed, then disable generation
   disable: '{{ if ne (envOrDefault "XGET_RELEASE_NOTES" "") "" }}true{{ else }}false{{ end }}'

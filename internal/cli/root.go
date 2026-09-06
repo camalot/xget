@@ -35,6 +35,7 @@ type rootFlags struct {
 	downloadAll bool
 	disableSSL  bool
 	config      string
+	untracked   bool
 
 	nonInteractive bool
 }
@@ -163,6 +164,7 @@ func addInstallFlags(cmd *cobra.Command, f *rootFlags) {
 	cmd.Flags().BoolVarP(&f.downloadAll, "download-all", "D", false, "download all projects defined in the config file")
 	cmd.Flags().BoolVarP(&f.disableSSL, "disable-ssl", "k", false, "disable SSL verification for download requests")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
+	cmd.Flags().BoolVar(&f.untracked, "untracked", false, "do not record this install in the installed package store (existing entries are left untouched)")
 }
 
 func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
@@ -358,6 +360,9 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 	}
 	if cmd.Flags().Changed("disable-ssl") {
 		opts.DisableSSL = f.disableSSL
+	}
+	if cmd.Flags().Changed("untracked") {
+		opts.Untracked = f.untracked
 	}
 
 	// Template substitution only applies to asset/ignore matchers sourced from the

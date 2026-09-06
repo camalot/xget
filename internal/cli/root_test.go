@@ -166,6 +166,47 @@ func TestOptionsForTarget_UsesConfigIgnoreAndOverrides(t *testing.T) {
 	}
 }
 
+func TestOptionsForTarget_UntrackedFlag(t *testing.T) {
+	cfg := &config.Config{}
+
+	cmd := newRootCommand()
+	flags := &rootFlags{}
+	opts, err := optionsForTarget(cfg, cmd, flags, "jgm/pandoc")
+	if err != nil {
+		t.Fatalf("optionsForTarget returned error: %v", err)
+	}
+	if opts.Untracked {
+		t.Fatal("expected installs to be tracked by default")
+	}
+
+	cmd = newRootCommand()
+	flags = &rootFlags{untracked: true}
+	if err := cmd.Flags().Set("untracked", "true"); err != nil {
+		t.Fatalf("set flag: %v", err)
+	}
+	opts, err = optionsForTarget(cfg, cmd, flags, "jgm/pandoc")
+	if err != nil {
+		t.Fatalf("optionsForTarget returned error: %v", err)
+	}
+	if !opts.Untracked {
+		t.Fatal("expected --untracked to set Untracked")
+	}
+}
+
+func TestInstallCommandSupportsUntrackedFlag(t *testing.T) {
+	root := newRootCommand()
+	for _, sub := range root.Commands() {
+		if sub.Name() != "install" {
+			continue
+		}
+		if sub.Flags().Lookup("untracked") == nil {
+			t.Fatal("install command missing --untracked flag")
+		}
+		return
+	}
+	t.Fatal("expected root command to include an install subcommand")
+}
+
 func TestOptionsForTarget_SubstitutesTemplateVarsInConfigAssetAndIgnore(t *testing.T) {
 	cmd := newRootCommand()
 	flags := &rootFlags{}

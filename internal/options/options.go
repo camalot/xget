@@ -18,4 +18,6 @@ type Flags struct {
 	Remove      bool
 	DisableSSL  bool
 	SourceType  string
+	// Untracked skips recording this run in the installed package store.
+	Untracked bool
 }

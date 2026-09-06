@@ -63,7 +63,8 @@ header: xget Manual
   options, SHA-256, and the installed and latest known tags. Records are keyed as
   `<source>:<repo-or-url>`, such as `github:nektos/act`. Reinstalling a package
   refreshes its existing record. This store is what `xget list --installed` and
-  `xget upgrade` read from.
+  `xget upgrade` read from. Use `--untracked` to skip recording a single install
+  without disturbing an existing record for that target.
 
   The behavior of xget is configurable in a number of ways via options.
   Documentation for these options is provided below.
@@ -145,6 +146,10 @@ header: xget Manual
   `--upgrade-only`
 
 :    Only download the asset if the release is more recent than an existing asset with the same name in `$XGET_BIN`, or the current directory if `$XGET_BIN` is not defined.
+
+  `--untracked`
+
+:    Do not record this install in the installed package store (`~/.config/xget/.xget.installed.yml`). Only the current run is untracked: any entry that already exists for the target is left exactly as it is, so `xget list --installed`, `xget upgrade`, and `xget uninstall` continue to see the previously tracked install. Example: **`xget install jgm/pandoc --untracked`**.
 
   `-a, --asset=`
 

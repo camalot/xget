@@ -449,6 +449,13 @@ func ListAvailable(target string, opts options.Flags) ([]string, error) {
 	return finder.Find()
 }
 
+// shouldRecordInstall reports whether a completed install should be written to
+// the installed package store. --untracked keeps the run out of the store
+// without touching any entry that already exists for the target.
+func shouldRecordInstall(opts options.Flags) bool {
+	return opts.Output != "-" && !opts.Untracked
+}
+
 func installedOptions(opts options.Flags) installed.Options {
 	return installed.Options{
 		Tag:            opts.Tag,
@@ -707,7 +714,7 @@ func Run(target string, opts options.Flags) error {
 	}
 
 	recordInstall := func() error {
-		if opts.Output == "-" {
+		if !shouldRecordInstall(opts) {
 			return nil
 		}
 		storePath, err := installed.DefaultPath()

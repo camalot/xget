@@ -96,6 +96,7 @@ Flags:
   -s, --system string            target system to download for (use all for all choices)
   -t, --tag string               tagged release to use instead of latest
       --to string                move to given location after extracting
+      --untracked                do not record this install in the installed package store (existing entries are left untouched)
       --upgrade-only             only download if release is more recent than current version
       --verify string[="auto"]   verify the downloaded asset checksum; pass a hash or use --verify with no value to use GitHub's published SHA256 when available
       --verify-sha256 string     verify the downloaded asset checksum against the one provided
@@ -127,6 +128,8 @@ If xget downloads an asset called `xxx`, and there is also a matching checksum a
 ## Installed package tracking
 
 Successful installs are recorded in `~/.config/xget/.xget.installed.yml`. Records include source type, repo or URL, install location, install and refresh timestamps, selected asset, download URL, extracted files, effective options, SHA-256, and installed/current tag when release metadata is available. Records are keyed as `<source>:<repo-or-url>`, such as `github:nektos/act`.
+
+Pass `--untracked` to keep a single install out of the store, for example `xget install jgm/pandoc --untracked`. Nothing is written for that run, and any record that already exists for the target is left untouched, so a previously tracked install remains visible to `xget list --installed`, `xget upgrade`, and `xget uninstall`.
 
 Use `xget list TARGET` to list assets that can be installed for a target. Use `xget list --installed` to show all installed records, or `xget list TARGET --installed` to show one installed package.
 

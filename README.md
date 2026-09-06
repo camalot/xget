@@ -219,6 +219,12 @@ SHA-256, and installed/current tag when release metadata is available. Records
 are keyed as `<source>:<repo-or-url>`, such as `github:nektos/act`, and
 reinstalling a package refreshes the existing record.
 
+Pass `--untracked` to keep a single install out of the store, for example
+`xget install jgm/pandoc --untracked`. Nothing is written for that run, and any
+record that already exists for the target is left untouched, so a previously
+tracked install remains visible to `xget list --installed`, `xget upgrade`, and
+`xget uninstall`.
+
 Use `xget list TARGET` to show up to ten recent releases with their name, tag,
 and publication date. Add `--pre-release` to include prereleases. Use
 `xget list --installed` to show installed package metadata, including the last
@@ -329,6 +335,7 @@ Flags:
   -s, --system string            target system to download for (use all for all choices)
   -t, --tag string               tagged release to use instead of latest
       --to string                move to given location after extracting
+      --untracked                do not record this install in the installed package store (existing entries are left untouched)
       --upgrade-only             only download if release is more recent than current version
       --verify string[="auto"]   verify the downloaded asset checksum; pass a hash or use --verify with no value to use GitHub's published SHA256 when available
       --verify-sha256 string     verify the downloaded asset checksum against the one provided
