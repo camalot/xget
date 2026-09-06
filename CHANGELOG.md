@@ -1,4 +1,77 @@
 
+## [v2.0.2](https://github.com/camalot/xget/releases/tag/v2.0.2) - 2026-09-06
+
+### 🐛 BUG FIXES
+
+#### _GENERAL_
+
+- Bug with --non-interactive not showing choices -[@camalot](https://github.com/camalot)
+
+- Install git-cliff -[@camalot](https://github.com/camalot)
+
+- Change the path for RELEASE_NOTES.md -[@camalot](https://github.com/camalot)
+
+
+### 📚 DOCUMENTATION
+
+#### _GENERAL_
+
+- Update docs about importance of quoting regex filters -[@camalot](https://github.com/camalot)
+
+- Update changelog for v2.0.2
+
+### ⚙️ MISCELLANEOUS TASKS
+
+
+#### _REPO_
+- Update release to allow dry-run -[@camalot](https://github.com/camalot)
+
+- Run ci on branch push -[@camalot](https://github.com/camalot)
+
+- Removed the shell call to install pandoc/git-cliff -[@camalot](https://github.com/camalot)
+
+- Create local tag for dry-run -[@camalot](https://github.com/camalot)
+
+- Dry-run default: true -[@camalot](https://github.com/camalot)
+
+- Fix permissions -[@camalot](https://github.com/camalot)
+
+- Fix permissions -[@camalot](https://github.com/camalot)
+
+- Rollback changelog if release fails -[@camalot](https://github.com/camalot)
+
+- Ignore null user in cliff template -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+
+## GitHub
+
+### ❤️ New Contributors
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot)
+## 📈 Commit Statistics
+
+
+- `14` commits contributed to the release.
+- `1` day has passed between the first and last commit.
+- `14` commits parsed as conventional.
+- `0` linked issues detected in commits.
+- `1` day  has passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[14,2,1,14,0,1]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.0.1...v2.0.2
+
 
 **Full Changelog**: https://github.com/camalot/xget/compare/v2.0.1...v2.0.2
 ## [v2.0.0](https://github.com/camalot/xget/releases/tag/v2.0.0) - 2026-09-04
