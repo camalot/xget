@@ -116,9 +116,6 @@ jobs:
       - shell: bash
         run: |
           set -euo pipefail
-          echo "Installing pandoc"
-          xget install jgm/pandoc --asset ".tar.gz" --non-interactive
-          xget install orhun/git-cliff --asset ".tar.gz" --non-interactive --file "git-cliff"
 
           git-cliff --github-token "${GH_TOKEN}" --unreleased --tag "${GC_TAG}" --prepend CHANGELOG.md --output RELEASE_NOTES.md
 
