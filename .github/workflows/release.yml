@@ -79,8 +79,6 @@ jobs:
             xget
             scoop
           permission-contents: write
-          permission-attestations: write
-          permission-id-token: write
 
       - uses: actions/checkout@v7
         with:
@@ -162,7 +160,7 @@ jobs:
           # dry runs also skip validate (no new tag exists yet), announce, and sign
           args: release --clean --release-notes RELEASE_NOTES.md${{ inputs.dry-run == true && ' --skip=validate,announce,sign' || '' }}
         env:
-          GITHUB_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           XGET_APP_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
           # the tag isn't created/pushed in a dry run, so goreleaser can't discover it via `git describe`
           GORELEASER_CURRENT_TAG: ${{ needs.version.outputs.tag }}
