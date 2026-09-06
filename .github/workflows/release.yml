@@ -168,6 +168,14 @@ jobs:
           GORELEASER_CURRENT_TAG: ${{ needs.version.outputs.tag }}
           XGET_DRY_RUN: ${{ inputs.dry-run }}
 
+      - name: Upload Chocolatey package
+        uses: ./.github/actions/chocolatey
+        with:
+          token: ${{ steps.xget-bot-token.outputs.token }}
+          # nupkg/nuspec versions can't have a "v" prefix, unlike the git tag
+          version: ${{ needs.version.outputs.ver_major_minor_patch }}
+          dry-run: ${{ inputs.dry-run }}
+
       - name: Upload packaging manifests
         if: ${{ inputs.dry-run == true }}
         uses: actions/upload-artifact@v4
@@ -177,7 +185,9 @@ jobs:
             dist/scoop/**
             dist/homebrew/**
             dist/winget/**
+            dist/*.nupkg
             dist/checksums.txt
+            scoop/chocolatey/**
           if-no-files-found: error
 
       - uses: actions/attest-build-provenance@v4

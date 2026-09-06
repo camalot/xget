@@ -1,0 +1,103 @@
+---
+name: 'Chocolatey Push To Scoop'
+description: 'Take the created Chocolatey nupkg and push it to camalot/scoop as a simple-folder feed entry'
+
+inputs:
+  token:
+    description: 'The GitHub token to use for authentication'
+    required: false
+    default: '${{ github.token }}'
+  version:
+    description: 'The plain (no "v" prefix) version of the Chocolatey package to push, e.g. 2.0.2'
+    required: true
+  dry-run:
+    description: 'Whether to perform a dry run without actually committing/pushing the package'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    # nupkg versions can't have a "v" prefix, so goreleaser names it e.g. xget.2.0.2.nupkg
+    - name: Get the nupkg file
+      id: get_nupkg
+      shell: bash
+      run: |
+        set -euo pipefail
+        nupkg_file=$(find . -name '*.nupkg' -print -quit)
+        if [ -z "$nupkg_file" ]; then
+          echo "No nupkg file found under $(pwd)" >&2
+          exit 1
+        fi
+        if [[ "$nupkg_file" != *"$VERSION"* ]]; then
+          echo "nupkg file '$nupkg_file' does not appear to match version '$VERSION'" >&2
+          exit 1
+        fi
+        echo "nupkg_file=$(realpath "$nupkg_file")" >> "$GITHUB_OUTPUT"
+      env:
+        VERSION: ${{ inputs.version }}
+
+    # runs before the scoop checkout below so the find above can't accidentally pick up
+    # a stale nupkg from a previous scoop/ checkout
+    - uses: actions/checkout@v7
+      with:
+        repository: 'camalot/scoop'
+        path: 'scoop/'
+        fetch-depth: 0
+        token: ${{ inputs.token }}
+
+    - name: Define target path in remote
+      id: remote_path
+      shell: bash
+      run: |
+        set -euo pipefail
+        owner="${REPOSITORY_OWNER,,}"
+        owner_first_char=$(echo "$owner" | cut -c1)
+
+        # the .nuspec is the package manifest, embedded at the root of the nupkg zip
+        nuspec_name=$(unzip -Z1 "$NUPKG_FILE" '*.nuspec')
+        package_name=$(unzip -p "$NUPKG_FILE" "$nuspec_name" | grep -oP '(?<=<id>).*?(?=</id>)')
+        if [ -z "$package_name" ]; then
+          echo "Could not determine package id from $nuspec_name" >&2
+          exit 1
+        fi
+
+        # remote path is like winget: chocolatey/<owner-first-char>/<owner>/<package-name>/<version>
+        # relative to the scoop/ checkout, so it can be reused with `working-directory: scoop`
+        base_relative_path="chocolatey/$owner_first_char/$owner/$package_name/$VERSION"
+        nupkg_relative_path="$base_relative_path/$(basename "$NUPKG_FILE")"
+        nuspec_relative_path="$base_relative_path/$nuspec_name"
+
+        mkdir -p "scoop/$base_relative_path"
+        cp "$NUPKG_FILE" "scoop/$nupkg_relative_path"
+        unzip -o -j "$NUPKG_FILE" "$nuspec_name" -d "scoop/$base_relative_path"
+
+        {
+          echo "nupkg_relative_path=$nupkg_relative_path"
+          echo "nuspec_relative_path=$nuspec_relative_path"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        REPOSITORY_OWNER: ${{ github.repository_owner }}
+        REPOSITORY: ${{ github.repository }}
+        VERSION: ${{ inputs.version }}
+        NUPKG_FILE: ${{ steps.get_nupkg.outputs.nupkg_file }}
+
+    - name: Commit and Push Chocolatey Package
+      if: inputs.dry-run == 'false'
+      shell: bash
+      working-directory: scoop
+      run: |
+        set -euo pipefail
+        gh auth setup-git
+        git config user.name "xget-bot[bot]"
+        git config user.email "325102936+xget-bot[bot]@users.noreply.github.com"
+        git add "$NUPKG_RELATIVE_PATH" "$NUSPEC_RELATIVE_PATH"
+        git commit -m "chore(chocolatey): $OWNER/$REPOSITORY@${VERSION}"
+        git push origin HEAD
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        OWNER: ${{ github.repository_owner }}
+        REPOSITORY: ${{ github.repository }}
+        NUSPEC_RELATIVE_PATH: ${{ steps.remote_path.outputs.nuspec_relative_path }}
+        NUPKG_RELATIVE_PATH: ${{ steps.remote_path.outputs.nupkg_relative_path }}
+        VERSION: ${{ inputs.version }}
