@@ -137,6 +137,7 @@ jobs:
 
           git add CHANGELOG.md
           git commit -m "docs: update changelog for ${GC_TAG}"
+          echo "CHANGELOG_COMMIT_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
           git push origin HEAD
           git tag -a "${GC_TAG}" -m "docs: update changelog for ${GC_TAG}"
           git push origin "${GC_TAG}"
@@ -184,13 +185,20 @@ jobs:
         with:
           subject-path: "dist/*.zip,dist/*.tar.gz,dist/checksums.txt"
 
-      # if anything after the tag was pushed fails, don't leave a dangling tag/release behind
-      - name: Rollback tag/release on failure
+      # if anything after the tag was pushed fails, don't leave a dangling tag/release or changelog commit behind
+      - name: Rollback tag/release/changelog on failure
         if: ${{ failure() && inputs.dry-run != true }}
         run: |
           set -uo pipefail
           echo "Rolling back ${GC_TAG} due to workflow failure"
           gh release delete "${GC_TAG}" --cleanup-tag --yes || git push origin --delete "${GC_TAG}" || true
+
+          if [[ -n "${CHANGELOG_COMMIT_SHA}" ]]; then
+            echo "Reverting changelog commit ${CHANGELOG_COMMIT_SHA}"
+            git revert --no-edit "${CHANGELOG_COMMIT_SHA}"
+            git push origin HEAD
+          fi
         env:
           GH_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
           GC_TAG: ${{ needs.version.outputs.tag }}
+          CHANGELOG_COMMIT_SHA: ${{ env.CHANGELOG_COMMIT_SHA }}
