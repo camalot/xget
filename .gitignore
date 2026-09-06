@@ -29,6 +29,7 @@ xget.1
 cov_cfg
 cov_cli
 cover
+coverage.out.partial
 
 *windows_*.syso
 

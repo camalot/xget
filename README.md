@@ -66,15 +66,10 @@ Before you can get anything, you have to get xget. If you already have xget and 
 
 ### Quick-install script
 
-### Bash
+> [!NOTE]
+> The quick-install scripts will automatically download the sha256 checksum of the install script and verify the script before executing it.
 
-``` shell
-curl -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh
-shasum -a 256 xget.sh # verify with hash below
-curl -o xget.sh.sha256 https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh.sha256
-shasum -a 256 --check xget.sh.sha256
-bash xget.sh
-```
+### Bash
 
 ``` shell
 curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
@@ -88,30 +83,18 @@ curl -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget
 
 ### PowerShell
 
-The script to install will automatically download the sha256 checksum and verify the script before executing it. If you want to manually verify the checksum, you can download the script and the checksum file separately and run the following command:
-
-```powershell
-iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 -OutFile xget.ps1
-iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1.sha256 -OutFile xget.ps1.sha256
-$FileHash = Get-FileHash xget.ps1 -Algorithm SHA256
-$ExpectedHash = Get-Content xget.ps1.sha256 | ForEach-Object { $_.Split(' ')[0] }
-if ($FileHash.Hash -ne $ExpectedHash) {
-    Write-Error "Checksum verification failed. Expected: $ExpectedHash, Actual: $($FileHash.Hash)"
-} else {
-  Write-Output "Checksum verification passed."
-}
-```
-
 ``` powershell
 iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
 ```
 
-<!-- ### Homebrew
+> [!NOTE]
+> The powershell script can also specify the installation directory with the `-InstallDir` parameter.
+
+### Homebrew
 
 ``` shell
-brew install xget
+brew install camalot/scoop/xget
 ```
--->
 
 <!-- ### Chocolatey
 
@@ -119,18 +102,24 @@ brew install xget
 choco install xget
 ``` -->
 
-<!-- ### Scoop
+### Scoop
 
 ``` shell
-scoop bucket add main
+scoop bucket add https://github.com/camalot/scoop
 scoop install xget
-``` -->
+```
 
 <!-- ### Winget
 
 ``` shell
 winget install camalot.xget
 ``` -->
+
+### eget
+
+``` shell
+eget camalot/xget --asset '^.sbom.json'
+```
 
 ### Pre-built binaries
 
@@ -141,7 +130,13 @@ Pre-built binaries are available on the [releases](https://github.com/camalot/xg
 Install the latest released version:
 
 ``` shell
-go install github.com/camalot/xget@latest
+go install github.com/camalot/xget/cmd/xget@latest
+```
+
+You can run directly via `go run`
+
+``` shell
+go run github.com/camalot/xget/cmd/xget@latest
 ```
 
 or install from HEAD:
@@ -185,7 +180,7 @@ You can also use the action to just install `xget` on the GitHub Actions runner 
 
 The `xget-action` uses the `--non-interactive` flag by default to ensure that installations do not prompt for user input, which is suitable for automated CI/CD environments.
 
-See the [xget-action README](https://github.com/camalot/xget-action#readme)
+See the [xget-action](https://github.com/camalot/xget-action#readme)
 for the full list of inputs/outputs and more examples.
 
 ## Usage
