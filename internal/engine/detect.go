@@ -136,11 +136,11 @@ func (a *Arch) Match(s string) bool {
 var (
 	ArchAMD64 = Arch{
 		name:  "amd64",
-		regex: regexp.MustCompile(`(?i)(x64|amd64|x86(-|_)?64)`),
+		regex: regexp.MustCompile(`(?i)(64(-|_)?bit|x64|amd64|x86(-|_)?64)`),
 	}
 	ArchI386 = Arch{
 		name:  "386",
-		regex: regexp.MustCompile(`(?i)(x32|amd32|x86(-|_)?32|i?386)`),
+		regex: regexp.MustCompile(`(?i)(32(-|_)?bit|x32|amd32|x86(-|_)?32|i?386)`),
 	}
 	ArchArm = Arch{
 		name:  "arm",
