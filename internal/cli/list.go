@@ -123,8 +123,19 @@ func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string, noColo
 
 func refreshInstalledStore(storePath string, store *installed.Store, cfg *config.Config) error {
 	changed := false
-	for key, records := range store.Packages {
+	keys := make([]string, 0, len(store.Packages))
+	for key := range store.Packages {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	prog := newProgress()
+	defer prog.Stop()
+
+	for _, key := range keys {
+		records := store.Packages[key]
 		for index, pkg := range records {
+			prog.Update(checkingMessage(pkg.Name))
 			opts, err := resolveInstalledOptions(cfg, pkg)
 			if err != nil {
 				return err

@@ -101,7 +101,12 @@ func newUpgradeCommand() *cobra.Command {
 func refreshNamedPackages(storePath string, store *installed.Store, cfg *config.Config, matches []installed.Package) ([]installed.Package, error) {
 	changed := false
 	refreshedMatches := make([]installed.Package, 0, len(matches))
+
+	prog := newProgress()
+	defer prog.Stop()
+
 	for _, pkg := range matches {
+		prog.Update(checkingMessage(pkg.Name))
 		opts, err := resolveInstalledOptions(cfg, pkg)
 		if err != nil {
 			return nil, err
