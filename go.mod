@@ -6,13 +6,13 @@ require (
 	github.com/briandowns/spinner v1.23.2
 	github.com/gobwas/glob v1.0.0
 	github.com/joho/godotenv v1.5.1
-	github.com/klauspost/compress v1.19.2
-	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/klauspost/compress v1.20.0
+	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/schollz/progressbar/v3 v3.19.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/ulikunitz/xz v0.5.16
-	go.yaml.in/yaml/v3 v3.0.4
+	go.yaml.in/yaml/v3 v3.0.5
 )
 
 require (
