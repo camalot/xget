@@ -1,4 +1,60 @@
 
+## [v2.1.1](https://github.com/camalot/xget/releases/tag/v2.1.1) - 2026-09-18
+
+### 🐛 BUG FIXES
+
+#### _GENERAL_
+
+- When setting location, it can output the binary at the direct location, even if user defines what should be a directory [#11](https://github.com/camalot/xget/issues/11)  -[@camalot](https://github.com/camalot)
+
+- Xget updating xget fails on windows [#12](https://github.com/camalot/xget/issues/12)  -[@camalot](https://github.com/camalot)
+
+- Resolve or explain gosec finding -[@camalot](https://github.com/camalot)
+
+
+### 💼 OTHER
+
+#### _GENERAL_
+
+- Merge branch 'main' of github.com:camalot/xget -[@camalot](https://github.com/camalot)
+
+- Main' of github.com:camalot/xget: -[@camalot](https://github.com/camalot)
+
+
+### 📚 DOCUMENTATION
+
+#### _GENERAL_
+
+- docs: update changelog for v2.1.0 -[@camalot](https://github.com/camalot)
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot)
+## 📈 Commit Statistics
+
+
+- `6` commits contributed to the release.
+- `0` days have passed between the first and last commit.
+- `3` commits parsed as conventional.
+- `2` linked issues detected in commits.
+  - [#11](https://github.com/camalot/xget/issues/11) (referenced 1 time)
+  - [#12](https://github.com/camalot/xget/issues/12) (referenced 1 time)
+- `10` days  have passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[6,1,0,3,2,10]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.1.0...v2.1.1
+
 ## [v2.1.0](https://github.com/camalot/xget/releases/tag/v2.1.0) - 2026-09-08
 
 ### 🚀 FEATURES
