@@ -84,6 +84,10 @@ func IsDirectory(path string) bool {
 	return fileInfo.IsDir()
 }
 
+func isDirectoryDestination(path string) bool {
+	return strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\") || IsDirectory(path)
+}
+
 // searches for an asset that has the same name as the requested one but
 // ending with .sha256 or .sha256sum
 func checksumAsset(asset string, assets []string) string {
@@ -685,7 +689,7 @@ func Run(target string, opts options.Flags) error {
 		out := filepath.Base(bin.Name)
 		if opts.Output == "-" {
 			out = "-"
-		} else if opts.Output != "" && IsDirectory(opts.Output) {
+		} else if opts.Output != "" && isDirectoryDestination(opts.Output) {
 			out = filepath.Join(opts.Output, out)
 		} else if opts.Output != "" && opts.All {
 			err := os.MkdirAll(opts.Output, 0750)

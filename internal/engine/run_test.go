@@ -70,6 +70,31 @@ func TestResolvedInstallLocation(t *testing.T) {
 	}
 }
 
+func TestIsDirectoryDestination(t *testing.T) {
+	workingDirectory := t.TempDir()
+	existingDirectory := filepath.Join(workingDirectory, "existing")
+	if err := os.Mkdir(existingDirectory, 0750); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, test := range []struct {
+		name string
+		path string
+		want bool
+	}{
+		{name: "existing directory", path: existingDirectory, want: true},
+		{name: "trailing slash", path: filepath.Join(workingDirectory, "bin") + "/", want: true},
+		{name: "trailing backslash", path: filepath.Join(workingDirectory, "bin") + "\\", want: true},
+		{name: "file path", path: filepath.Join(workingDirectory, "xget"), want: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := isDirectoryDestination(test.path); got != test.want {
+				t.Fatalf("isDirectoryDestination(%q) = %t, want %t", test.path, got, test.want)
+			}
+		})
+	}
+}
+
 func TestShouldRecordInstall(t *testing.T) {
 	tests := []struct {
 		name string
