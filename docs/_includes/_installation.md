@@ -3,7 +3,7 @@
 
 ## How to get xget
 
-Before you can get anything, you have to get xget. If you already have xget and want to upgrade, use `xget upgrade camalot/xget`.
+Before you can get anything, you have to get xget. If you already have xget and want to upgrade, use `xget self-update`.
 
 ### Quick-install script
 

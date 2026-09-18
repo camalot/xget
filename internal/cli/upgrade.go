@@ -37,7 +37,8 @@ func newUpgradeCommand() *cobra.Command {
 	f := &upgradeFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "upgrade [PACKAGE]",
+		Use:     "upgrade [PACKAGE]",
+		Aliases: []string{"update"},
 		Short: "List and apply available upgrades for installed packages",
 		Long: "List and apply available upgrades for installed packages.\n\n" +
 			"With no arguments, the latest release of every installed package is looked up,\n" +
@@ -91,6 +92,38 @@ func newUpgradeCommand() *cobra.Command {
 	cmd.Flags().BoolVarP(&f.all, "all", "a", false, "upgrade every package with an available upgrade")
 	cmd.Flags().BoolVar(&f.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().StringVar(&f.to, "to", "", "only upgrade the copy installed to this tracked location")
+	cmd.Flags().StringVarP(&f.tag, "tag", "t", "", "install this tag instead of the latest release; allows downgrades")
+	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
+	return cmd
+}
+
+func newSelfUpdateCommand() *cobra.Command {
+	f := &upgradeFlags{}
+
+	cmd := &cobra.Command{
+		Use:           "self-update",
+		Short:         "Update xget to the latest release",
+		Args:          cobra.NoArgs,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg, err := config.Load(f.config)
+			if err != nil {
+				return err
+			}
+			storePath, err := installed.DefaultPath()
+			if err != nil {
+				return err
+			}
+			store, err := installed.Load(storePath)
+			if err != nil {
+				return err
+			}
+			return upgradeNamed(cmd, f, cfg, storePath, store, "camalot/xget")
+		},
+	}
+
+	cmd.Flags().StringVar(&f.to, "to", "", "only update the copy installed to this tracked location")
 	cmd.Flags().StringVarP(&f.tag, "tag", "t", "", "install this tag instead of the latest release; allows downgrades")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
 	return cmd

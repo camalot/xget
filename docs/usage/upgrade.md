@@ -12,6 +12,12 @@ parent: 🧭 Usage
 `xget upgrade` reports and applies newer releases for the packages recorded in
 `~/.config/xget/.xget.installed.yml`.
 
+`xget update` is an alias for `xget upgrade`. To update xget itself, run:
+
+```shell
+xget self-update
+```
+
 <!-- markdownlint-disable-next-line MD025 MD022 -->
 ## Table of contents
 {: .no_toc .text-delta }

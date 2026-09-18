@@ -95,6 +95,60 @@ func TestIsDirectoryDestination(t *testing.T) {
 	}
 }
 
+func TestIsRunningExecutableDestination(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		destination string
+		executable  string
+		windows     bool
+		want        bool
+	}{
+		{name: "same Windows path", destination: `C:\\Tools\\xget.exe`, executable: `C:\\Tools\\xget.exe`, windows: true, want: true},
+		{name: "case-insensitive Windows path", destination: `C:\\Tools\\xget.exe`, executable: `c:\\tools\\XGET.EXE`, windows: true, want: true},
+		{name: "different executable", destination: `C:\\Tools\\xget.exe`, executable: `C:\\Tools\\other.exe`, windows: true, want: false},
+		{name: "non-Windows platform", destination: "/usr/local/bin/xget", executable: "/usr/local/bin/xget", windows: false, want: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := isRunningExecutableDestination(test.destination, test.executable, test.windows); got != test.want {
+				t.Fatalf("isRunningExecutableDestination(%q, %q, %t) = %t, want %t", test.destination, test.executable, test.windows, got, test.want)
+			}
+		})
+	}
+}
+
+func TestReplaceStagedExecutable(t *testing.T) {
+	destination := filepath.Join(t.TempDir(), "xget.exe")
+	if err := os.WriteFile(destination, []byte("old"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destination+".new", []byte("new"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := replaceStagedExecutable(destination); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, test := range []struct {
+		path string
+		want string
+	}{
+		{path: destination, want: "new"},
+		{path: destination + ".old", want: "old"},
+	} {
+		content, err := os.ReadFile(test.path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(content); got != test.want {
+			t.Fatalf("content of %q = %q, want %q", test.path, got, test.want)
+		}
+	}
+	if _, err := os.Stat(destination + ".new"); !os.IsNotExist(err) {
+		t.Fatalf("staged executable still exists: %v", err)
+	}
+}
+
 func TestShouldRecordInstall(t *testing.T) {
 	tests := []struct {
 		name string

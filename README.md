@@ -62,7 +62,7 @@ xget list camalot/xget --installed
 
 ## How to get xget
 
-Before you can get anything, you have to get xget. If you already have xget and want to upgrade, use `xget upgrade camalot/xget`.
+Before you can get anything, you have to get xget. If you already have xget and want to upgrade, use `xget self-update`.
 
 ### Quick-install script
 
@@ -258,7 +258,8 @@ have a newer release, similar to `winget upgrade`. Full details are in the
 
 ```bash
 xget upgrade                      # list available upgrades
-xget upgrade bschaatsbergen/cidr  # upgrade one package
+xget update bschaatsbergen/cidr   # alias for upgrade
+xget self-update                  # update xget
 xget upgrade --all                # upgrade everything that is not pinned
 xget upgrade jgm/pandoc --to ~/.local/bin  # upgrade only that copy
 xget upgrade jgm/pandoc@3.10               # install a specific tag

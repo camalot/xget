@@ -709,8 +709,19 @@ func Run(target string, opts options.Flags) error {
 			}
 		}
 
-		if err := bin.Extract(out); err != nil {
+		executable, executableErr := os.Executable()
+		selfUpdate := executableErr == nil && isRunningExecutableDestination(out, executable, runtime.GOOS == "windows")
+		extractionTarget := out
+		if selfUpdate {
+			extractionTarget += ".new"
+		}
+		if err := bin.Extract(extractionTarget); err != nil {
 			return err
+		}
+		if selfUpdate {
+			if err := replaceStagedExecutable(out); err != nil {
+				return err
+			}
 		}
 		extractedFiles = append(extractedFiles, out)
 		_, err := fmt.Fprintf(output, "Extracted `%s` to `%s`\n", bin.ArchiveName, out)

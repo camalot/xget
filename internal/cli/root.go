@@ -109,7 +109,7 @@ func newRootCommand() *cobra.Command {
 	addInstallFlags(cmd, f)
 
 	cmd.InitDefaultCompletionCmd("completion")
-	cmd.AddCommand(newVersionCommand(), newListCommand(), newConfigCommand(), newUpgradeCommand(), newInstallCommand(f), newUninstallCommand(f), newRateCommand(f))
+	cmd.AddCommand(newVersionCommand(), newListCommand(), newConfigCommand(), newUpgradeCommand(), newSelfUpdateCommand(), newInstallCommand(f), newUninstallCommand(f), newRateCommand(f))
 
 	return cmd
 }

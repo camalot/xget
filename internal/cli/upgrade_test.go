@@ -373,10 +373,39 @@ func TestRootCommandIncludesUpgradeSubcommand(t *testing.T) {
 			if sub.Flags().Lookup("all") == nil {
 				t.Fatal("upgrade command missing --all flag")
 			}
+			if len(sub.Aliases) != 1 || sub.Aliases[0] != "update" {
+				t.Fatalf("upgrade aliases = %v, want [update]", sub.Aliases)
+			}
 			return
 		}
 	}
 	t.Fatal("upgrade subcommand not registered")
+}
+
+func TestUpdateAliasesUpgrade(t *testing.T) {
+	storePath := useTempInstalledStore(t, samplePackage("a/one", "v1.0.0"))
+	stubRefresh(t, map[string]string{"a/one": "v1.1.0"})
+	calls := stubEngine(t, storePath, nil)
+
+	if _, err := runCLI(t, "update", "a/one"); err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 1 || (*calls)[0].Target != "a/one" {
+		t.Fatalf("calls = %+v", *calls)
+	}
+}
+
+func TestSelfUpdateUpgradesXget(t *testing.T) {
+	storePath := useTempInstalledStore(t, samplePackage("camalot/xget", "v1.0.0"))
+	stubRefresh(t, map[string]string{"camalot/xget": "v1.1.0"})
+	calls := stubEngine(t, storePath, nil)
+
+	if _, err := runCLI(t, "self-update"); err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 1 || (*calls)[0].Target != "camalot/xget" || (*calls)[0].Opts.Tag != "v1.1.0" {
+		t.Fatalf("calls = %+v", *calls)
+	}
 }
 
 func TestUpgradeListsAvailableUpgrades(t *testing.T) {
