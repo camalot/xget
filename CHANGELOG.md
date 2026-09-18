@@ -1,4 +1,82 @@
 
+## [v2.1.0](https://github.com/camalot/xget/releases/tag/v2.1.0) - 2026-09-08
+
+### 🚀 FEATURES
+
+#### _GENERAL_
+
+- Added --untracked flag when installing. this skips saving the data about the package being installed. -[@camalot](https://github.com/camalot)
+
+- Support multiple install locations for upgrade / uninstall / list -[@camalot](https://github.com/camalot)
+
+- Added progress spinner when getting information about the package -[@camalot](https://github.com/camalot)
+
+
+### 🐛 BUG FIXES
+
+#### _GENERAL_
+
+- Set correct user/email for bot -[@camalot](https://github.com/camalot)
+
+- Allow (64-bit / 32-bit) patterns -[@camalot](https://github.com/camalot)
+
+
+### 💼 OTHER
+
+#### _GENERAL_
+
+- Merge branch 'main' of github.com:camalot/xget -[@camalot](https://github.com/camalot)
+
+- Main' of github.com:camalot/xget: -[@camalot](https://github.com/camalot)
+
+
+### 📚 DOCUMENTATION
+
+#### _GENERAL_
+
+- docs: update changelog for v2.0.2 -[@camalot](https://github.com/camalot)
+
+- Update install documentation -[@camalot](https://github.com/camalot)
+
+
+### ⚙️ MISCELLANEOUS TASKS
+
+
+#### _REPO_
+- Added choco package publish to camalot/scoop -[@camalot](https://github.com/camalot)
+
+- Split license file for eget license and xget license. -[@camalot](https://github.com/camalot)
+
+- Disable chocolatey process -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot)
+## 📈 Commit Statistics
+
+
+- `12` commits contributed to the release.
+- `1` day has passed between the first and last commit.
+- `9` commits parsed as conventional.
+- `0` linked issues detected in commits.
+- `2` days  have passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[12,1,1,9,0,2]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.0.2...v2.1.0
+
 ## [v2.0.2](https://github.com/camalot/xget/releases/tag/v2.0.2) - 2026-09-06
 
 ### 🐛 BUG FIXES
