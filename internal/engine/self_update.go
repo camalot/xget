@@ -35,7 +35,7 @@ func replaceStagedExecutable(destination string) error {
 	// #nosec G703 -- safeDestination is normalized and validated via cleanLocalPath.
 	if err := os.Rename(staged, safeDestination); err == nil {
 		return nil
-	// #nosec G703 -- safeDestination is normalized and validated via cleanLocalPath.
+		// #nosec G703 -- safeDestination is normalized and validated via cleanLocalPath.
 	} else if restoreErr := os.Rename(previous, safeDestination); restoreErr != nil {
 		return errors.Join(err, restoreErr)
 	} else {

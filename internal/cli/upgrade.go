@@ -39,7 +39,7 @@ func newUpgradeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "upgrade [PACKAGE]",
 		Aliases: []string{"update"},
-		Short: "List and apply available upgrades for installed packages",
+		Short:   "List and apply available upgrades for installed packages",
 		Long: "List and apply available upgrades for installed packages.\n\n" +
 			"With no arguments, the latest release of every installed package is looked up,\n" +
 			"the installed metadata store is refreshed, and available upgrades are listed.\n\n" +
