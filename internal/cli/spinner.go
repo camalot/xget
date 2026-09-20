@@ -3,7 +3,9 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/briandowns/spinner"
 )
@@ -22,7 +24,8 @@ type progress interface {
 var newProgress = newSpinnerProgress
 
 type spinnerProgress struct {
-	sp *spinner.Spinner
+	sp              *spinner.Spinner
+	maxMessageWidth int
 }
 
 // newSpinnerProgress starts a spinner writing to stderr, so it never mixes with
@@ -36,7 +39,11 @@ func newSpinnerProgress() progress {
 
 func (p *spinnerProgress) Update(message string) {
 	p.sp.Lock()
-	p.sp.Suffix = " " + message
+	messageWidth := utf8.RuneCountInString(message)
+	if messageWidth > p.maxMessageWidth {
+		p.maxMessageWidth = messageWidth
+	}
+	p.sp.Suffix = " " + message + strings.Repeat(" ", p.maxMessageWidth-messageWidth)
 	p.sp.Unlock()
 }
 

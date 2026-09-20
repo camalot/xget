@@ -11,6 +11,8 @@ func TestSha256HexTokenAcceptsCommonChecksumFileFormats(t *testing.T) {
 		"sha256:" + checksum:            checksum,
 		"sha256:" + checksum + "\r\n":   checksum,
 		"sha256:" + checksum + " asset": checksum,
+		"SHA256 hash of asset.zip:\r\n" + checksum +
+			"\r\nCertUtil: -hashfile command completed successfully.\r\n": checksum,
 	}
 
 	for input, want := range cases {

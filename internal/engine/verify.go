@@ -47,12 +47,15 @@ func NewSha256Verifier(expectedHex string) (*Sha256Verifier, error) {
 }
 
 func sha256HexToken(checksum string) string {
-	checksum = strings.TrimPrefix(strings.TrimSpace(checksum), "sha256:")
 	fields := strings.Fields(checksum)
-	if len(fields) == 0 {
-		return ""
+	for _, field := range fields {
+		candidate := strings.TrimPrefix(field, "sha256:")
+		decoded, err := hex.DecodeString(candidate)
+		if err == nil && len(decoded) == sha256.Size {
+			return candidate
+		}
 	}
-	return strings.TrimPrefix(fields[0], "sha256:")
+	return ""
 }
 
 func (s256 *Sha256Verifier) Verify(b []byte) error {

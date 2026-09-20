@@ -2,7 +2,23 @@ package cli
 
 import (
 	"testing"
+	"time"
+
+	"github.com/briandowns/spinner"
 )
+
+func TestSpinnerProgressUpdateClearsLongerPreviousMessage(t *testing.T) {
+	sp := spinner.New(spinnerCharSet, time.Second)
+	progress := &spinnerProgress{sp: sp}
+
+	progress.Update("checking owner/long-package-name")
+	progress.Update("checking owner/short")
+
+	want := " checking owner/short            "
+	if sp.Suffix != want {
+		t.Fatalf("suffix = %q, want %q", sp.Suffix, want)
+	}
+}
 
 // fakeProgress records Update/Stop calls instead of animating a real spinner,
 // so tests can assert what a refresh loop reported without a terminal attached.
