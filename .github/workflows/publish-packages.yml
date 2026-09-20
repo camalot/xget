@@ -81,6 +81,8 @@ jobs:
   chocolatey:
     permissions:
       contents: read
+    needs:
+      - publish
     uses: ./.github/workflows/publish-chocolatey.yml
     with:
       tag: ${{ inputs.tag }}
