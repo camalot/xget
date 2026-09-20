@@ -27,6 +27,13 @@ jobs:
           fetch-depth: 0 # goreleaser's changelog needs full history
           persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
 
+      # the tag's own .goreleaser.yaml is frozen at whatever it was when that
+      # release was cut - pull today's version so packaging-only fixes (e.g. the
+      # XGET_SKIP_GITHUB_RELEASE toggle below) apply even to older tags,
+      # while still building from the tag's actual source for matching checksums
+      - name: Use current .goreleaser.yaml
+        run: git show "${GITHUB_SHA}:.goreleaser.yaml" > .goreleaser.yaml
+
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
