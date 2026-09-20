@@ -30,6 +30,7 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      - uses: sigstore/cosign-installer@v4.1.2
 
       - uses: camalot/xget-action@v1
         with:
@@ -67,6 +68,8 @@ jobs:
           GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
 
   chocolatey:
+    permissions:
+      contents: read
     uses: ./.github/workflows/publish-chocolatey.yml
     with:
       tag: ${{ inputs.tag }}

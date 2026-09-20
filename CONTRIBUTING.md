@@ -13,8 +13,6 @@ This guide will help you get started with contributing to the project.
   - [Writing Good Feature Requests](#writing-good-feature-requests)
 - [Contributing Code](#contributing-code)
   - [Development Setup](#development-setup)
-  - [Project Structure](#project-structure)
-  - [Code Style Guidelines](#code-style-guidelines)
   - [Testing Your Changes](#testing-your-changes)
   - [Submitting a Pull Request](#submitting-a-pull-request)
 - [Contributing Documentation](#contributing-documentation)
