@@ -71,7 +71,7 @@ jobs:
         id: xget-bot-token
         with:
           client-id: ${{ vars.XGET_APP_CLIENT_ID }}
-          installation-id: ${{ vars.XGET_APP_INSTALL_ID }}
+          # installation-id: ${{ vars.XGET_APP_INSTALL_ID }}
           private-key: ${{ secrets.XGET_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           # the app installation must also have access to camalot/scoop (winget/scoop/homebrew manifests)
@@ -154,13 +154,35 @@ jobs:
       - uses: anchore/sbom-action/download-syft@v0
       - uses: sigstore/cosign-installer@v4.1.2
 
+      - name: Prepare GoReleaser arguments
+        id: goreleaser-args
+        shell: bash
+        run: |
+          args="release --clean"
+
+          if [[ "${XGET_RELEASE_NOTES:-}" == "1" ]]; then
+            release_notes="${RUNNER_TEMP}/RELEASE_NOTES.md"
+            if [[ ! -f "${release_notes}" ]]; then
+              echo "Release notes file not found: ${release_notes}" >&2
+              exit 1
+            fi
+            args+=" --release-notes ${release_notes}"
+          fi
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            args+=" --skip=validate,announce,sign"
+          fi
+
+          echo "args=${args}" >> "$GITHUB_OUTPUT"
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
+
       - uses: goreleaser/goreleaser-action@v7
         id: goreleaser
         with:
           distribution: goreleaser
           version: latest
-          # dry runs also skip validate (no new tag exists yet), announce, and sign
-          args: release --clean --release-notes ${{ runner.temp }}/RELEASE_NOTES.md${{ inputs.dry-run == true && ' --skip=validate,announce,sign' || '' }}
+          args: ${{ steps.goreleaser-args.outputs.args }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           XGET_APP_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
