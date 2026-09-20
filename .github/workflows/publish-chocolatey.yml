@@ -1,0 +1,87 @@
+name: publish chocolatey package
+
+# Packs and publishes the Chocolatey package for a tag that already has a
+# GitHub release with the windows binary archives + checksums.txt uploaded.
+# Unlike publish-packages.yml, this doesn't rebuild anything at that tag's
+# commit: the Chocolatey package only references the release's existing
+# download URLs, so it's packed using the *current* main branch's packaging
+# definition (.packages/chocolatey/) and just targets the given version.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish the Chocolatey package for (e.g. v2.1.2)
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing release tag to publish the Chocolatey package for (e.g. v2.1.2)
+        required: true
+        type: string
+    secrets:
+      XGET_APP_PRIVATE_KEY:
+        required: true
+      CHOCOLATEY_API_KEY:
+        required: false
+
+permissions: {}
+
+jobs:
+  chocolatey:
+    permissions:
+      contents: read
+    # choco pack requires the Chocolatey CLI, which is only preinstalled on windows runners
+    runs-on: windows-latest
+    steps:
+      - uses: actions/create-github-app-token@v3.2.0
+        id: xget-bot-token
+        with:
+          client-id: ${{ vars.XGET_APP_CLIENT_ID }}
+          installation-id: ${{ vars.XGET_APP_INSTALL_ID }}
+          private-key: ${{ secrets.XGET_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          # only pushes to camalot/scoop; the xget release/binaries already exist
+          repositories: |
+            scoop
+          permission-contents: write
+
+      # deliberately not checked out at inputs.tag: the package only needs
+      # today's packaging/action definition, not that tag's source tree
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - name: Determine plain version
+        id: plain_version
+        shell: bash
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ inputs.tag }}
+
+      - name: Verify release assets exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          assets_file="$RUNNER_TEMP/assets.txt"
+          gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' > "$assets_file"
+          for asset in "xget_${VERSION}_windows_amd64.zip" "xget_${VERSION}_windows_arm64.zip" "checksums.txt"; do
+            if ! grep -qF "$asset" "$assets_file"; then
+              echo "Release $TAG is missing expected asset '$asset'" >&2
+              exit 1
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          TAG: ${{ inputs.tag }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.plain_version.outputs.version }}
+
+      - name: Pack and push Chocolatey package
+        uses: ./.github/actions/chocolatey
+        with:
+          token: ${{ steps.xget-bot-token.outputs.token }}
+          version: ${{ steps.plain_version.outputs.version }}
+          dry-run: 'false'
+          chocolatey-api-key: ${{ secrets.CHOCOLATEY_API_KEY }}

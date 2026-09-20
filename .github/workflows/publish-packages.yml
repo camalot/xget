@@ -65,3 +65,9 @@ jobs:
           GITHUB_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
           XGET_APP_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
           GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
+
+  chocolatey:
+    uses: ./.github/workflows/publish-chocolatey.yml
+    with:
+      tag: ${{ inputs.tag }}
+    secrets: inherit

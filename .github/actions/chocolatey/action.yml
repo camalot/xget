@@ -1,6 +1,6 @@
 ---
-name: 'Chocolatey Push To Scoop'
-description: 'Take the created Chocolatey nupkg and push it to camalot/scoop as a simple-folder feed entry'
+name: 'Chocolatey Pack and Push To Scoop'
+description: 'Pack the Chocolatey nupkg (requires windows, for choco.exe) and push it to camalot/scoop as a simple-folder feed entry'
 
 inputs:
   token:
@@ -14,31 +14,32 @@ inputs:
     description: 'Whether to perform a dry run without actually committing/pushing the package'
     required: false
     default: 'true'
+  chocolatey-api-key:
+    description: 'API key for push.chocolatey.org. When set (and not a dry run), the nupkg is also published to Chocolatey.org'
+    required: false
+    default: ''
 
 runs:
   using: "composite"
   steps:
-    # nupkg versions can't have a "v" prefix, so goreleaser names it e.g. xget.2.0.2.nupkg
-    - name: Get the nupkg file
-      id: get_nupkg
+    - name: Pack Chocolatey package
+      id: pack
       shell: bash
       run: |
         set -euo pipefail
-        nupkg_file=$(find . -name '*.nupkg' -print -quit)
-        if [ -z "$nupkg_file" ]; then
-          echo "No nupkg file found under $(pwd)" >&2
-          exit 1
-        fi
-        if [[ "$nupkg_file" != *"$VERSION"* ]]; then
-          echo "nupkg file '$nupkg_file' does not appear to match version '$VERSION'" >&2
+        mkdir -p "$OUT_DIR"
+        choco pack "$NUSPEC_PATH" --version "$VERSION" --outputdirectory "$OUT_DIR"
+        nupkg_file="$OUT_DIR/xget.$VERSION.nupkg"
+        if [ ! -f "$nupkg_file" ]; then
+          echo "Expected nupkg not found at $nupkg_file" >&2
           exit 1
         fi
         echo "nupkg_file=$(realpath "$nupkg_file")" >> "$GITHUB_OUTPUT"
       env:
         VERSION: ${{ inputs.version }}
+        NUSPEC_PATH: .packages/chocolatey/xget.nuspec
+        OUT_DIR: dist/chocolatey
 
-    # runs before the scoop checkout below so the find above can't accidentally pick up
-    # a stale nupkg from a previous scoop/ checkout
     - uses: actions/checkout@v7
       with:
         repository: 'camalot/scoop'
@@ -80,7 +81,7 @@ runs:
         REPOSITORY_OWNER: ${{ github.repository_owner }}
         REPOSITORY: ${{ github.repository }}
         VERSION: ${{ inputs.version }}
-        NUPKG_FILE: ${{ steps.get_nupkg.outputs.nupkg_file }}
+        NUPKG_FILE: ${{ steps.pack.outputs.nupkg_file }}
 
     - name: Commit and Push Chocolatey Package
       if: inputs.dry-run == 'false'
@@ -101,3 +102,11 @@ runs:
         NUSPEC_RELATIVE_PATH: ${{ steps.remote_path.outputs.nuspec_relative_path }}
         NUPKG_RELATIVE_PATH: ${{ steps.remote_path.outputs.nupkg_relative_path }}
         VERSION: ${{ inputs.version }}
+
+    - name: Push package to Chocolatey.org
+      if: inputs.dry-run == 'false' && inputs.chocolatey-api-key != ''
+      shell: bash
+      run: choco push "$NUPKG_FILE" --source https://push.chocolatey.org/ --api-key "$API_KEY"
+      env:
+        NUPKG_FILE: ${{ steps.pack.outputs.nupkg_file }}
+        API_KEY: ${{ inputs.chocolatey-api-key }}

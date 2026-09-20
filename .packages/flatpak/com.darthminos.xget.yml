@@ -1,0 +1,20 @@
+---
+id: com.darthminos.xget
+runtime: org.freedesktop.Platform
+runtime-version: "25.08"
+sdk: org.freedesktop.Sdk
+command: xget
+tags:
+  - utility
+  - download
+  - github-installer
+
+modules:
+  - name: xget
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 xget /app/bin/xget
+    sources:
+      - type: archive
+        url: https://example.com/xget.tar.gz
+        sha256: abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
