@@ -1,4 +1,40 @@
 
+## [v2.1.2](https://github.com/camalot/xget/releases/tag/v2.1.2) - 2026-09-20
+
+### 🐛 BUG FIXES
+
+#### _GENERAL_
+
+- Fixed spinner output to clear when changing -[@camalot](https://github.com/camalot)
+
+- Fixed validation with multi-line certutil output -[@camalot](https://github.com/camalot)
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot)
+## 📈 Commit Statistics
+
+
+- `2` commits contributed to the release.
+- `0` days have passed between the first and last commit.
+- `2` commits parsed as conventional.
+- `0` linked issues detected in commits.
+- `2` days  have passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[2,1,0,2,0,2]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.1.1...v2.1.2
+
 ## [v2.1.1](https://github.com/camalot/xget/releases/tag/v2.1.1) - 2026-09-18
 
 ### 🐛 BUG FIXES
