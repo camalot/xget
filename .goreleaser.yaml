@@ -6,9 +6,10 @@ metadata:
 
 release:
   prerelease: auto
-  # XGET_DRY_RUN=true builds everything and writes the package manifests to
-  # dist/ without creating a GitHub release or pushing to the tap repos.
-  disable: '{{ envOrDefault "XGET_DRY_RUN" "false" }}'
+  # XGET_SKIP_GITHUB_RELEASE=true leaves an already-published GitHub release alone
+  # while still publishing the winget/scoop/homebrew manifests (goreleaser has no
+  # standalone `--skip=github`; this is the supported way to skip just that pipe).
+  disable: '{{ if or (eq (envOrDefault "XGET_DRY_RUN" "false") "true") (eq (envOrDefault "XGET_SKIP_GITHUB_RELEASE" "false") "true") }}true{{ else }}false{{ end }}'
 
 before:
   hooks:
@@ -134,8 +135,8 @@ winget:
       branch: main
       token: '{{ .Env.XGET_APP_TOKEN }}'
     commit_author:
-      name: xget-bot[bot]
-      email: 325102936+xget-bot[bot]@users.noreply.github.com
+      name: '{{ .Env.XGET_BOT_NAME }}'
+      email: '{{ .Env.XGET_BOT_EMAIL }}'
 # https://goreleaser.com/customization/publish/homebrew_casks/
 homebrew_casks:
   - repository:
@@ -165,8 +166,8 @@ homebrew_casks:
         - fish
         - pwsh
     commit_author:
-      name: xget-bot[bot]
-      email: 325102936+xget-bot[bot]@users.noreply.github.com
+      name: '{{ .Env.XGET_BOT_NAME }}'
+      email: '{{ .Env.XGET_BOT_EMAIL }}'
 
 # https://goreleaser.com/customization/publish/scoop/
 scoops:
@@ -183,8 +184,8 @@ scoops:
     description: xget is a tool for downloading binaries from the GitHub releases.
     license: MIT
     commit_author:
-      name: xget-bot[bot]
-      email: 325102936+xget-bot[bot]@users.noreply.github.com
+      name: '{{ .Env.XGET_BOT_NAME }}'
+      email: '{{ .Env.XGET_BOT_EMAIL }}'
 
 changelog:
   sort: asc

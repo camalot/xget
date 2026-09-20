@@ -60,11 +60,15 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          # skip=github leaves the already-published GitHub release/assets alone
-          args: release --clean --skip=validate,announce,sign,sbom,github
+          # XGET_SKIP_GITHUB_RELEASE (below) leaves the already-published GitHub
+          # release/assets alone - goreleaser has no standalone `--skip=github`
+          args: release --clean --skip=validate,announce,sign,sbom
         env:
           GITHUB_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
           XGET_APP_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          XGET_BOT_NAME: ${{ vars.XGET_APP_USERNAME }}
+          XGET_BOT_EMAIL: ${{ vars.XGET_APP_USEREMAIL }}
+          XGET_SKIP_GITHUB_RELEASE: 'true'
           GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
 
   chocolatey:
