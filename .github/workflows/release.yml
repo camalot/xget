@@ -186,6 +186,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           XGET_APP_TOKEN: ${{ steps.xget-bot-token.outputs.token }}
+          XGET_BOT_NAME: ${{ vars.XGET_APP_USERNAME }}
+          XGET_BOT_EMAIL: ${{ vars.XGET_APP_USEREMAIL }}
           # the tag isn't created/pushed in a dry run, so goreleaser can't discover it via `git describe`
           GORELEASER_CURRENT_TAG: ${{ needs.version.outputs.tag }}
           XGET_DRY_RUN: ${{ inputs.dry-run }}
