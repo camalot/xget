@@ -14,7 +14,7 @@
 <!-- markdownlint-enable MD033 -->
 
 **xget** is the best way to easily get pre-built binaries for your favorite
-tools. It downloads and extracts pre-built binaries from releases on GitHub. To
+tools. It downloads and extracts pre-built binaries from releases on GitHub or GitLab. To
 use it, provide a repository and xget will search through the assets from the
 latest release in an attempt to find a suitable prebuilt binary for your
 system. If one is found, the asset will be downloaded and xget will extract the
@@ -25,13 +25,15 @@ needed for installation. For more complex installation, you may use the
 
 ![xget Demo](https://github.com/camalot/xget/raw/refs/heads/main/docs/assets/images/xget-demo.gif)
 
-For software maintainers, if you provide prebuilt binaries on GitHub, you can
-list `xget` as a one-line method for users to install your software.
+For software maintainers, if you provide prebuilt binaries on GitHub or
+GitLab, you can list `xget` as a one-line method for users to install your
+software.
 
 xget has a number of detection mechanisms and should work out-of-the-box with
-most software that is distributed via single binaries on GitHub releases. First
-try using xget on your software, it may already just work. Otherwise, see the
-FAQ for a clear set of rules to make your software compatible with xget.
+most software that is distributed via single binaries on GitHub or GitLab
+releases. First try using xget on your software, it may already just work.
+Otherwise, see the FAQ for a clear set of rules to make your software
+compatible with xget.
 
 ## Examples
 
@@ -56,6 +58,8 @@ xget --all --file '*' ActivityWatch/activitywatch
 xget list camalot/xget
 xget list --installed
 xget list camalot/xget --installed
+xget install gitlab-org/cli --provider gitlab
+xget install gitlab:gitlab-org/cli
 ```
 
 <!-- markdownlint-disable MD041 -->
@@ -185,11 +189,12 @@ for the full list of inputs/outputs and more examples.
 
 ## Usage
 
-The `TARGET` argument passed to xget should either be a GitHub repository,
-formatted as `user/repo`, in which case xget will search the release assets, a
-direct URL, in which case xget will directly download and extract from the
-given URL, or a local file, in which case xget will extract directly from the
-local file.
+The `TARGET` argument passed to xget should either be a GitHub or GitLab
+repository, formatted as `user/repo` (GitLab also supports nested namespaces
+such as `group/subgroup/project`), in which case xget will search the release
+assets, a direct URL, in which case xget will directly download and extract
+from the given URL, or a local file, in which case xget will extract directly
+from the local file.
 
 If xget downloads an asset called `xxx` and there also exists an asset called
 `xxx.sha256` or `xxx.sha256sum`, xget will automatically verify that the
@@ -325,7 +330,7 @@ sorted `*.secrets`, `.env`, then alphabetically sorted `*.env`. A value from an
 earlier file wins; environment variables already set by the shell always win.
 
 ``` text
-Download pre-built binaries from GitHub releases
+Download pre-built binaries from GitHub or GitLab releases
 
 Usage:
   xget [TARGET] [flags]
@@ -336,7 +341,7 @@ Available Commands:
   completion  Generate the autocompletion script for the specified shell
   config      Get, set, and edit xget configuration values
   help        Help about any command
-  install     Download and install a pre-built binary from GitHub releases
+  install     Download and install a pre-built binary from GitHub or GitLab releases
   list        List available or installed packages
   rate        Show GitHub API rate limiting information
   uninstall   Remove an installed package
@@ -355,6 +360,7 @@ Flags:
       --ignore strings           exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times; quote patterns starting with ~ so your shell doesn't expand it to a home directory path
       --non-interactive          fail instead of prompting when user input is required
       --pre-release              include pre-releases when fetching the latest version
+      --provider string          release source profile to use (default github)
   -q, --quiet                    only print essential output
       --rate                     show GitHub API rate limiting information
       --from string              install location to remove the package from, or the directory to remove an untracked target from
@@ -439,7 +445,8 @@ Option precedence:
 A repository section inherits any setting it does not define from the `global`
 section. The exceptions are `asset_filters`, `pre_release`, `tag`, and
 `verify_sha256`, which are repository-only and never inherited; `github_token`
-is global-only.
+is global-only. The `source` setting selects a named source profile and defaults
+to `github`.
 
 Both global settings can be configured, as well as setting on a per-repository basis.
 
@@ -479,6 +486,9 @@ to `git config`. Full details are in the
 # scalar keys are replaced
 xget config set global target=~/bin
 xget config set global upgrade_only=true
+xget config set sources.work type=github
+xget config set sources.work host=github.example.com
+xget config set sources.work token_env=WORK_GITHUB_TOKEN
 
 # list keys (ignore, asset_filters) append; repeat to add more
 xget config set zyedidia/micro asset_filters=static
@@ -565,11 +575,12 @@ When running `xget junegunn/fzf --system darwin/arm64`, it will match assets con
 ## Available settings - global section
 
 > [!IMPORTANT]
-> ⚠️ `github_token` is supported for backwards compatibility with the original `eget` project, but it is recommended to use `XGET_GITHUB_TOKEN` or `GITHUB_TOKEN` environment variable instead. Storing your GitHub token in a config file is not recommended, as it may be accidentally committed to source control and stored in plaintext. Use environment variables instead. `xget` will output a warning if `github_token` is set in the config file.
+> `github_token` is supported for backwards compatibility with the original `eget` project. Prefer a source profile's `token_env` setting. When a plaintext token is stored in the config, xget warns and explains how to suppress that warning with `global.disable_token_warning = true` or `sources.PROFILE.disable_token_warning = true`. Values beginning with `@` reference a token file and do not produce this warning.
 
 | Setting | Related Flag | Description | Default |
 | --- | --- | --- | --- |
-| ⚠️ `github_token` | `N/A` | GitHub API token to use for requests | `""` |
+| ⚠️ `github_token` | `N/A` | GitHub API token or `@` token-file reference to use for requests | `""` |
+| `disable_token_warning` | `N/A` | Disable warnings for plaintext tokens stored anywhere in the config. | `false` |
 | `all` | `--all` | Whether to extract all candidate files. | `false` |
 | `download_only` | `--download-only` | Whether to stop after downloading the asset (no extraction). | `false` |
 | `download_source` | `--source` | Whether to download the source code for the target repo instead of a release. | `false` |
@@ -578,6 +589,7 @@ When running `xget junegunn/fzf --system darwin/arm64`, it will match assets con
 | `pre_release` | `--pre-release` | Whether to include pre-releases when fetching the latest version. | `false` |
 | `quiet` | `--quiet` | Whether to only print essential output. | `false` |
 | `show_hash` | `--sha256` | Whether to show the SHA-256 hash of the downloaded asset. | `false` |
+| `source` | `--provider` | Named release source profile to use. | `github` |
 | `system` | `--system` | The target system to download for. | `all` |
 | `target` | `--to` | The directory to move the downloaded file to after extraction. | `.` |
 | `upgrade_only` | `--upgrade-only` | Whether to only download if release is more recent than current version. | `false` |
@@ -596,11 +608,53 @@ When running `xget junegunn/fzf --system darwin/arm64`, it will match assets con
 | `pre_release` | `--pre-release` | Whether to include pre-releases when fetching the latest version. | global value |
 | `quiet` | `--quiet` | Whether to only print essential output. | `false` |
 | `show_hash` | `--sha256` | Whether to show the SHA-256 hash of the downloaded asset. | `false` |
+| `source` | `--provider` | Named release source profile to use. | global value |
 | `system` | `--system` | The target system to download for. | `all` |
 | `target` | `--to` | The directory to move the downloaded file to after extraction. | `.` |
 | `upgrade_only` | `--upgrade-only` | Whether to only download if release is more recent than current version. | `false` |
 | `verify_sha256` | `--verify-sha256` / `--verify` | Verify the sha256 hash of the asset against a provided hash. | `""` |
 | `disable_ssl` | `--disable-ssl` | Disable SSL certificate verification for downloads. | `false` |
+
+## Source profiles
+
+The built-in `github` and `gitlab` profiles work without configuration. Add
+named profiles for another account or host:
+
+```toml
+[sources.work]
+type = "github"
+host = "github.example.com"
+api_url = "https://github.example.com/api/v3"
+token_env = ["WORK_GITHUB_TOKEN"]
+```
+
+Source profile settings are `type` (`github` or `gitlab`), `host`, `api_url`,
+`token_env`, `token`, and `disable_token_warning`. Environment variables are
+checked in listed order before `token`. Both profile `token` and legacy
+`global.github_token` values may use `@/path/to/token`; the file contents are
+used as the token and no plaintext-storage warning is shown. For GitHub
+profiles, `global.github_token` is the final fallback. Set
+`global.disable_token_warning = true` to suppress all plaintext-token warnings,
+or use the profile setting to suppress only that profile. Select a profile with `--provider work`, repository `source = "work"`,
+or global `source = "work"`, in that precedence order.
+
+GitLab repositories may use nested namespaces:
+
+```bash
+xget install group/subgroup/project --provider gitlab
+```
+
+The `PROFILE:repository` shorthand selects the same named source profile, so
+`xget install gitlab:gitlab-org/cli` is equivalent to
+`xget install gitlab-org/cli --provider gitlab`. The canonical repository name
+is stored in installed-package metadata, and the selected profile is stored as
+its source. Supplying a different `--provider` alongside the shorthand is an
+error.
+
+Normal GitLab installs match only release asset links. `--source` retains its
+existing meaning and downloads a repository source archive. GitLab does not
+publish a distinct prerelease flag, so `--pre-release` does not change GitLab
+release selection; upcoming releases remain excluded.
 
 ## Example configuration
 
@@ -698,11 +752,11 @@ xget tacocontent/ironstate --asset '~\.zip$' --ignore '~\.zip\.sbom\.json$'
 
 ### How is this different from a package manager?
 
-xget only downloads pre-built binaries uploaded to GitHub by the developers of
-the repository. It does not maintain a central list of packages or manage
-dependencies. xget does not "install" executables into system-wide directories
-(such as `/usr/local/bin`) unless instructed. It works best for software that
-comes as a single binary with no additional files needed.
+xget only downloads pre-built binaries uploaded to GitHub or GitLab by the
+developers of the repository. It does not maintain a central list of packages
+or manage dependencies. xget does not "install" executables into system-wide
+directories (such as `/usr/local/bin`) unless instructed. It works best for
+software that comes as a single binary with no additional files needed.
 
 ### Does xget keep track of installed binaries?
 
@@ -731,8 +785,8 @@ in an alternative manner by your download source).
 
 ### Does this work only for GitHub repositories?
 
-At the moment xget supports searching GitHub releases, direct URLs, and local
-files. If you provide a direct URL instead of a GitHub repository, xget will
+Xget supports searching GitHub and GitLab releases, direct URLs, and local
+files. Select GitLab with `--provider gitlab`. If you provide a direct URL instead of a repository, xget will
 skip the detection phase and download directly from the given URL. If you
 provide a local file, xget will skip detection and download and just perform
 extraction from the local file.
@@ -743,7 +797,7 @@ xget should work out-of-the-box with many methods for releasing software, and
 does not require that you build your release process for xget in particular.
 However, here are some rules that will guarantee compatibility with xget.
 
-- Provide your pre-built binaries as GitHub release assets.
+- Provide your pre-built binaries as GitHub or GitLab release assets.
 - Format the system name as `OS_Arch` and include it in every pre-built binary
   name. Supported OSes are `darwin`/`macos`, `windows`, `linux`, `netbsd`,
   `openbsd`, `freebsd`, `android`, `illumos`, `solaris`, `plan9`. Supported

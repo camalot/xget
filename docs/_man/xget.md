@@ -5,7 +5,7 @@ header: xget Manual
 ---
 
 # NAME
-  xget - easily install prebuilt binaries from GitHub
+  xget - easily install prebuilt binaries from GitHub or GitLab
 
 # SYNOPSIS
   xget `[--help] [OPTIONS] TARGET`
@@ -16,7 +16,7 @@ header: xget Manual
 
 # DESCRIPTION
   xget is a tool for downloading and extracting prebuilt binaries from releases
-  on GitHub. To use it, provide a repository and xget will search through the
+  on GitHub or GitLab. To use it, provide a repository and xget will search through the
   assets from the latest release in an attempt to find a suitable prebuilt
   binary for your system. If one is found, the asset will be downloaded and
   xget will extract the binary to the current directory. xget should only be
@@ -24,8 +24,9 @@ header: xget Manual
   binary is all that is needed for installation. For more complex installation,
   you may use the `--download-only` option, and perform extraction manually.
 
-  The **`PROJECT`** argument passed to xget should either be a GitHub
-  repository, formatted as **`user/repo`** or **`user/repo@TAG`**, in which
+  The **`PROJECT`** argument passed to xget should either be a GitHub or GitLab
+  repository, formatted as **`user/repo`** or **`user/repo@TAG`** (GitLab may
+  also use nested namespaces), in which
   case xget will search the release assets, a direct URL, in which case xget will directly download and
   extract from the given URL, or a local file, in which case xget will extract
   directly from the local file.
@@ -78,7 +79,7 @@ header: xget Manual
 # COMMANDS
   `xget install TARGET`
 
-:    Download and install a pre-built binary from GitHub releases. This is equivalent to the backwards-compatible `xget TARGET` form and accepts the same options.
+:    Download and install a pre-built binary from GitHub or GitLab releases. This is equivalent to the backwards-compatible `xget TARGET` form and accepts the same options.
 
   `xget uninstall PACKAGE`, `xget remove PACKAGE`
 
@@ -121,7 +122,16 @@ header: xget Manual
 
   `--source`
 
-:    Download the source code for the repository (only works for GitHub repositories) rather than a release. Downloads from the "master" branch by default. Use `--tag` to download a different tag or branch.
+:    Download the source code for the repository rather than a release. Downloads from the "master" branch by default. Use `--tag` to download a different tag or branch.
+
+  `--provider=`
+
+:    Select a release source profile. Built-in profiles are `github` (the default) and `gitlab`. Named profiles are configured under `sources`.
+
+  A profile can also be selected with the **`PROFILE:repository`** shorthand.
+  For example, **`xget install gitlab:gitlab-org/cli`** is equivalent to
+  **`xget install gitlab-org/cli --provider gitlab`**. A conflicting explicit
+  `--provider` value is an error.
 
   `--to=`
 
@@ -229,9 +239,13 @@ header: xget Manual
 
 :    Directory to place extracted executables in when `--to` is not given. `EGET_BIN` is also honored for compatibility.
 
-  `XGET_GITHUB_TOKEN`, `EGET_GITHUB_TOKEN`, `GITHUB_TOKEN`
+  `XGET_GITHUB_TOKEN`, `GITHUB_TOKEN`, `EGET_GITHUB_TOKEN`
 
-:    GitHub API token used to raise the request rate limit. `XGET_GITHUB_TOKEN` takes precedence. A value of `@/path/to/file` reads the token from that file.
+:    Default GitHub profile token variables, checked in the listed order. A value of `@/path/to/file` reads the token from that file.
+
+  `XGET_GITLAB_TOKEN`, `GITLAB_TOKEN`
+
+:    Default GitLab profile token variables, checked in the listed order.
 
   `XGET_CONFIG`, `EGET_CONFIG`
 
@@ -258,7 +272,7 @@ header: xget Manual
 
   xget also supports the legacy eget-compatible filename `.eget.toml` in those same locations, and accepts `.eget.yml` / `.eget.yaml` if present.
 
-  Both global settings can be configured, as well as setting on a per-repository basis.
+  Global settings can be configured, as well as settings on a per-repository basis and named source profiles under `sources`.
 
   Sections can be named either `global` or `"owner/repo"`, where `owner` and `repo`
   are the owner and repository name of the target repository (note that the `owner/repo` 
@@ -281,7 +295,13 @@ header: xget Manual
 
 ```toml
   [global]
+  source = "github"
   target = "~/bin"
+
+  [sources.work]
+  type = "github"
+  host = "github.example.com"
+  token_env = ["WORK_GITHUB_TOKEN"]
 
   ["zyedidia/micro"]
   target = "~/.local/bin"
@@ -341,7 +361,11 @@ header: xget Manual
 
   `github_token`
   
-:    GitHub API token to use for requests. Global section only. Prefer `XGET_GITHUB_TOKEN` or `GITHUB_TOKEN`; xget warns when this is set in a config file, since it stores the token in plaintext where it may be committed to source control.
+:    GitHub API token to use for requests. Global section only and retained for compatibility. A value beginning with `@` reads the token from that file without producing a plaintext-storage warning.
+
+  `disable_token_warning`
+
+:    In the global section, disable warnings for every plaintext token stored in the config. In a source profile, disable the warning only for that profile.
 
   `ignore`
 
@@ -361,7 +385,31 @@ header: xget Manual
 
   `source`
 
-:    The source type for the target, such as `GitHub` or `URL`.
+:    The named release source profile for the target. Defaults to `github` and is overridden by `--provider`.
+
+## Source profile settings
+
+  Source profiles are addressed as `sources.NAME` by `xget config` and support:
+
+  `type`
+
+:    Provider implementation, either `github` or `gitlab`.
+
+  `host`, `api_url`
+
+:    Repository host and API base URL. Conventional public or enterprise defaults are derived when omitted.
+
+  `token_env`
+
+:    Environment variable names checked in order for a token.
+
+  `token`
+
+:    Token fallback. A value beginning with `@` reads the token from that file without producing a plaintext-storage warning. Other values are plaintext and produce a warning because config files may be committed or read by other users.
+
+  `disable_token_warning`
+
+:    Disable the plaintext-token warning for this profile.
 
   `system`
 

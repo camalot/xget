@@ -99,49 +99,89 @@ func checksumAsset(asset string, assets []string) string {
 	return ""
 }
 
+// isProviderRepoRootPath reports whether urlPath names a repository root
+// (e.g. "/owner/repo") rather than a release asset, archive, or other
+// provider-hosted subpath, which must stay on the DirectAssetFinder path.
+func isProviderRepoRootPath(source config.Source, urlPath string) bool {
+	trimmed := strings.TrimSuffix(strings.Trim(urlPath, "/"), ".git")
+	if trimmed == "" {
+		return false
+	}
+	parts := strings.Split(trimmed, "/")
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+	}
+	if source.Type == "gitlab" {
+		for _, part := range parts {
+			// GitLab prefixes non-root project pages (releases, archives,
+			// blobs, etc.) with a literal "-" path segment.
+			if part == "-" {
+				return false
+			}
+		}
+		return len(parts) >= 2
+	}
+	return len(parts) == 2
+}
+
 // Determine the appropriate Finder to use. If url is a local/direct URL we use
 // a DirectAssetFinder. Otherwise we use a GithubAssetFinder.
 func getFinder(project string, opts *options.Flags) (finder Finder, tool string, err error) {
-	if IsLocalFile(project) || (IsUrl(project) && !IsGithubUrl(project)) {
+	source := opts.SourceConfig
+	if source.Type == "" {
+		profile := strings.ToLower(opts.SourceType)
+		source, err = config.Default().ResolveSource(profile)
+		if err != nil {
+			return nil, "", err
+		}
+		opts.SourceConfig = source
+		opts.SourceType = source.Name
+	}
+
+	if IsLocalFile(project) {
 		finder = &DirectAssetFinder{URL: project}
 		tool = filepath.Base(project)
-		if parsed, perr := url.Parse(project); perr == nil && parsed.Path != "" {
-			tool = path.Base(parsed.Path)
-		}
-		if opts.SourceType == "" {
-			opts.SourceType = "URL"
-		}
+		opts.SourceType = "URL"
 		opts.System = "all"
 		return finder, tool, nil
 	}
 
-	if IsGithubUrl(project) {
-		_, after, found := Cut(project, "github.com/")
-		if !found {
-			return nil, "", fmt.Errorf("invalid GitHub repo URL %s", project)
+	if IsUrl(project) {
+		parsed, parseErr := url.Parse(project)
+		if parseErr != nil || !strings.EqualFold(parsed.Hostname(), source.Host) || !isProviderRepoRootPath(source, parsed.Path) {
+			finder = &DirectAssetFinder{URL: project}
+			tool = path.Base(parsed.Path)
+			opts.SourceType = "URL"
+			opts.System = "all"
+			return finder, tool, nil
 		}
-		project = strings.Trim(after, "/")
+		project = strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git")
 	}
 
 	repo := project
-	if strings.Count(repo, "/") != 1 {
-		return nil, "", fmt.Errorf("invalid argument (must be of the form user/repo)")
-	}
-	if opts.SourceType == "" {
-		opts.SourceType = "GitHub"
-	}
 	parts := strings.Split(repo, "/")
-	if parts[0] == "" || parts[1] == "" {
-		return nil, "", fmt.Errorf("invalid argument (must be of the form user/repo)")
+	if len(parts) < 2 || (source.Type == "github" && len(parts) != 2) {
+		return nil, "", fmt.Errorf("invalid %s repository %q", source.Type, repo)
 	}
-	tool = parts[1]
+	for _, part := range parts {
+		if part == "" {
+			return nil, "", fmt.Errorf("invalid %s repository %q", source.Type, repo)
+		}
+	}
+	tool = parts[len(parts)-1]
 
 	if opts.Source {
 		tag := "master"
 		if opts.Tag != "" {
 			tag = opts.Tag
 		}
-		finder = &GithubSourceFinder{Repo: repo, Tag: tag, Tool: tool}
+		if source.Type == "gitlab" {
+			finder = &GitlabSourceFinder{Repo: repo, Tag: tag, Tool: tool, Source: source}
+		} else {
+			finder = &GithubSourceFinder{Repo: repo, Tag: tag, Tool: tool, Source: source}
+		}
 		return finder, tool, nil
 	}
 
@@ -156,11 +196,16 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 		mint = bintime(last, opts.Output)
 	}
 
-	finder = &GithubAssetFinder{
-		Repo:       repo,
-		Tag:        tag,
-		Prerelease: opts.Prerelease,
-		MinTime:    mint,
+	if source.Type == "gitlab" {
+		finder = &GitlabAssetFinder{Repo: repo, Tag: opts.Tag, Prerelease: opts.Prerelease, MinTime: mint, Source: source}
+	} else {
+		finder = &GithubAssetFinder{
+			Repo:       repo,
+			Tag:        tag,
+			Prerelease: opts.Prerelease,
+			MinTime:    mint,
+			Source:     source,
+		}
 	}
 	return finder, tool, nil
 }
@@ -178,7 +223,7 @@ func getVerifier(sumAsset, githubDigest string, opts *options.Flags) (verifier V
 			verifier, err = NewSha256Verifier(opts.Verify)
 		}
 	} else if sumAsset != "" {
-		verifier = &Sha256AssetVerifier{AssetURL: sumAsset}
+		verifier = &Sha256AssetVerifier{AssetURL: sumAsset, Source: opts.SourceConfig}
 	} else if githubDigest != "" {
 		verifier, err = NewSha256Verifier(githubDigest)
 	} else if opts.Hash {
@@ -287,10 +332,11 @@ func parseAssetMatcher(raw string) (asset string, anti bool, rx *regexp.Regexp, 
 
 // Determine which extractor to use.
 func getExtractor(url, tool string, opts *options.Flags) (extractor Extractor, err error) {
+	filename := extractorFilename(url)
 	if opts.DLOnly {
 		extractor = &SingleFileExtractor{
-			Name:   path.Base(url),
-			Rename: path.Base(url),
+			Name:   filename,
+			Rename: filename,
 			Decompress: func(r io.Reader) (io.Reader, error) {
 				return r, nil
 			},
@@ -300,11 +346,22 @@ func getExtractor(url, tool string, opts *options.Flags) (extractor Extractor, e
 		if err != nil {
 			return nil, err
 		}
-		extractor = NewExtractor(path.Base(url), tool, gc)
+		extractor = NewExtractor(filename, tool, gc)
 	} else {
-		extractor = NewExtractor(path.Base(url), tool, &BinaryChooser{Tool: tool})
+		extractor = NewExtractor(filename, tool, &BinaryChooser{Tool: tool})
 	}
 	return extractor, nil
+}
+
+// extractorFilename returns the base filename used for archive-suffix
+// detection, stripping any query string (e.g. GitLab's
+// "archive.tar.gz?sha=...") that would otherwise defeat NewExtractor's
+// ".tar.gz"-style suffix checks.
+func extractorFilename(rawURL string) string {
+	if u, err := url.Parse(rawURL); err == nil && u.Path != "" {
+		return path.Base(u.Path)
+	}
+	return path.Base(rawURL)
 }
 
 // Write an extracted file to disk with a new name.
@@ -483,6 +540,10 @@ func finderVersion(finder Finder, opts options.Flags) string {
 		return f.ReleaseTag
 	case *GithubSourceFinder:
 		return f.Tag
+	case *GitlabAssetFinder:
+		return f.ReleaseTag
+	case *GitlabSourceFinder:
+		return f.Tag
 	default:
 		return opts.Tag
 	}
@@ -494,8 +555,29 @@ func packageName(target string, finder Finder) string {
 		return f.Repo
 	case *GithubSourceFinder:
 		return f.Repo
+	case *GitlabAssetFinder:
+		return f.Repo
+	case *GitlabSourceFinder:
+		return f.Repo
 	default:
 		return target
+	}
+}
+
+func packageSource(finder Finder, fallback string) string {
+	switch f := finder.(type) {
+	case *GithubAssetFinder:
+		return f.Source.Name
+	case *GithubSourceFinder:
+		return f.Source.Name
+	case *GitlabAssetFinder:
+		return f.Source.Name
+	case *GitlabSourceFinder:
+		return f.Source.Name
+	case *DirectAssetFinder:
+		return "URL"
+	default:
+		return fallback
 	}
 }
 
@@ -503,7 +585,7 @@ func packageName(target string, finder Finder) string {
 // supplies the resolved options; Tag and UpgradeOnly are cleared here because
 // either would prevent the newest release from being reported.
 func RefreshInstalledPackage(pkg installed.Package, opts options.Flags) (installed.Package, error) {
-	if !strings.EqualFold(pkg.Source, "GitHub") {
+	if strings.EqualFold(pkg.Source, "URL") {
 		return pkg, nil
 	}
 	opts.Tag = ""
@@ -601,7 +683,7 @@ func Run(target string, opts options.Flags) error {
 	}
 
 	buf := &bytes.Buffer{}
-	err = Download(url, buf, func(size int64) *pb.ProgressBar {
+	err = DownloadWithSource(url, buf, func(size int64) *pb.ProgressBar {
 		var pbout io.Writer = os.Stderr
 		if opts.Quiet {
 			pbout = io.Discard
@@ -625,7 +707,7 @@ func Run(target string, opts options.Flags) error {
 				BarStart:      "[",
 				BarEnd:        "]",
 			}))
-	})
+	}, opts.SourceConfig)
 	if err != nil {
 		return fmt.Errorf("%s (URL: %s)", err, url)
 	}
@@ -753,7 +835,7 @@ func Run(target string, opts options.Flags) error {
 			RefreshedAt:     now,
 			CurrentTag:      version,
 			InstalledTag:    version,
-			Source:          opts.SourceType,
+			Source:          packageSource(finder, opts.SourceType),
 			SHA256:          assetSHA256,
 		}
 		return installed.Upsert(storePath, pkg)

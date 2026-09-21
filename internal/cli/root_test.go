@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,6 +30,28 @@ func TestSplitTargetTag(t *testing.T) {
 		repo, tag, ok := splitTargetTag(test.target)
 		if repo != test.repo || tag != test.tag || ok != test.ok {
 			t.Errorf("splitTargetTag(%q) = (%q, %q, %t), want (%q, %q, %t)", test.target, repo, tag, ok, test.repo, test.tag, test.ok)
+		}
+	}
+}
+
+func TestSplitTargetProvider(t *testing.T) {
+	tests := []struct {
+		target   string
+		repo     string
+		provider string
+		ok       bool
+	}{
+		{target: "gitlab:gitlab-org/cli", repo: "gitlab-org/cli", provider: "gitlab", ok: true},
+		{target: "work:group/subgroup/project@v1", repo: "group/subgroup/project@v1", provider: "work", ok: true},
+		{target: "https://gitlab.com/group/project", repo: "https://gitlab.com/group/project"},
+		{target: `C:\tools\archive.zip`, repo: `C:\tools\archive.zip`},
+		{target: "owner/repo", repo: "owner/repo"},
+	}
+
+	for _, test := range tests {
+		repo, provider, ok := splitTargetProvider(test.target)
+		if repo != test.repo || provider != test.provider || ok != test.ok {
+			t.Errorf("splitTargetProvider(%q) = (%q, %q, %t), want (%q, %q, %t)", test.target, repo, provider, ok, test.repo, test.provider, test.ok)
 		}
 	}
 }
@@ -73,7 +97,7 @@ func TestRootCommandIncludesInstallSubcommandWithInstallFlags(t *testing.T) {
 		if sub.Name() != "install" {
 			continue
 		}
-		for _, name := range []string{"tag", "to", "asset", "ignore"} {
+		for _, name := range []string{"tag", "to", "asset", "ignore", "source", "provider"} {
 			if sub.Flags().Lookup(name) == nil {
 				t.Fatalf("expected install command to include --%s", name)
 			}
@@ -83,7 +107,69 @@ func TestRootCommandIncludesInstallSubcommandWithInstallFlags(t *testing.T) {
 	t.Fatal("expected root command to include an install subcommand")
 }
 
+func TestOptionsForTargetProviderPrecedence(t *testing.T) {
+	cfg := config.Default()
+	cfg.Global.SourceType = "gitlab"
+	cfg.Sources["work"] = config.Source{Name: "work", Type: "github", Host: "github.example.com", APIURL: "https://github.example.com/api/v3"}
+	cfg.Repositories["owner/repo"] = config.Repository{Name: "owner/repo", SourceType: "work"}
+
+	cmd := newRootCommand()
+	flags := &rootFlags{}
+	opts, err := optionsForTarget(cfg, cmd, flags, "owner/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.SourceType != "work" || opts.SourceConfig.Host != "github.example.com" {
+		t.Fatalf("repository source was not resolved: %#v", opts)
+	}
+
+	flags.provider = "gitlab"
+	if err := cmd.Flags().Set("provider", "gitlab"); err != nil {
+		t.Fatal(err)
+	}
+	opts, err = optionsForTarget(cfg, cmd, flags, "owner/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.SourceType != "gitlab" || opts.SourceConfig.Type != "gitlab" {
+		t.Fatalf("CLI provider did not win: %#v", opts)
+	}
+	if opts.Source {
+		t.Fatal("--provider must not enable source archive downloads")
+	}
+}
+
+func TestOptionsForTargetInlineProvider(t *testing.T) {
+	cfg := config.Default()
+	cfg.Repositories["gitlab-org/cli"] = config.Repository{Name: "gitlab-org/cli", Target: "./bin"}
+	cmd := newRootCommand()
+	flags := &rootFlags{}
+
+	opts, err := optionsForTargetProvider(cfg, cmd, flags, "gitlab-org/cli", "gitlab")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.SourceType != "gitlab" || opts.SourceConfig.Type != "gitlab" {
+		t.Fatalf("inline provider was not resolved: %#v", opts)
+	}
+	if !strings.HasSuffix(opts.Output, "bin") {
+		t.Fatalf("canonical repository config was not applied: %#v", opts)
+	}
+
+	flags.provider = "github"
+	if err := cmd.Flags().Set("provider", "github"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := optionsForTargetProvider(cfg, cmd, flags, "gitlab-org/cli", "gitlab"); err == nil || !strings.Contains(err.Error(), "conflicting providers") {
+		t.Fatalf("conflicting providers error = %v", err)
+	}
+}
+
 func TestRateCommandPrintsTokenGuidanceToStderr(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), ".xget.yml")
+	if err := os.WriteFile(configPath, []byte("global: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("XGET_GITHUB_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("EGET_GITHUB_TOKEN", "")
@@ -98,7 +184,7 @@ func TestRateCommandPrintsTokenGuidanceToStderr(t *testing.T) {
 	stderr := &bytes.Buffer{}
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
-	cmd.SetArgs([]string{"rate"})
+	cmd.SetArgs([]string{"rate", "--config", configPath})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}

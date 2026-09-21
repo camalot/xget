@@ -36,6 +36,7 @@ type rootFlags struct {
 	disableSSL  bool
 	config      string
 	untracked   bool
+	provider    string
 
 	nonInteractive bool
 }
@@ -77,14 +78,52 @@ func splitTargetTag(target string) (repo, tag string, ok bool) {
 		return target, "", false
 	}
 	repo, tag, ok = strings.Cut(target, "@")
-	if !ok || tag == "" || strings.Count(repo, "/") != 1 {
+	if !ok || tag == "" || !strings.Contains(repo, "/") {
 		return target, "", false
 	}
-	owner, name, valid := strings.Cut(repo, "/")
-	if !valid || owner == "" || name == "" {
+	parts := strings.Split(repo, "/")
+	for _, part := range parts {
+		if part == "" {
+			return target, "", false
+		}
+	}
+	if len(parts) < 2 {
 		return target, "", false
 	}
 	return repo, tag, true
+}
+
+// splitTargetProvider separates a source profile from PROFILE:owner/repo
+// shorthand. URLs and Windows paths are left unchanged.
+func splitTargetProvider(target string) (repo, provider string, ok bool) {
+	if strings.Contains(target, "://") {
+		return target, "", false
+	}
+	if runtime.GOOS == "windows" && isWindowsDriveTarget(target) {
+		return target, "", false
+	}
+	provider, repo, ok = strings.Cut(target, ":")
+	if !ok || provider == "" || repo == "" || strings.HasPrefix(repo, "/") || strings.HasPrefix(repo, `\`) || !strings.Contains(repo, "/") {
+		return target, "", false
+	}
+	for _, char := range provider {
+		if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-' || char == '_' {
+			continue
+		}
+		return target, "", false
+	}
+	return repo, provider, true
+}
+
+// isWindowsDriveTarget reports whether target looks like a Windows drive
+// absolute or drive-relative path, e.g. "C:tools/archive.zip" or
+// `C:\tools\archive.zip`, which must not be parsed as a PROFILE:repo target.
+func isWindowsDriveTarget(target string) bool {
+	if len(target) < 2 || target[1] != ':' {
+		return false
+	}
+	c := target[0]
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 func newRootCommand() *cobra.Command {
@@ -92,7 +131,7 @@ func newRootCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:           "xget [TARGET]",
-		Short:         "Download pre-built binaries from GitHub releases",
+		Short:         "Download pre-built binaries from GitHub or GitLab releases",
 		Version:       versionString(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -131,7 +170,7 @@ func newRateCommand(f *rootFlags) *cobra.Command {
 func newInstallCommand(f *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "install TARGET",
-		Short:         "Download and install a pre-built binary from GitHub releases",
+		Short:         "Download and install a pre-built binary from GitHub or GitLab releases",
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -145,6 +184,7 @@ func addInstallFlags(cmd *cobra.Command, f *rootFlags) {
 	cmd.Flags().StringVarP(&f.tag, "tag", "t", "", "tagged release to use instead of latest")
 	cmd.Flags().BoolVar(&f.prerelease, "pre-release", false, "include pre-releases when fetching the latest version")
 	cmd.Flags().BoolVar(&f.source, "source", false, "download the source code for the target repo instead of a release")
+	cmd.Flags().StringVar(&f.provider, "provider", "", "release source profile to use (default github)")
 	cmd.Flags().StringVar(&f.output, "to", "", "move to given location after extracting")
 	cmd.Flags().StringVarP(&f.system, "system", "s", "", "target system to download for (use all for all choices)")
 	cmd.Flags().StringVarP(&f.extractFile, "file", "f", "", "glob to select files for extraction")
@@ -174,10 +214,6 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 			return err
 		}
 
-		if err := configureGithubToken(cfg); err != nil {
-			return err
-		}
-
 		disableSSL := cfg.Global.DisableSSL
 		if cmd.Flags().Changed("disable-ssl") {
 			disableSSL = f.disableSSL
@@ -185,6 +221,9 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 		engine.SetDisableSSL(disableSSL)
 
 		if f.rate {
+			if err := configureGithubToken(cfg); err != nil {
+				return err
+			}
 			return printRateLimit(cmd)
 		}
 
@@ -200,8 +239,13 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 			return uninstallPackage(cmd, args[0], f.from, false)
 		}
 
-		target, inlineTag, hasInlineTag := splitTargetTag(args[0])
-		opts, err := optionsForTarget(cfg, cmd, f, target)
+		target, inlineProvider, hasInlineProvider := splitTargetProvider(args[0])
+		target, inlineTag, hasInlineTag := splitTargetTag(target)
+		provider := ""
+		if hasInlineProvider {
+			provider = inlineProvider
+		}
+		opts, err := optionsForTargetProvider(cfg, cmd, f, target, provider)
 		if err != nil {
 			return err
 		}
@@ -304,6 +348,10 @@ func configOptionsForTarget(cfg *config.Config, target string) (options.Flags, e
 }
 
 func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, target string) (options.Flags, error) {
+	return optionsForTargetProvider(cfg, cmd, f, target, "")
+}
+
+func optionsForTargetProvider(cfg *config.Config, cmd *cobra.Command, f *rootFlags, target, inlineProvider string) (options.Flags, error) {
 	opts, err := configOptionsForTarget(cfg, target)
 	if err != nil {
 		return options.Flags{}, err
@@ -317,6 +365,14 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 	}
 	if cmd.Flags().Changed("source") {
 		opts.Source = f.source
+	}
+	if cmd.Flags().Changed("provider") {
+		if inlineProvider != "" && !strings.EqualFold(f.provider, inlineProvider) {
+			return options.Flags{}, fmt.Errorf("conflicting providers %q and %q", inlineProvider, f.provider)
+		}
+		opts.SourceType = f.provider
+	} else if inlineProvider != "" {
+		opts.SourceType = inlineProvider
 	}
 	if cmd.Flags().Changed("to") {
 		expanded, err := home.Expand(f.output)
@@ -377,6 +433,15 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 	if !cmd.Flags().Changed("ignore") {
 		opts.Ignore = config.SubstituteTemplateVarsSlice(opts.Ignore, systemForTemplate)
 	}
+	resolvedSource, err := cfg.ResolveSource(opts.SourceType)
+	if err != nil {
+		return options.Flags{}, err
+	}
+	if resolvedSource.Type == "github" && resolvedSource.Token == "" {
+		resolvedSource.Token = cfg.Global.GithubToken
+	}
+	opts.SourceType = resolvedSource.Name
+	opts.SourceConfig = resolvedSource
 
 	return opts, nil
 }
