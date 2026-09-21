@@ -113,11 +113,25 @@ fail_unsupported() {
 	exit 1
 }
 
+get_script_path() {
+	local script_path="${BASH_SOURCE[0]:-$0}"
+
+	case "$(basename "$script_path")" in
+	bash | sh | dash | zsh | ksh | -bash | -sh | -dash | -zsh | -ksh) return 1 ;;
+	esac
+
+	[ -f "$script_path" ] || return 1
+	printf '%s\n' "$script_path"
+}
+
 get_script_checksum() {
+	local script_path
+	script_path="$(get_script_path)" || return 1
+
 	if command -v sha256sum >/dev/null 2>&1; then
-		sha256sum "$0" | awk '{print $1}'
+		sha256sum "$script_path" | awk '{print $1}'
 	elif command -v shasum >/dev/null 2>&1; then
-		shasum -a 256 "$0" | awk '{print $1}'
+		shasum -a 256 "$script_path" | awk '{print $1}'
 	else
 		echo "warning: no sha256sum/shasum found; cannot compute script checksum" >&2
 		return 1
@@ -152,6 +166,11 @@ get_expected_script_checksum() {
 
 check_script_checksum() {
 	[ "$SKIP_CHECKSUM" -eq 1 ] && return 0
+
+	if ! get_script_path >/dev/null; then
+		echo "warning: script was not run from a file (e.g. piped to bash); skipping script checksum verification" >&2
+		return 0
+	fi
 
 	# download the script checksum from GitHub and compare it to the local checksum
 	# (this is a basic integrity check to ensure the script hasn't been tampered with)

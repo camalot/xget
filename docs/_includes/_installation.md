@@ -8,7 +8,7 @@ Before you can get anything, you have to get xget. If you already have xget and 
 ### Quick-install script
 
 > [!NOTE]
-> The quick-install scripts will automatically download the sha256 checksum of the install script and verify the script before executing it.
+> When run from a downloaded file, the quick-install scripts will download and verify the sha256 checksum of the install script before continuing. When piped directly to `bash` or `iex`, script checksum verification is skipped because there is no local script file to hash. Release asset checksums are still verified.
 
 ### Bash
 
@@ -19,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh |
 The default install location is `$HOME/.local/bin`. You can change the install location with the `-d` or `--dir` option:
 
 ``` shell
-curl -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash -s -- -d /usr/local/bin
+curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh && bash xget.sh -d /usr/local/bin
 ```
 
 ### PowerShell
