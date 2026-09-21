@@ -1,4 +1,97 @@
 
+## [v2.2.0](https://github.com/camalot/xget/releases/tag/v2.2.0) - 2026-09-21
+
+### 🚀 FEATURES
+
+
+#### _CLI_
+- Support gitlab:gitlab-org/cli shorthand, including named profiles and tags. -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+- Support for gitlab as an asset source -[@camalot](https://github.com/camalot)
+
+
+### 🐛 BUG FIXES
+
+#### _GENERAL_
+
+- Give chocolatey job contents read -[@camalot](https://github.com/camalot)
+
+- Use variables for email / name -[@camalot](https://github.com/camalot)
+
+- Set correct variables -[@camalot](https://github.com/camalot)
+
+- Allow global.disable_token_warning -[@camalot](https://github.com/camalot)
+
+- Arbitrary file access during archive extraction (Zip Slip) [#1](https://github.com/camalot/xget/issues/1)  -[@camalot](https://github.com/camalot)
+
+- Ensure on windows that the profile target is not identified from a local file -[@camalot](https://github.com/camalot)
+
+- Prevent writes through symlinked ancestors during extraction -[@camalot](https://github.com/camalot)
+
+- Match the complete configured HTTPS origin before adding credentials. -[@camalot](https://github.com/camalot)
+
+- Strip the query before archive detection -[@camalot](https://github.com/camalot)
+
+- Keep provider-hosted asset URLs on the direct-download path. -[@camalot](https://github.com/camalot)
+
+
+### 💼 OTHER
+
+#### _GENERAL_
+
+- Merge pull request  from camalot/gitlab-provider[#18](https://github.com/camalot/xget/issues/18)  [#18](https://github.com/camalot/xget/pull/18) -[@camalot](https://github.com/camalot)
+
+- Gitlab provider [#18](https://github.com/camalot/xget/pull/18) -[@camalot](https://github.com/camalot)
+
+
+### ⚙️ MISCELLANEOUS TASKS
+
+
+#### _PACKAGE_
+- Setup to package for chocolatey -[@camalot](https://github.com/camalot)
+
+
+#### _REPO_
+- Update release notes to publish correctly when release generated -[@camalot](https://github.com/camalot)
+
+- Use current goreleaser when doing just a publish -[@camalot](https://github.com/camalot)
+
+- Run chocolatey after publish -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot) in
+[#18](https://github.com/camalot/xget/pull/18)
+
+## 📈 Commit Statistics
+
+
+- `18` commits contributed to the release.
+- `1` day has passed between the first and last commit.
+- `16` commits parsed as conventional.
+- `2` linked issues detected in commits.
+  - [#1](https://github.com/camalot/xget/issues/1) (referenced 1 time)
+  - [#18](https://github.com/camalot/xget/issues/18) (referenced 1 time)
+- `1` day  has passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[18,1,1,16,2,1]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.1.2...v2.2.0
+
 ## [v2.1.2](https://github.com/camalot/xget/releases/tag/v2.1.2) - 2026-09-20
 
 ### 🐛 BUG FIXES
