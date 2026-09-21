@@ -163,24 +163,44 @@ type ArchiveExtractor struct {
 }
 
 type link struct {
+	base    string
 	newname string
 	oldname string
 	sym     bool
 }
 
+// safeArchiveJoin joins an archive entry's relative path onto base and
+// verifies the resulting path stays within base, rejecting any entry (e.g.
+// containing "..") that would resolve to a location outside of it. This
+// guards against directory traversal ("zip slip") attacks from malicious
+// archives.
 func safeArchiveJoin(base string, rel string) (string, error) {
 	rel = strings.TrimLeft(rel, "/\\")
-	cleanRel := filepath.Clean(filepath.FromSlash(rel))
-	if cleanRel == "" || cleanRel == "." {
-		return base, nil
+	joined := filepath.Join(filepath.Clean(base), filepath.FromSlash(rel))
+	return joined, requireWithinBase(base, joined)
+}
+
+// requireWithinBase reports an error if target does not resolve to base
+// itself or a descendant of it.
+func requireWithinBase(base, target string) error {
+	cleanBase := filepath.Clean(base)
+	cleanTarget := filepath.Clean(target)
+	if cleanTarget != cleanBase && !strings.HasPrefix(cleanTarget, cleanBase+string(os.PathSeparator)) {
+		return fmt.Errorf("unsafe archive path %q", target)
 	}
-	if filepath.IsAbs(cleanRel) || cleanRel == ".." || strings.HasPrefix(cleanRel, ".."+string(os.PathSeparator)) {
-		return "", fmt.Errorf("unsafe archive path %q", rel)
-	}
-	return filepath.Join(base, cleanRel), nil
+	return nil
 }
 
 func (l link) Write() error {
+	// reject link targets that would resolve outside the extraction root
+	if filepath.IsAbs(l.oldname) {
+		return fmt.Errorf("unsafe archive link target %q", l.oldname)
+	}
+	resolved := filepath.Join(filepath.Dir(l.newname), l.oldname)
+	if err := requireWithinBase(l.base, resolved); err != nil {
+		return fmt.Errorf("unsafe archive link target %q: %w", l.oldname, err)
+	}
+
 	// remove file if it exists already
 	err := os.Remove(l.newname)
 	if err != nil && !os.IsNotExist(err) {
@@ -269,6 +289,7 @@ func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, [
 							}
 							oldname := subf.LinkName
 							links = append(links, link{
+								base:    to,
 								newname: newname,
 								oldname: oldname,
 								sym:     subf.Type == TypeSymlink,
