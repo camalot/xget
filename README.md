@@ -571,11 +571,12 @@ When running `xget junegunn/fzf --system darwin/arm64`, it will match assets con
 ## Available settings - global section
 
 > [!IMPORTANT]
-> `github_token` is supported for backwards compatibility with the original `eget` project. Prefer a source profile's `token_env` setting. When a token is stored in the config, xget warns that it is plaintext and explains how to suppress that warning with `sources.PROFILE.disable_token_warning = true`.
+> `github_token` is supported for backwards compatibility with the original `eget` project. Prefer a source profile's `token_env` setting. When a plaintext token is stored in the config, xget warns and explains how to suppress that warning with `global.disable_token_warning = true` or `sources.PROFILE.disable_token_warning = true`. Values beginning with `@` reference a token file and do not produce this warning.
 
 | Setting | Related Flag | Description | Default |
 | --- | --- | --- | --- |
-| ⚠️ `github_token` | `N/A` | GitHub API token to use for requests | `""` |
+| ⚠️ `github_token` | `N/A` | GitHub API token or `@` token-file reference to use for requests | `""` |
+| `disable_token_warning` | `N/A` | Disable warnings for plaintext tokens stored anywhere in the config. | `false` |
 | `all` | `--all` | Whether to extract all candidate files. | `false` |
 | `download_only` | `--download-only` | Whether to stop after downloading the asset (no extraction). | `false` |
 | `download_source` | `--source` | Whether to download the source code for the target repo instead of a release. | `false` |
@@ -625,9 +626,12 @@ token_env = ["WORK_GITHUB_TOKEN"]
 
 Source profile settings are `type` (`github` or `gitlab`), `host`, `api_url`,
 `token_env`, `token`, and `disable_token_warning`. Environment variables are
-checked in listed order before `token`. Token values may use
-`@/path/to/token`. For GitHub profiles, legacy `global.github_token` is the final
-fallback. Select a profile with `--provider work`, repository `source = "work"`,
+checked in listed order before `token`. Both profile `token` and legacy
+`global.github_token` values may use `@/path/to/token`; the file contents are
+used as the token and no plaintext-storage warning is shown. For GitHub
+profiles, `global.github_token` is the final fallback. Set
+`global.disable_token_warning = true` to suppress all plaintext-token warnings,
+or use the profile setting to suppress only that profile. Select a profile with `--provider work`, repository `source = "work"`,
 or global `source = "work"`, in that precedence order.
 
 GitLab repositories may use nested namespaces:

@@ -356,7 +356,11 @@ header: xget Manual
 
   `github_token`
   
-:    GitHub API token to use for requests. Global section only and retained for compatibility. xget warns when this is set in a config file and explains that `sources.github.disable_token_warning = true` suppresses the warning.
+:    GitHub API token to use for requests. Global section only and retained for compatibility. A value beginning with `@` reads the token from that file without producing a plaintext-storage warning.
+
+  `disable_token_warning`
+
+:    In the global section, disable warnings for every plaintext token stored in the config. In a source profile, disable the warning only for that profile.
 
   `ignore`
 
@@ -396,7 +400,7 @@ header: xget Manual
 
   `token`
 
-:    Plaintext token fallback. A warning is emitted because config files may be committed or read by other users.
+:    Token fallback. A value beginning with `@` reads the token from that file without producing a plaintext-storage warning. Other values are plaintext and produce a warning because config files may be committed or read by other users.
 
   `disable_token_warning`
 

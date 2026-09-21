@@ -2,6 +2,8 @@ package engine
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/camalot/xget/internal/config"
@@ -28,6 +30,21 @@ func TestGetSourceTokenUsesConfiguredEnvironmentOrderThenToken(t *testing.T) {
 	}
 	if token != "configured" {
 		t.Fatalf("token = %q, want configured", token)
+	}
+}
+
+func TestGetSourceTokenReadsConfiguredTokenFile(t *testing.T) {
+	tokenPath := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenPath, []byte("file-token\r\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	token, err := getSourceToken(config.Source{Token: "@" + tokenPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if token != "file-token" {
+		t.Fatalf("token = %q, want file-token", token)
 	}
 }
 

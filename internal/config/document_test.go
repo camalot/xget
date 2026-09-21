@@ -86,6 +86,9 @@ func TestSectionKeysCoverGlobalAndRepository(t *testing.T) {
 	if globals["ignore"] != KindStringSlice {
 		t.Fatalf("global ignore kind = %v", globals["ignore"])
 	}
+	if globals["disable_token_warning"] != KindBool {
+		t.Fatalf("global disable_token_warning kind = %v", globals["disable_token_warning"])
+	}
 	if _, ok := globals["asset_filters"]; ok {
 		t.Fatal("asset_filters must not be a global key")
 	}

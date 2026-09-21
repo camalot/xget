@@ -67,6 +67,11 @@ For compatibility, `global.github_token` remains accepted as the final token
 fallback for every GitHub profile. Its warning will explain that it can be
 disabled with `sources.github.disable_token_warning = true`.
 
+`global.disable_token_warning = true` suppresses all plaintext-token warnings;
+the source-level setting suppresses only that profile. A `token` or
+`global.github_token` value beginning with `@` is a token-file reference, so its
+contents are used as the token and no plaintext-storage warning is emitted.
+
 ## Implementation
 
 1. Extend `internal/config` with source-profile parsing, built-in defaults,
@@ -143,6 +148,10 @@ pass.
   initially used an API URL without a filename extension, which broke archive
   type detection. The established `.tar.gz` URL shape is retained and now uses
   the configured GitHub host.
+- **Token warning refinement:** global warning suppression now applies to every
+  configured source, while profile suppression remains scoped. Token-file
+  references in either `global.github_token` or a profile `token` are resolved
+  by the existing token loader and do not trigger plaintext warnings.
 - **Not implemented as provider inference:** full GitLab URLs still require the
   GitLab profile to be selected. Automatic inference would contradict the
   agreed default/profile precedence and could bypass credentials selected by

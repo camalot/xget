@@ -13,19 +13,20 @@ import (
 )
 
 type Global struct {
-	All          bool     `mapstructure:"all" toml:"all" yaml:"all"`
-	Ignore       []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
-	DownloadOnly bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
-	File         string   `mapstructure:"file" toml:"file" yaml:"file"`
-	GithubToken  string   `mapstructure:"github_token" toml:"github_token" yaml:"github_token"`
-	Quiet        bool     `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
-	ShowHash     bool     `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
-	Source       bool     `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
-	System       string   `mapstructure:"system" toml:"system" yaml:"system"`
-	Target       string   `mapstructure:"target" toml:"target" yaml:"target"`
-	UpgradeOnly  bool     `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
-	DisableSSL   bool     `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
-	SourceType   string   `mapstructure:"source" toml:"source" yaml:"source"`
+	All                 bool     `mapstructure:"all" toml:"all" yaml:"all"`
+	Ignore              []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
+	DownloadOnly        bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
+	File                string   `mapstructure:"file" toml:"file" yaml:"file"`
+	GithubToken         string   `mapstructure:"github_token" toml:"github_token" yaml:"github_token"`
+	Quiet               bool     `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
+	ShowHash            bool     `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
+	Source              bool     `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
+	System              string   `mapstructure:"system" toml:"system" yaml:"system"`
+	Target              string   `mapstructure:"target" toml:"target" yaml:"target"`
+	UpgradeOnly         bool     `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
+	DisableSSL          bool     `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
+	SourceType          string   `mapstructure:"source" toml:"source" yaml:"source"`
+	DisableTokenWarning bool     `mapstructure:"disable_token_warning" toml:"disable_token_warning" yaml:"disable_token_warning"`
 }
 
 type Repository struct {
@@ -298,14 +299,18 @@ func loadFromFile(path string) (*Config, error) {
 
 func warnStoredTokens(cfg *Config, output io.Writer) {
 	github := cfg.Sources["github"]
-	if cfg.Global.GithubToken != "" && !github.DisableTokenWarning {
-		_, _ = fmt.Fprintln(output, "Warning: global.github_token is stored in the config file as plaintext. Prefer a token environment variable or token file. To disable this warning, set sources.github.disable_token_warning to true.")
+	if isPlaintextToken(cfg.Global.GithubToken) && !cfg.Global.DisableTokenWarning && !github.DisableTokenWarning {
+		_, _ = fmt.Fprintln(output, "Warning: global.github_token is stored in the config file as plaintext. Prefer a token environment variable or token file. To disable this warning, set global.disable_token_warning or sources.github.disable_token_warning to true.")
 	}
 	for name, source := range cfg.Sources {
-		if source.Token != "" && !source.DisableTokenWarning {
-			_, _ = fmt.Fprintf(output, "Warning: sources.%s.token is stored in the config file as plaintext. Prefer one of sources.%s.token_env or a token file. To disable this warning, set sources.%s.disable_token_warning to true.\n", name, name, name)
+		if isPlaintextToken(source.Token) && !cfg.Global.DisableTokenWarning && !source.DisableTokenWarning {
+			_, _ = fmt.Fprintf(output, "Warning: sources.%s.token is stored in the config file as plaintext. Prefer one of sources.%s.token_env or a token file. To disable this warning, set global.disable_token_warning or sources.%s.disable_token_warning to true.\n", name, name, name)
 		}
 	}
+}
+
+func isPlaintextToken(token string) bool {
+	return token != "" && !strings.HasPrefix(token, "@")
 }
 
 func Load(explicitPath ...string) (*Config, error) {

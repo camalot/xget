@@ -70,11 +70,12 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 ## Available settings - global section
 
 > [!IMPORTANT]
-> `github_token` is supported for backwards compatibility with `eget`, but storing a token in a config file is not recommended. Prefer source-profile `token_env` values. The warning explains how to suppress it with `sources.github.disable_token_warning = true`.
+> `github_token` is supported for backwards compatibility with `eget`, but storing a plaintext token in a config file is not recommended. Prefer source-profile `token_env` values or an `@/path/to/token` file reference. File references do not produce a warning. Suppress plaintext-token warnings globally with `global.disable_token_warning = true` or per profile with `sources.PROFILE.disable_token_warning = true`.
 
 | Setting | Related Flag | Description | Default |
 | --- | --- | --- | --- |
-| `github_token` | N/A | GitHub API token to use for requests | `""` |
+| `github_token` | N/A | GitHub API token or `@` token-file reference to use for requests | `""` |
+| `disable_token_warning` | N/A | Disable warnings for plaintext tokens stored anywhere in the config. | `false` |
 | `all` | `--all` | Whether to extract all candidate files. | `false` |
 | `download_only` | `--download-only` | Stop after downloading the asset without extraction. | `false` |
 | `download_source` | `--source` | Download the source code for the repo instead of a release. | `false` |
@@ -137,9 +138,10 @@ disable_token_warning = false
 Available keys are `type`, `host`, `api_url`, `token_env`, `token`, and
 `disable_token_warning`. Token environment variables are checked in order,
 followed by `token`; GitHub profiles then fall back to legacy
-`global.github_token`. Values can use `@/path/to/file` to read a token from a
-file. Stored plaintext tokens produce a warning unless
-`disable_token_warning = true` is set in that profile.
+`global.github_token`. Both token settings can use `@/path/to/file` to read the
+file contents as the token; file references do not produce a warning. Stored
+plaintext tokens produce a warning unless `disable_token_warning = true` is set
+globally or in that profile.
 
 Select profiles with `--provider`, repository `source`, or global `source`, in
 that order. GitLab supports nested project paths such as

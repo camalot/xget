@@ -148,3 +148,27 @@ func TestWarnStoredTokensIncludesSuppressionInstructions(t *testing.T) {
 		t.Fatalf("warnings were not disabled: %q", output.String())
 	}
 }
+
+func TestWarnStoredTokensSkipsFileReferencesAndHonorsGlobalSuppression(t *testing.T) {
+	cfg := Default()
+	referenceA := filepath.Join(t.TempDir(), "github")
+	referenceB := filepath.Join(t.TempDir(), "gitlab")
+	cfg.Global.GithubToken = "@" + referenceA
+	cfg.Sources["work"] = Source{Name: "work", Type: "gitlab", Token: "@" + referenceB}
+	output := &bytes.Buffer{}
+
+	warnStoredTokens(cfg, output)
+	if output.Len() != 0 {
+		t.Fatalf("token file references produced warnings: %q", output.String())
+	}
+
+	cfg.Global.GithubToken = "plaintext-github"
+	work := cfg.Sources["work"]
+	work.Token = "plaintext-gitlab"
+	cfg.Sources["work"] = work
+	cfg.Global.DisableTokenWarning = true
+	warnStoredTokens(cfg, output)
+	if output.Len() != 0 {
+		t.Fatalf("global suppression did not disable warnings: %q", output.String())
+	}
+}
