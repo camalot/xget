@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -126,11 +127,40 @@ func setSourceAuthHeader(req *http.Request, source config.Source) *http.Request 
 }
 
 func sourceMatchesRequest(source config.Source, req *http.Request) bool {
-	if strings.EqualFold(req.URL.Hostname(), source.Host) {
-		return true
+	if req.URL.Scheme != "https" {
+		return false
+	}
+	reqHost, reqPort := splitHostPort(req.URL.Host, defaultPortForScheme(req.URL.Scheme))
+	if source.Host != "" {
+		srcHost, srcPort := splitHostPort(source.Host, "443")
+		if reqHost == srcHost && reqPort == srcPort {
+			return true
+		}
 	}
 	apiURL, err := url.Parse(source.APIURL)
-	return err == nil && strings.EqualFold(req.URL.Host, apiURL.Host)
+	if err != nil || apiURL.Scheme != "https" || apiURL.Host == "" {
+		return false
+	}
+	apiHost, apiPort := splitHostPort(apiURL.Host, defaultPortForScheme(apiURL.Scheme))
+	return reqHost == apiHost && reqPort == apiPort
+}
+
+// splitHostPort normalizes hostport to a lowercase host and an explicit port,
+// falling back to defaultPort when hostport has none.
+func splitHostPort(hostport, defaultPort string) (string, string) {
+	host, port, err := net.SplitHostPort(hostport)
+	if err != nil {
+		host, port = hostport, defaultPort
+	}
+	return strings.ToLower(host), port
+}
+
+// defaultPortForScheme returns the implicit port for a URL scheme lacking one.
+func defaultPortForScheme(scheme string) string {
+	if scheme == "http" {
+		return "80"
+	}
+	return "443"
 }
 
 func sourceRedirectPolicy(source config.Source) func(*http.Request, []*http.Request) error {

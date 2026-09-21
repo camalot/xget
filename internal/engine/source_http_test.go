@@ -65,6 +65,7 @@ func TestSetSourceAuthHeaderUsesProviderHeaderOnlyForConfiguredHosts(t *testing.
 		{url: "https://api.gitlab.example.com/v4/projects/group%2Fproject/releases", wantAuth: true},
 		{url: "https://example.com/tool", wantAuth: false},
 		{url: "http://gitlab.example.com/tool", wantAuth: false},
+		{url: "https://gitlab.example.com:8443/tool", wantAuth: false},
 	} {
 		req, err := http.NewRequest(http.MethodGet, test.url, nil)
 		if err != nil {
