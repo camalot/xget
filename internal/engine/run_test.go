@@ -13,6 +13,32 @@ import (
 	"github.com/camalot/xget/internal/options"
 )
 
+func TestGetExtractorSelectsArchiveExtractorForURLWithQueryString(t *testing.T) {
+	extractor, err := getExtractor("https://gitlab.example.com/api/v4/projects/1/repository/archive.tar.gz?sha=v1.0.0", "tool", &options.Flags{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := extractor.(*ArchiveExtractor); !ok {
+		t.Fatalf("extractor = %T, want *ArchiveExtractor", extractor)
+	}
+}
+
+func TestExtractorFilenameStripsQueryString(t *testing.T) {
+	tests := []struct {
+		url  string
+		want string
+	}{
+		{url: "https://gitlab.example.com/api/v4/projects/1/repository/archive.tar.gz?sha=v1.0.0", want: "archive.tar.gz"},
+		{url: "https://example.com/tool.tar.gz", want: "tool.tar.gz"},
+		{url: "tool.tar.gz", want: "tool.tar.gz"},
+	}
+	for _, test := range tests {
+		if got := extractorFilename(test.url); got != test.want {
+			t.Errorf("extractorFilename(%q) = %q, want %q", test.url, got, test.want)
+		}
+	}
+}
+
 func TestGetFinderUsesLatestReleaseForLatestTag(t *testing.T) {
 	tests := []struct {
 		name       string

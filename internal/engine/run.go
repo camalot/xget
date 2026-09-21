@@ -305,10 +305,11 @@ func parseAssetMatcher(raw string) (asset string, anti bool, rx *regexp.Regexp, 
 
 // Determine which extractor to use.
 func getExtractor(url, tool string, opts *options.Flags) (extractor Extractor, err error) {
+	filename := extractorFilename(url)
 	if opts.DLOnly {
 		extractor = &SingleFileExtractor{
-			Name:   path.Base(url),
-			Rename: path.Base(url),
+			Name:   filename,
+			Rename: filename,
 			Decompress: func(r io.Reader) (io.Reader, error) {
 				return r, nil
 			},
@@ -318,11 +319,22 @@ func getExtractor(url, tool string, opts *options.Flags) (extractor Extractor, e
 		if err != nil {
 			return nil, err
 		}
-		extractor = NewExtractor(path.Base(url), tool, gc)
+		extractor = NewExtractor(filename, tool, gc)
 	} else {
-		extractor = NewExtractor(path.Base(url), tool, &BinaryChooser{Tool: tool})
+		extractor = NewExtractor(filename, tool, &BinaryChooser{Tool: tool})
 	}
 	return extractor, nil
+}
+
+// extractorFilename returns the base filename used for archive-suffix
+// detection, stripping any query string (e.g. GitLab's
+// "archive.tar.gz?sha=...") that would otherwise defeat NewExtractor's
+// ".tar.gz"-style suffix checks.
+func extractorFilename(rawURL string) string {
+	if u, err := url.Parse(rawURL); err == nil && u.Path != "" {
+		return path.Base(u.Path)
+	}
+	return path.Base(rawURL)
 }
 
 // Write an extracted file to disk with a new name.
