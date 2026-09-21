@@ -191,6 +191,51 @@ func requireWithinBase(base, target string) error {
 	return nil
 }
 
+// safeMkdirAll creates target and any missing directories between base and
+// target one path component at a time, refusing to create or descend through
+// a component that already exists as a symlink. base itself is trusted and
+// must already exist. This defends against a pre-existing symlinked ancestor
+// (planted before extraction runs) redirecting writes outside of base, which
+// a purely lexical containment check (safeArchiveJoin) cannot detect.
+func safeMkdirAll(base, target string) error {
+	if err := requireWithinBase(base, target); err != nil {
+		return err
+	}
+	cleanBase := filepath.Clean(base)
+	cleanTarget := filepath.Clean(target)
+	if cleanTarget == cleanBase {
+		return nil
+	}
+	rel, err := filepath.Rel(cleanBase, cleanTarget)
+	if err != nil {
+		return err
+	}
+	current := cleanBase
+	for _, part := range strings.Split(rel, string(os.PathSeparator)) {
+		if part == "" || part == "." {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("refusing to extract through symlinked path %q", current)
+			}
+			if !info.IsDir() {
+				return fmt.Errorf("refusing to extract through non-directory path %q", current)
+			}
+			continue
+		}
+		if !os.IsNotExist(err) {
+			return err
+		}
+		if err := os.Mkdir(current, 0750); err != nil && !os.IsExist(err) {
+			return err
+		}
+	}
+	return nil
+}
+
 func (l link) Write() error {
 	// reject link targets that would resolve outside the extraction root
 	if filepath.IsAbs(l.oldname) {
@@ -201,14 +246,12 @@ func (l link) Write() error {
 		return fmt.Errorf("unsafe archive link target %q: %w", l.oldname, err)
 	}
 
-	// remove file if it exists already
-	err := os.Remove(l.newname)
-	if err != nil && !os.IsNotExist(err) {
+	// create parent directories, refusing to follow a symlinked ancestor
+	if err := safeMkdirAll(l.base, filepath.Dir(l.newname)); err != nil {
 		return err
 	}
-	// make parent directories if necessary
-	err = os.MkdirAll(filepath.Dir(l.newname), 0750)
-	if err != nil {
+	// remove file if it exists already
+	if err := os.Remove(l.newname); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
@@ -279,8 +322,9 @@ func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, [
 							if err != nil {
 								return fmt.Errorf("extract: %w", err)
 							}
-							// #nosec G703 -- safeArchiveJoin blocks absolute and parent traversal paths.
-							_ = os.MkdirAll(dirName, 0750)
+							if err := safeMkdirAll(to, dirName); err != nil {
+								return fmt.Errorf("extract: %w", err)
+							}
 							continue
 						} else if subf.Type == TypeLink || subf.Type == TypeSymlink {
 							newname, err := safeArchiveJoin(to, subf.Name[len(f.Name):])
@@ -303,6 +347,9 @@ func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, [
 						}
 						name, err = safeArchiveJoin(to, subf.Name[len(f.Name):])
 						if err != nil {
+							return fmt.Errorf("extract: %w", err)
+						}
+						if err := safeMkdirAll(to, filepath.Dir(name)); err != nil {
 							return fmt.Errorf("extract: %w", err)
 						}
 						err = writeFile(fdata, name, subf.Mode)
