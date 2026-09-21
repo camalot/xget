@@ -93,6 +93,25 @@ func splitTargetTag(target string) (repo, tag string, ok bool) {
 	return repo, tag, true
 }
 
+// splitTargetProvider separates a source profile from PROFILE:owner/repo
+// shorthand. URLs and Windows paths are left unchanged.
+func splitTargetProvider(target string) (repo, provider string, ok bool) {
+	if strings.Contains(target, "://") {
+		return target, "", false
+	}
+	provider, repo, ok = strings.Cut(target, ":")
+	if !ok || provider == "" || repo == "" || strings.HasPrefix(repo, "/") || strings.HasPrefix(repo, `\`) || !strings.Contains(repo, "/") {
+		return target, "", false
+	}
+	for _, char := range provider {
+		if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-' || char == '_' {
+			continue
+		}
+		return target, "", false
+	}
+	return repo, provider, true
+}
+
 func newRootCommand() *cobra.Command {
 	f := &rootFlags{}
 
@@ -206,8 +225,13 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 			return uninstallPackage(cmd, args[0], f.from, false)
 		}
 
-		target, inlineTag, hasInlineTag := splitTargetTag(args[0])
-		opts, err := optionsForTarget(cfg, cmd, f, target)
+		target, inlineProvider, hasInlineProvider := splitTargetProvider(args[0])
+		target, inlineTag, hasInlineTag := splitTargetTag(target)
+		provider := ""
+		if hasInlineProvider {
+			provider = inlineProvider
+		}
+		opts, err := optionsForTargetProvider(cfg, cmd, f, target, provider)
 		if err != nil {
 			return err
 		}
@@ -310,6 +334,10 @@ func configOptionsForTarget(cfg *config.Config, target string) (options.Flags, e
 }
 
 func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, target string) (options.Flags, error) {
+	return optionsForTargetProvider(cfg, cmd, f, target, "")
+}
+
+func optionsForTargetProvider(cfg *config.Config, cmd *cobra.Command, f *rootFlags, target, inlineProvider string) (options.Flags, error) {
 	opts, err := configOptionsForTarget(cfg, target)
 	if err != nil {
 		return options.Flags{}, err
@@ -325,7 +353,12 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 		opts.Source = f.source
 	}
 	if cmd.Flags().Changed("provider") {
+		if inlineProvider != "" && !strings.EqualFold(f.provider, inlineProvider) {
+			return options.Flags{}, fmt.Errorf("conflicting providers %q and %q", inlineProvider, f.provider)
+		}
 		opts.SourceType = f.provider
+	} else if inlineProvider != "" {
+		opts.SourceType = inlineProvider
 	}
 	if cmd.Flags().Changed("to") {
 		expanded, err := home.Expand(f.output)

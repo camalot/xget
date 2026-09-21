@@ -525,6 +525,23 @@ func packageName(target string, finder Finder) string {
 	}
 }
 
+func packageSource(finder Finder, fallback string) string {
+	switch f := finder.(type) {
+	case *GithubAssetFinder:
+		return f.Source.Name
+	case *GithubSourceFinder:
+		return f.Source.Name
+	case *GitlabAssetFinder:
+		return f.Source.Name
+	case *GitlabSourceFinder:
+		return f.Source.Name
+	case *DirectAssetFinder:
+		return "URL"
+	default:
+		return fallback
+	}
+}
+
 // RefreshInstalledPackage looks up the newest release for pkg. The caller
 // supplies the resolved options; Tag and UpgradeOnly are cleared here because
 // either would prevent the newest release from being reported.
@@ -779,7 +796,7 @@ func Run(target string, opts options.Flags) error {
 			RefreshedAt:     now,
 			CurrentTag:      version,
 			InstalledTag:    version,
-			Source:          opts.SourceType,
+			Source:          packageSource(finder, opts.SourceType),
 			SHA256:          assetSHA256,
 		}
 		return installed.Upsert(storePath, pkg)

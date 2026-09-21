@@ -128,6 +128,11 @@ header: xget Manual
 
 :    Select a release source profile. Built-in profiles are `github` (the default) and `gitlab`. Named profiles are configured under `sources`.
 
+  A profile can also be selected with the **`PROFILE:repository`** shorthand.
+  For example, **`xget install gitlab:gitlab-org/cli`** is equivalent to
+  **`xget install gitlab-org/cli --provider gitlab`**. A conflicting explicit
+  `--provider` value is an error.
+
   `--to=`
 
 :    Move the executable to the given name after extraction. If the name is `-`, it the data will be written to stdout. Example: **`xget zyedidia/micro --to /usr/local/bin`**. Example: **`xget --asset nvim.appimage --to nvim neovim/neovim`**.

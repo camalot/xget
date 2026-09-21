@@ -64,6 +64,35 @@ func TestGithubSourceFinderKeepsArchiveExtension(t *testing.T) {
 	}
 }
 
+func TestPackageSourceUsesFinderProvider(t *testing.T) {
+	github, err := config.Default().ResolveSource("github")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitlab, err := config.Default().ResolveSource("gitlab")
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := github
+	work.Name = "work"
+
+	tests := []struct {
+		finder   Finder
+		fallback string
+		want     string
+	}{
+		{finder: &GithubAssetFinder{Source: github}, fallback: "wrong", want: "github"},
+		{finder: &GitlabAssetFinder{Source: gitlab}, fallback: "wrong", want: "gitlab"},
+		{finder: &GithubSourceFinder{Source: work}, fallback: "wrong", want: "work"},
+		{finder: &DirectAssetFinder{}, fallback: "wrong", want: "URL"},
+	}
+	for _, test := range tests {
+		if got := packageSource(test.finder, test.fallback); got != test.want {
+			t.Errorf("packageSource(%T) = %q, want %q", test.finder, got, test.want)
+		}
+	}
+}
+
 func TestResolvedInstallLocation(t *testing.T) {
 	workingDirectory := t.TempDir()
 	t.Chdir(workingDirectory)

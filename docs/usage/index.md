@@ -169,6 +169,10 @@ Use `--provider gitlab` for GitLab projects, including nested namespaces such as
 configuration file. The existing `--source` flag still downloads a repository
 source archive instead of release assets.
 
+`xget install gitlab:gitlab-org/cli` is shorthand for
+`xget install gitlab-org/cli --provider gitlab`. The shorthand accepts any named
+source profile. A conflicting explicit `--provider` value is rejected.
+
 You can also provide the token value by reading it from a file via `@/path/to/file`.
 
 For more details, see the [Configuration](../configuration) section and the [FAQ](faq) page.

@@ -34,6 +34,28 @@ func TestSplitTargetTag(t *testing.T) {
 	}
 }
 
+func TestSplitTargetProvider(t *testing.T) {
+	tests := []struct {
+		target   string
+		repo     string
+		provider string
+		ok       bool
+	}{
+		{target: "gitlab:gitlab-org/cli", repo: "gitlab-org/cli", provider: "gitlab", ok: true},
+		{target: "work:group/subgroup/project@v1", repo: "group/subgroup/project@v1", provider: "work", ok: true},
+		{target: "https://gitlab.com/group/project", repo: "https://gitlab.com/group/project"},
+		{target: `C:\tools\archive.zip`, repo: `C:\tools\archive.zip`},
+		{target: "owner/repo", repo: "owner/repo"},
+	}
+
+	for _, test := range tests {
+		repo, provider, ok := splitTargetProvider(test.target)
+		if repo != test.repo || provider != test.provider || ok != test.ok {
+			t.Errorf("splitTargetProvider(%q) = (%q, %q, %t), want (%q, %q, %t)", test.target, repo, provider, ok, test.repo, test.provider, test.ok)
+		}
+	}
+}
+
 func TestRootCommandIncludesCompletionSubcommand(t *testing.T) {
 	cmd := newRootCommand()
 	if got := cmd.Commands(); len(got) == 0 {
@@ -114,6 +136,32 @@ func TestOptionsForTargetProviderPrecedence(t *testing.T) {
 	}
 	if opts.Source {
 		t.Fatal("--provider must not enable source archive downloads")
+	}
+}
+
+func TestOptionsForTargetInlineProvider(t *testing.T) {
+	cfg := config.Default()
+	cfg.Repositories["gitlab-org/cli"] = config.Repository{Name: "gitlab-org/cli", Target: "./bin"}
+	cmd := newRootCommand()
+	flags := &rootFlags{}
+
+	opts, err := optionsForTargetProvider(cfg, cmd, flags, "gitlab-org/cli", "gitlab")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.SourceType != "gitlab" || opts.SourceConfig.Type != "gitlab" {
+		t.Fatalf("inline provider was not resolved: %#v", opts)
+	}
+	if !strings.HasSuffix(opts.Output, "bin") {
+		t.Fatalf("canonical repository config was not applied: %#v", opts)
+	}
+
+	flags.provider = "github"
+	if err := cmd.Flags().Set("provider", "github"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := optionsForTargetProvider(cfg, cmd, flags, "gitlab-org/cli", "gitlab"); err == nil || !strings.Contains(err.Error(), "conflicting providers") {
+		t.Fatalf("conflicting providers error = %v", err)
 	}
 }
 

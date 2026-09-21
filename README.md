@@ -57,6 +57,7 @@ xget list camalot/xget
 xget list --installed
 xget list camalot/xget --installed
 xget install gitlab-org/cli --provider gitlab
+xget install gitlab:gitlab-org/cli
 ```
 
 <!-- markdownlint-disable MD041 -->
@@ -639,6 +640,13 @@ GitLab repositories may use nested namespaces:
 ```bash
 xget install group/subgroup/project --provider gitlab
 ```
+
+The `PROFILE:repository` shorthand selects the same named source profile, so
+`xget install gitlab:gitlab-org/cli` is equivalent to
+`xget install gitlab-org/cli --provider gitlab`. The canonical repository name
+is stored in installed-package metadata, and the selected profile is stored as
+its source. Supplying a different `--provider` alongside the shorthand is an
+error.
 
 Normal GitLab installs match only release asset links. `--source` retains its
 existing meaning and downloads a repository source archive. GitLab does not

@@ -148,6 +148,16 @@ that order. GitLab supports nested project paths such as
 `group/subgroup/project`. Normal installs use GitLab release asset links;
 `--source` downloads a source archive and keeps its existing meaning.
 
+As a shorthand, prefix the repository with a profile name:
+
+```bash
+xget install gitlab:gitlab-org/cli
+```
+
+This is equivalent to `xget install gitlab-org/cli --provider gitlab`. Installed
+metadata records `gitlab-org/cli` as the package and `gitlab` as its source.
+Combining the shorthand with a different `--provider` value is an error.
+
 ```toml
 [global]
 target = "~/bin"

@@ -152,6 +152,10 @@ pass.
   configured source, while profile suppression remains scoped. Token-file
   references in either `global.github_token` or a profile `token` are resolved
   by the existing token loader and do not trigger plaintext warnings.
+- **Provider shorthand:** `PROFILE:repository` is parsed before repository
+  configuration lookup and behaves like `--provider PROFILE`. Conflicting
+  shorthand and flag values are rejected. Tracked installs derive their source
+  from the selected finder profile and store the canonical repository name.
 - **Not implemented as provider inference:** full GitLab URLs still require the
   GitLab profile to be selected. Automatic inference would contradict the
   agreed default/profile precedence and could bypass credentials selected by
