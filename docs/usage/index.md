@@ -10,11 +10,11 @@ layout: default
 
 `xget` downloads and extracts pre-built binaries from GitHub or GitLab releases. The target can be:
 
-- a GitHub repository such as `owner/repo`,
+- a GitHub or GitLab repository such as `owner/repo` (GitLab also supports nested namespaces such as `group/subgroup/project`),
 - a direct URL to a release asset, or
 - a local file to extract from.
 
-If a GitHub repository is provided, xget will search the latest release for assets that look like a binary for your system. Append `@TAG` to select a release directly, such as `eza-community/eza@v0.23.5`; this is equivalent to `--tag TAG`. If a direct URL is provided, xget skips detection and downloads the file directly. If a local file is provided, xget extracts its contents without any network call.
+If a GitHub or GitLab repository is provided, xget will search the latest release for assets that look like a binary for your system. Append `@TAG` to select a release directly, such as `eza-community/eza@v0.23.5`; this is equivalent to `--tag TAG`. If a direct URL is provided, xget skips detection and downloads the file directly. If a local file is provided, xget extracts its contents without any network call.
 
 Use `@latest` or `--tag latest` to explicitly select the latest stable release. With `--pre-release`, `latest` selects the newest release regardless of whether it is stable or a prerelease.
 

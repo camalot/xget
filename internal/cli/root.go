@@ -99,6 +99,9 @@ func splitTargetProvider(target string) (repo, provider string, ok bool) {
 	if strings.Contains(target, "://") {
 		return target, "", false
 	}
+	if runtime.GOOS == "windows" && isWindowsDriveTarget(target) {
+		return target, "", false
+	}
 	provider, repo, ok = strings.Cut(target, ":")
 	if !ok || provider == "" || repo == "" || strings.HasPrefix(repo, "/") || strings.HasPrefix(repo, `\`) || !strings.Contains(repo, "/") {
 		return target, "", false
@@ -110,6 +113,17 @@ func splitTargetProvider(target string) (repo, provider string, ok bool) {
 		return target, "", false
 	}
 	return repo, provider, true
+}
+
+// isWindowsDriveTarget reports whether target looks like a Windows drive
+// absolute or drive-relative path, e.g. "C:tools/archive.zip" or
+// `C:\tools\archive.zip`, which must not be parsed as a PROFILE:repo target.
+func isWindowsDriveTarget(target string) bool {
+	if len(target) < 2 || target[1] != ':' {
+		return false
+	}
+	c := target[0]
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 func newRootCommand() *cobra.Command {

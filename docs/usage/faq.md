@@ -23,7 +23,7 @@ xget is designed to work on Unix-like systems such as Linux, macOS, and BSD vari
 
 ## How is this different from a package manager?
 
-xget only downloads pre-built binaries uploaded to GitHub by the developers of the repository. It does not maintain a central package list or a registry, and it does not manage dependencies. xget does not install software into system-wide directories unless you tell it to do so.
+xget only downloads pre-built binaries uploaded to GitHub or GitLab by the developers of the repository. It does not maintain a central package list or a registry, and it does not manage dependencies. xget does not install software into system-wide directories unless you tell it to do so.
 
 xget works best for installing standalone command-line tools that ship as a single binary. Tools built in Go, Rust, or Haskell often fit this model well.
 
@@ -44,7 +44,7 @@ has a sha256 checksum associated with the asset, xget will automatically verify 
 
 No. xget supports:
 
-- GitHub repositories,
+- GitHub or GitLab repositories, including nested GitLab namespaces such as `group/subgroup/project`,
 - direct URLs to archive files or executables, and
 - local files that should be extracted in-place.
 
@@ -54,7 +54,7 @@ When you provide a direct URL or local file, xget skips repo detection and downl
 
 xget should work with many common release patterns, but these rules make compatibility more reliable:
 
-- Provide pre-built binaries as GitHub release assets.
+- Provide pre-built binaries as GitHub or GitLab release assets.
 - Name the binary using the pattern `OS_Arch` and include it in each asset name. Supported values include `darwin`, `linux`, `windows`, `netbsd`, `openbsd`, `freebsd`, `android`, `illumos`, `solaris`, and `plan9`, along with architectures like `amd64`, `i386`, `arm`, `arm64`, and `riscv64`.
 - Include `.sha256` or `.sha256sum` checksum files for each asset when possible.
 - Keep each release archive to a single executable or app image per system.

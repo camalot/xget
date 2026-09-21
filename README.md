@@ -25,13 +25,15 @@ needed for installation. For more complex installation, you may use the
 
 ![xget Demo](https://github.com/camalot/xget/raw/refs/heads/main/docs/assets/images/xget-demo.gif)
 
-For software maintainers, if you provide prebuilt binaries on GitHub, you can
-list `xget` as a one-line method for users to install your software.
+For software maintainers, if you provide prebuilt binaries on GitHub or
+GitLab, you can list `xget` as a one-line method for users to install your
+software.
 
 xget has a number of detection mechanisms and should work out-of-the-box with
-most software that is distributed via single binaries on GitHub releases. First
-try using xget on your software, it may already just work. Otherwise, see the
-FAQ for a clear set of rules to make your software compatible with xget.
+most software that is distributed via single binaries on GitHub or GitLab
+releases. First try using xget on your software, it may already just work.
+Otherwise, see the FAQ for a clear set of rules to make your software
+compatible with xget.
 
 ## Examples
 
@@ -187,11 +189,12 @@ for the full list of inputs/outputs and more examples.
 
 ## Usage
 
-The `TARGET` argument passed to xget should either be a GitHub repository,
-formatted as `user/repo`, in which case xget will search the release assets, a
-direct URL, in which case xget will directly download and extract from the
-given URL, or a local file, in which case xget will extract directly from the
-local file.
+The `TARGET` argument passed to xget should either be a GitHub or GitLab
+repository, formatted as `user/repo` (GitLab also supports nested namespaces
+such as `group/subgroup/project`), in which case xget will search the release
+assets, a direct URL, in which case xget will directly download and extract
+from the given URL, or a local file, in which case xget will extract directly
+from the local file.
 
 If xget downloads an asset called `xxx` and there also exists an asset called
 `xxx.sha256` or `xxx.sha256sum`, xget will automatically verify that the
@@ -749,11 +752,11 @@ xget tacocontent/ironstate --asset '~\.zip$' --ignore '~\.zip\.sbom\.json$'
 
 ### How is this different from a package manager?
 
-xget only downloads pre-built binaries uploaded to GitHub by the developers of
-the repository. It does not maintain a central list of packages or manage
-dependencies. xget does not "install" executables into system-wide directories
-(such as `/usr/local/bin`) unless instructed. It works best for software that
-comes as a single binary with no additional files needed.
+xget only downloads pre-built binaries uploaded to GitHub or GitLab by the
+developers of the repository. It does not maintain a central list of packages
+or manage dependencies. xget does not "install" executables into system-wide
+directories (such as `/usr/local/bin`) unless instructed. It works best for
+software that comes as a single binary with no additional files needed.
 
 ### Does xget keep track of installed binaries?
 

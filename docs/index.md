@@ -22,8 +22,8 @@ nav_order: 1
 <!-- markdownlint-enable MD033 -->
 
 **xget** is the best way to easily get pre-built binaries for your favorite
-tools. It downloads and extracts pre-built binaries from releases on GitHub. To
-use it, provide a repository and xget will search through the assets from the
+tools. It downloads and extracts pre-built binaries from releases on GitHub or
+GitLab. To use it, provide a repository and xget will search through the assets from the
 latest release in an attempt to find a suitable prebuilt binary for your
 system. If one is found, the asset will be downloaded and xget will extract the
 binary to the current directory. xget should only be used for installing
@@ -33,8 +33,9 @@ needed for installation. For more complex installation, you may use the
 
 ![xget Demo](https://github.com/camalot/xget/raw/refs/heads/main/docs/assets/images/xget-demo.gif)
 
-For software maintainers, if you provide prebuilt binaries on GitHub, you can
-list `xget` as a one-line method for users to install your software.
+For software maintainers, if you provide prebuilt binaries on GitHub or
+GitLab, you can list `xget` as a one-line method for users to install your
+software.
 
 xget has a number of detection mechanisms and should work out-of-the-box with
 most software that is distributed via single binaries on GitHub or GitLab releases. First
