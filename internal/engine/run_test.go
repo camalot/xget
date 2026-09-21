@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/options"
 )
 
@@ -45,6 +46,21 @@ func TestGetFinderUsesLatestReleaseForLatestTag(t *testing.T) {
 				t.Errorf("prerelease = %t, want %t", githubFinder.Prerelease, test.prerelease)
 			}
 		})
+	}
+}
+
+func TestGithubSourceFinderKeepsArchiveExtension(t *testing.T) {
+	source, err := config.Default().ResolveSource("github")
+	if err != nil {
+		t.Fatal(err)
+	}
+	finder := &GithubSourceFinder{Repo: "owner/project", Tag: "main", Tool: "project", Source: source}
+	assets, err := finder.Find()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(assets) != 1 || !strings.HasSuffix(assets[0], "/project.tar.gz") {
+		t.Fatalf("source assets = %#v", assets)
 	}
 }
 

@@ -536,6 +536,47 @@ func TestUpgradeSkipsNonGitHubSources(t *testing.T) {
 	}
 }
 
+func TestUpgradeNamedUsesStoredGitlabProfile(t *testing.T) {
+	pkg := samplePackage("group/subgroup/project", "v1.0.0")
+	pkg.Source = "gitlab"
+	storePath := useTempInstalledStore(t, pkg)
+	seen := stubRefresh(t, map[string]string{pkg.Name: "v1.1.0"})
+	calls := stubEngine(t, storePath, nil)
+
+	if _, err := runCLI(t, "upgrade", pkg.Name); err != nil {
+		t.Fatal(err)
+	}
+	if len(*seen) != 1 || (*seen)[0].SourceConfig.Type != "gitlab" {
+		t.Fatalf("refresh options = %#v", *seen)
+	}
+	if len(*calls) != 1 || (*calls)[0].Opts.SourceType != "gitlab" {
+		t.Fatalf("upgrade calls = %#v", *calls)
+	}
+}
+
+func TestUpgradeNamedUsesStoredCustomProfile(t *testing.T) {
+	pkg := samplePackage("owner/project", "v1.0.0")
+	pkg.Source = "work"
+	storePath := useTempInstalledStore(t, pkg)
+	configPath := writeUpgradeConfig(t, `sources:
+  work:
+    type: github
+    host: github.example.com
+    token_env:
+      - WORK_GITHUB_TOKEN
+`)
+	t.Setenv("XGET_CONFIG", configPath)
+	seen := stubRefresh(t, map[string]string{pkg.Name: "v1.1.0"})
+	stubEngine(t, storePath, nil)
+
+	if _, err := runCLI(t, "upgrade", pkg.Name); err != nil {
+		t.Fatal(err)
+	}
+	if len(*seen) != 1 || (*seen)[0].SourceType != "work" || (*seen)[0].SourceConfig.Host != "github.example.com" {
+		t.Fatalf("refresh options = %#v", *seen)
+	}
+}
+
 func TestUpgradeListsPinnedPackagesSeparately(t *testing.T) {
 	pinned := samplePackage("bschaatsbergen/cidr", "v2.2.0")
 	pinned.Options.Tag = "v2.2.0"
@@ -589,7 +630,7 @@ func TestUpgradeAllRunsEngineWithStoredOptions(t *testing.T) {
 	if call.Opts.Output != "/home/user/.local/bin" {
 		t.Fatalf("output = %q", call.Opts.Output)
 	}
-	if call.Opts.ExtractFile != "*.exe" || call.Opts.SourceType != "GitHub" {
+	if call.Opts.ExtractFile != "*.exe" || call.Opts.SourceType != "github" {
 		t.Fatalf("options = %+v", call.Opts)
 	}
 	if len(call.Opts.Asset) != 1 || call.Opts.Asset[0] != ".tar.gz" {

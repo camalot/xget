@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/camalot/xget/internal/config"
 )
 
 type Verifier interface {
@@ -79,10 +81,11 @@ func (s256 *Sha256Printer) Verify(b []byte) error {
 
 type Sha256AssetVerifier struct {
 	AssetURL string
+	Source   config.Source
 }
 
 func (s256 *Sha256AssetVerifier) Verify(b []byte) error {
-	resp, err := Get(s256.AssetURL)
+	resp, err := GetWithSource(s256.AssetURL, s256.Source)
 	if err != nil {
 		return err
 	}

@@ -37,7 +37,7 @@ For software maintainers, if you provide prebuilt binaries on GitHub, you can
 list `xget` as a one-line method for users to install your software.
 
 xget has a number of detection mechanisms and should work out-of-the-box with
-most software that is distributed via single binaries on GitHub releases. First
+most software that is distributed via single binaries on GitHub or GitLab releases. First
 try using xget on your software, it may already just work. Otherwise, see the
 [FAQ](usage/faq) for a clear set of rules to make your software compatible with xget.
 

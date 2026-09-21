@@ -19,7 +19,7 @@ For information on where xget looks for configuration files, see the [Configurat
   quiet = false
   show_hash = false
   upgrade_only = true
-  source = "GitHub"
+  source = "github"
   ignore = ["~\\.sbom\\.json$"]
   target = "./test"
 
@@ -70,7 +70,7 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 ## Available settings - global section
 
 > [!IMPORTANT]
-> `github_token` is supported for backwards compatibility with `eget`, but storing a token in a config file is not recommended. Prefer `XGET_GITHUB_TOKEN`, `GITHUB_TOKEN`, or `@/path/to/file`. xget will warn if `github_token` is set in a config file.
+> `github_token` is supported for backwards compatibility with `eget`, but storing a token in a config file is not recommended. Prefer source-profile `token_env` values. The warning explains how to suppress it with `sources.github.disable_token_warning = true`.
 
 | Setting | Related Flag | Description | Default |
 | --- | --- | --- | --- |
@@ -83,7 +83,7 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | `pre_release` | `--pre-release` | Include pre-releases when fetching the latest version. | `false` |
 | `quiet` | `--quiet` | Print only essential output. | `false` |
 | `show_hash` | `--sha256` | Show the SHA-256 hash of the downloaded asset. | `false` |
-| `source` | N/A | Source provider metadata to record for installs. Defaults to `GitHub` for GitHub targets and `URL` for direct URLs/local files. | `""` |
+| `source` | `--provider` | Named release source profile to use. | `github` |
 | `system` | `--system` | Target system to download for. | `all` |
 | `target` | `--to` | Directory to move downloaded files to after extraction. | `.` |
 | `upgrade_only` | `--upgrade-only` | Only download if the release is newer than the current installed version. | `false` |
@@ -102,7 +102,7 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | `pre_release` | `--pre-release` | Include pre-releases when fetching the latest version. | global value |
 | `quiet` | `--quiet` | Print only essential output. | `false` |
 | `show_hash` | `--sha256` | Show the SHA-256 hash of the downloaded asset. | `false` |
-| `source` | N/A | Source provider metadata to record for installs. Defaults to `GitHub` for GitHub targets and `URL` for direct URLs/local files. | global value |
+| `source` | `--provider` | Named release source profile to use. | global value |
 | `system` | `--system` | Target system to download for. | `all` |
 | `target` | `--to` | Directory to move downloaded files to after extraction. | `.` |
 | `upgrade_only` | `--upgrade-only` | Only download if the release is newer than the current installed version. | `false` |
@@ -119,6 +119,32 @@ The precedence order is:
 4. Built-in defaults.
 
 This means the same config file can set a default target for all repositories and then override it for a single repo in a more specific section.
+
+## Source profiles
+
+The built-in `github` and `gitlab` profiles work without configuration. Named
+profiles allow separate accounts, tokens, and self-hosted domains:
+
+```toml
+[sources.work]
+type = "github"
+host = "github.example.com"
+api_url = "https://github.example.com/api/v3"
+token_env = ["WORK_GITHUB_TOKEN"]
+disable_token_warning = false
+```
+
+Available keys are `type`, `host`, `api_url`, `token_env`, `token`, and
+`disable_token_warning`. Token environment variables are checked in order,
+followed by `token`; GitHub profiles then fall back to legacy
+`global.github_token`. Values can use `@/path/to/file` to read a token from a
+file. Stored plaintext tokens produce a warning unless
+`disable_token_warning = true` is set in that profile.
+
+Select profiles with `--provider`, repository `source`, or global `source`, in
+that order. GitLab supports nested project paths such as
+`group/subgroup/project`. Normal installs use GitLab release asset links;
+`--source` downloads a source archive and keeps its existing meaning.
 
 ```toml
 [global]

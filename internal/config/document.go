@@ -18,6 +18,8 @@ import (
 // GlobalSection is the section name used for global configuration values.
 const GlobalSection = "global"
 
+const SourceSectionPrefix = "sources."
+
 // ErrKeyNotSet is returned when a requested key is absent from the document.
 var ErrKeyNotSet = errors.New("key is not set")
 
@@ -42,6 +44,7 @@ var (
 	keysOnce    sync.Once
 	globalKeys  map[string]ValueKind
 	repoKeys    map[string]ValueKind
+	sourceKeys  map[string]ValueKind
 	errNotAFile = errors.New("config path is a directory")
 )
 
@@ -72,6 +75,7 @@ func initKeys() {
 	keysOnce.Do(func() {
 		globalKeys = buildKeys(Global{})
 		repoKeys = buildKeys(Repository{})
+		sourceKeys = buildKeys(Source{})
 	})
 }
 
@@ -81,13 +85,23 @@ func SectionKeys(section string) map[string]ValueKind {
 	if section == GlobalSection {
 		return globalKeys
 	}
+	if strings.HasPrefix(section, SourceSectionPrefix) {
+		return sourceKeys
+	}
 	return repoKeys
 }
 
-// ValidateSection checks that a section name is either "global" or "owner/repo".
+// ValidateSection checks global, repository, and named source sections.
 func ValidateSection(section string) error {
 	if section == GlobalSection {
 		return nil
+	}
+	if strings.HasPrefix(section, SourceSectionPrefix) {
+		name := strings.TrimPrefix(section, SourceSectionPrefix)
+		if name != "" && !strings.ContainsAny(name, "/.") {
+			return nil
+		}
+		return fmt.Errorf("invalid source section %q: expected sources.NAME", section)
 	}
 	parts := strings.Split(section, "/")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
@@ -257,6 +271,37 @@ func (d *Document) Save() error {
 }
 
 func (d *Document) section(name string) (map[string]any, bool) {
+	if strings.HasPrefix(name, SourceSectionPrefix) {
+		sources, ok := d.mapSection("sources")
+		if !ok {
+			return nil, false
+		}
+		return mapValue(sources, strings.TrimPrefix(name, SourceSectionPrefix))
+	}
+	return d.mapSection(name)
+}
+
+func mapValue(parent map[string]any, name string) (map[string]any, bool) {
+	raw, ok := parent[name]
+	if !ok {
+		return nil, false
+	}
+	switch typed := raw.(type) {
+	case map[string]any:
+		return typed, true
+	case map[any]any:
+		converted := make(map[string]any, len(typed))
+		for key, value := range typed {
+			converted[fmt.Sprint(key)] = value
+		}
+		parent[name] = converted
+		return converted, true
+	default:
+		return nil, false
+	}
+}
+
+func (d *Document) mapSection(name string) (map[string]any, bool) {
 	raw, ok := d.Data[name]
 	if !ok {
 		return nil, false
@@ -279,6 +324,16 @@ func (d *Document) section(name string) (map[string]any, bool) {
 func (d *Document) ensureSection(name string) map[string]any {
 	if existing, ok := d.section(name); ok {
 		return existing
+	}
+	if strings.HasPrefix(name, SourceSectionPrefix) {
+		sources, ok := d.mapSection("sources")
+		if !ok {
+			sources = map[string]any{}
+			d.Data["sources"] = sources
+		}
+		created := map[string]any{}
+		sources[strings.TrimPrefix(name, SourceSectionPrefix)] = created
+		return created
 	}
 	created := map[string]any{}
 	d.Data[name] = created
@@ -480,6 +535,30 @@ func (d *Document) Entries() []Entry {
 		sec, ok := d.section(name)
 		if !ok {
 			entries = append(entries, Entry{Section: name, Key: "", Value: fmt.Sprint(d.Data[name])})
+			continue
+		}
+		if name == "sources" {
+			profiles := make([]string, 0, len(sec))
+			for profile := range sec {
+				profiles = append(profiles, profile)
+			}
+			sort.Strings(profiles)
+			for _, profile := range profiles {
+				profileSection, exists := mapValue(sec, profile)
+				if !exists {
+					continue
+				}
+				keys := make([]string, 0, len(profileSection))
+				for key := range profileSection {
+					keys = append(keys, key)
+				}
+				sort.Strings(keys)
+				for _, key := range keys {
+					for _, value := range FormatValues(profileSection[key]) {
+						entries = append(entries, Entry{Section: SourceSectionPrefix + profile, Key: key, Value: value})
+					}
+				}
+			}
 			continue
 		}
 		keys := make([]string, 0, len(sec))

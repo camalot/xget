@@ -177,7 +177,7 @@ func candidatesAtLocation(candidates []upgradeCandidate, location string) []upgr
 // queryable release list are skipped, since no upgrade can be determined.
 func upgradeCandidates(store *installed.Store) (upgradable, pinned []upgradeCandidate) {
 	for _, pkg := range installed.SortedPackages(store) {
-		if !strings.EqualFold(pkg.Source, "GitHub") {
+		if strings.EqualFold(pkg.Source, "URL") {
 			continue
 		}
 		if !semver.IsUpgrade(pkg.InstalledTag, pkg.CurrentTag) {
@@ -294,7 +294,7 @@ func upgradeNamed(cmd *cobra.Command, f *upgradeFlags, cfg *config.Config, store
 		return err
 	}
 	for _, pkg := range matches {
-		if !strings.EqualFold(pkg.Source, "GitHub") {
+		if strings.EqualFold(pkg.Source, "URL") {
 			return fmt.Errorf("%s was installed from %s, so no upgrade can be determined", pkg.Name, pkg.Source)
 		}
 	}
@@ -388,6 +388,18 @@ func resolveInstalledOptions(cfg *config.Config, pkg installed.Package) (options
 	if opts.SourceType == "" {
 		opts.SourceType = pkg.Source
 	}
+	if strings.EqualFold(opts.SourceType, "URL") {
+		return opts, nil
+	}
+	resolvedSource, err := cfg.ResolveSource(opts.SourceType)
+	if err != nil {
+		return options.Flags{}, err
+	}
+	if resolvedSource.Type == "github" && resolvedSource.Token == "" {
+		resolvedSource.Token = cfg.Global.GithubToken
+	}
+	opts.SourceType = resolvedSource.Name
+	opts.SourceConfig = resolvedSource
 	if opts.Output == "" {
 		opts.Output = pkg.InstallLocation
 	}

@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/home"
 	pb "github.com/schollz/progressbar/v3"
 )
@@ -76,15 +78,18 @@ func tokenFrom(s string) (string, error) {
 var ErrNoToken = errors.New("no github token")
 
 func getGithubToken() (string, error) {
-	// support for EGET_GITHUB_TOKEN is kept for backwards compatibility, but XGET_GITHUB_TOKEN is preferred
-	if os.Getenv("EGET_GITHUB_TOKEN") != "" {
-		return tokenFrom(os.Getenv("EGET_GITHUB_TOKEN"))
+	source, _ := config.Default().ResolveSource("github")
+	return getSourceToken(source)
+}
+
+func getSourceToken(source config.Source) (string, error) {
+	for _, name := range source.TokenEnv {
+		if value := os.Getenv(name); value != "" {
+			return tokenFrom(value)
+		}
 	}
-	if os.Getenv("XGET_GITHUB_TOKEN") != "" {
-		return tokenFrom(os.Getenv("XGET_GITHUB_TOKEN"))
-	}
-	if os.Getenv("GITHUB_TOKEN") != "" {
-		return tokenFrom(os.Getenv("GITHUB_TOKEN"))
+	if source.Token != "" {
+		return tokenFrom(source.Token)
 	}
 	return "", ErrNoToken
 }
@@ -95,37 +100,69 @@ func GithubTokenConfigured() bool {
 }
 
 func SetAuthHeader(req *http.Request) *http.Request {
-	token, err := getGithubToken()
+	source, _ := config.Default().ResolveSource("github")
+	return setSourceAuthHeader(req, source)
+}
+
+func setSourceAuthHeader(req *http.Request, source config.Source) *http.Request {
+	token, err := getSourceToken(source)
 	if err != nil && !errors.Is(err, ErrNoToken) {
-		fmt.Fprintln(os.Stderr, "warning: not using github token:", err)
+		fmt.Fprintf(os.Stderr, "warning: not using %s token: %v\n", source.Type, err)
 	}
 
-	if req.URL.Scheme == "https" && req.Host == "api.github.com" && err == nil {
+	if req.URL.Scheme == "https" && sourceMatchesRequest(source, req) && err == nil {
 		if runtimeDisableSSL {
-			fmt.Fprintln(os.Stderr, "warning: not using GitHub token while SSL verification is disabled")
+			fmt.Fprintf(os.Stderr, "warning: not using %s token while SSL verification is disabled\n", source.Type)
 			return req
 		}
-		req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+		if source.Type == "gitlab" {
+			req.Header.Set("PRIVATE-TOKEN", token)
+		} else {
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+		}
 	}
 
 	return req
 }
 
+func sourceMatchesRequest(source config.Source, req *http.Request) bool {
+	if strings.EqualFold(req.URL.Hostname(), source.Host) {
+		return true
+	}
+	apiURL, err := url.Parse(source.APIURL)
+	return err == nil && strings.EqualFold(req.URL.Host, apiURL.Host)
+}
+
+func sourceRedirectPolicy(source config.Source) func(*http.Request, []*http.Request) error {
+	return func(req *http.Request, _ []*http.Request) error {
+		if req.URL.Scheme != "https" || !sourceMatchesRequest(source, req) {
+			req.Header.Del("Authorization")
+			req.Header.Del("PRIVATE-TOKEN")
+		}
+		return nil
+	}
+}
+
 func Get(url string) (*http.Response, error) {
+	source, _ := config.Default().ResolveSource("github")
+	return GetWithSource(url, source)
+}
+
+func GetWithSource(url string, source config.Source) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
 		return nil, err
 	}
 
-	req = SetAuthHeader(req)
+	req = setSourceAuthHeader(req, source)
 
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	if runtimeDisableSSL {
 		// #nosec G402 -- explicit user opt-in via --disable-ssl.
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
-	proxyClient := &http.Client{Transport: transport}
+	proxyClient := &http.Client{Transport: transport, CheckRedirect: sourceRedirectPolicy(source)}
 
 	return proxyClient.Do(req)
 }
@@ -198,6 +235,11 @@ func GetRateLimit() (RateLimit, error) {
 // size of the file being downloaded, and the download will write to the
 // returned progress bar.
 func Download(url string, out io.Writer, getbar func(size int64) *pb.ProgressBar) error {
+	source, _ := config.Default().ResolveSource("github")
+	return DownloadWithSource(url, out, getbar, source)
+}
+
+func DownloadWithSource(url string, out io.Writer, getbar func(size int64) *pb.ProgressBar, source config.Source) error {
 	if IsLocalFile(url) {
 		f, err := openValidatedFile(url)
 		if err != nil {
@@ -212,7 +254,7 @@ func Download(url string, out io.Writer, getbar func(size int64) *pb.ProgressBar
 		return err
 	}
 
-	resp, err := Get(url)
+	resp, err := GetWithSource(url, source)
 	if err != nil {
 		return err
 	}

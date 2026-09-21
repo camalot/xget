@@ -62,7 +62,7 @@ func openDocument(f *configFlags) (*config.Document, error) {
 
 func newConfigGetCommand(f *configFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <global|owner/repo> <key>",
+		Use:   "get <global|owner/repo|sources.NAME> <key>",
 		Short: "Print a configuration value",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,7 +87,7 @@ func newConfigGetCommand(f *configFlags) *cobra.Command {
 
 func newConfigSetCommand(f *configFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set <global|owner/repo> <key>=<value>",
+		Use:   "set <global|owner/repo|sources.NAME> <key>=<value>",
 		Short: "Set a configuration value",
 		Long: "Set a configuration value.\n\n" +
 			"Scalar keys are replaced. List keys (for example ignore and asset_filters)\n" +
@@ -117,7 +117,7 @@ func newConfigSetCommand(f *configFlags) *cobra.Command {
 
 func newConfigClearCommand(f *configFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "clear <global|owner/repo> <key>",
+		Use:   "clear <global|owner/repo|sources.NAME> <key>",
 		Short: "Remove a configuration key",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -142,7 +142,7 @@ func newConfigClearCommand(f *configFlags) *cobra.Command {
 
 func newConfigPopCommand(f *configFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "pop <global|owner/repo> <key>=<value>",
+		Use:   "pop <global|owner/repo|sources.NAME> <key>=<value>",
 		Short: "Remove a single value from a configuration key",
 		Long: "Remove a single value from a list-valued configuration key.\n\n" +
 			"For scalar keys, the key is removed when its current value matches.",

@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -73,7 +75,7 @@ func TestRootCommandIncludesInstallSubcommandWithInstallFlags(t *testing.T) {
 		if sub.Name() != "install" {
 			continue
 		}
-		for _, name := range []string{"tag", "to", "asset", "ignore"} {
+		for _, name := range []string{"tag", "to", "asset", "ignore", "source", "provider"} {
 			if sub.Flags().Lookup(name) == nil {
 				t.Fatalf("expected install command to include --%s", name)
 			}
@@ -83,7 +85,43 @@ func TestRootCommandIncludesInstallSubcommandWithInstallFlags(t *testing.T) {
 	t.Fatal("expected root command to include an install subcommand")
 }
 
+func TestOptionsForTargetProviderPrecedence(t *testing.T) {
+	cfg := config.Default()
+	cfg.Global.SourceType = "gitlab"
+	cfg.Sources["work"] = config.Source{Name: "work", Type: "github", Host: "github.example.com", APIURL: "https://github.example.com/api/v3"}
+	cfg.Repositories["owner/repo"] = config.Repository{Name: "owner/repo", SourceType: "work"}
+
+	cmd := newRootCommand()
+	flags := &rootFlags{}
+	opts, err := optionsForTarget(cfg, cmd, flags, "owner/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.SourceType != "work" || opts.SourceConfig.Host != "github.example.com" {
+		t.Fatalf("repository source was not resolved: %#v", opts)
+	}
+
+	flags.provider = "gitlab"
+	if err := cmd.Flags().Set("provider", "gitlab"); err != nil {
+		t.Fatal(err)
+	}
+	opts, err = optionsForTarget(cfg, cmd, flags, "owner/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.SourceType != "gitlab" || opts.SourceConfig.Type != "gitlab" {
+		t.Fatalf("CLI provider did not win: %#v", opts)
+	}
+	if opts.Source {
+		t.Fatal("--provider must not enable source archive downloads")
+	}
+}
+
 func TestRateCommandPrintsTokenGuidanceToStderr(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), ".xget.yml")
+	if err := os.WriteFile(configPath, []byte("global: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("XGET_GITHUB_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("EGET_GITHUB_TOKEN", "")
@@ -98,7 +136,7 @@ func TestRateCommandPrintsTokenGuidanceToStderr(t *testing.T) {
 	stderr := &bytes.Buffer{}
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
-	cmd.SetArgs([]string{"rate"})
+	cmd.SetArgs([]string{"rate", "--config", configPath})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}

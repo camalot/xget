@@ -8,7 +8,7 @@ layout: default
 # xget Usage
 {: .no_toc }
 
-`xget` downloads and extracts pre-built binaries from GitHub releases. The target can be:
+`xget` downloads and extracts pre-built binaries from GitHub or GitLab releases. The target can be:
 
 - a GitHub repository such as `owner/repo`,
 - a direct URL to a release asset, or
@@ -61,7 +61,7 @@ form remains supported and runs the same installation command for backwards
 compatibility.
 
 ```text
-Download pre-built binaries from GitHub releases
+Download pre-built binaries from GitHub or GitLab releases
 
 Usage:
   xget [TARGET] [flags]
@@ -72,7 +72,7 @@ Available Commands:
   completion  Generate the autocompletion script for the specified shell
   config      Get, set, and edit xget configuration values
   help        Help about any command
-  install     Download and install a pre-built binary from GitHub releases
+  install     Download and install a pre-built binary from GitHub or GitLab releases
   list        List available or installed packages
   rate        Show GitHub API rate limiting information
   uninstall   Remove an installed package
@@ -91,6 +91,7 @@ Flags:
       --ignore strings           exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times; quote patterns starting with ~ so your shell doesn't expand it to a home directory path
       --non-interactive          fail instead of prompting when user input is required
       --pre-release              include pre-releases when fetching the latest version
+      --provider string          release source profile to use (default github)
   -q, --quiet                    only print essential output
       --rate                     show GitHub API rate limiting information
       --from string              install location to remove the package from, or the directory to remove an untracked target from
@@ -162,6 +163,11 @@ Use `xget uninstall TARGET` or `xget remove TARGET` to remove a tracked package'
 GitHub limits unauthenticated API requests to 60 per hour. Use `xget rate` or the backwards-compatible `xget --rate` to inspect the active limit. When no token is configured, xget writes setup guidance to stderr; it does the same after GitHub responds with a rate-limit status.
 
 To make more requests, set a personal access token in `GITHUB_TOKEN`, `EGET_GITHUB_TOKEN`, or `XGET_GITHUB_TOKEN`; `XGET_GITHUB_TOKEN` takes precedence. xget loads environment files from the current directory in this order: `.secrets`, alphabetically sorted `*.secrets`, `.env`, then alphabetically sorted `*.env`. Earlier files win, and values already set by the shell always take precedence.
+
+Use `--provider gitlab` for GitLab projects, including nested namespaces such as
+`group/subgroup/project`. `--provider` also accepts named profiles from the
+configuration file. The existing `--source` flag still downloads a repository
+source archive instead of release assets.
 
 You can also provide the token value by reading it from a file via `@/path/to/file`.
 

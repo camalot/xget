@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
+
+	"github.com/camalot/xget/internal/config"
 )
 
 // A Finder returns a list of URLs making up a project's assets.
@@ -72,11 +75,17 @@ type GithubAssetFinder struct {
 	MinTime    time.Time // release must be after MinTime to be found
 	Digests    map[string]string
 	ReleaseTag string
+	Source     config.Source
 }
 
 var ErrNoUpgrade = errors.New("requested release is not more recent than current version")
 
 func ListReleases(repo string, includePrereleases bool) ([]Release, error) {
+	source, _ := config.Default().ResolveSource("github")
+	return listGithubReleases(repo, includePrereleases, source)
+}
+
+func listGithubReleases(repo string, includePrereleases bool, source config.Source) ([]Release, error) {
 	if strings.Count(repo, "/") != 1 {
 		return nil, fmt.Errorf("invalid argument (must be of the form user/repo)")
 	}
@@ -84,8 +93,8 @@ func ListReleases(repo string, includePrereleases bool) ([]Release, error) {
 	const limit = 10
 	releases := make([]Release, 0, limit)
 	for page := 1; len(releases) < limit; page++ {
-		url := fmt.Sprintf("https://api.github.com/repos/%s/releases?per_page=100&page=%d", repo, page)
-		resp, err := Get(url)
+		url := fmt.Sprintf("%s/repos/%s/releases?per_page=100&page=%d", source.APIURL, repo, page)
+		resp, err := GetWithSource(url, source)
 		if err != nil {
 			return nil, err
 		}
@@ -143,8 +152,8 @@ func (f *GithubAssetFinder) Find() ([]string, error) {
 	}
 
 	// query github's API for this repo/tag pair.
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/%s", f.Repo, f.Tag)
-	resp, err := Get(url)
+	url := fmt.Sprintf("%s/repos/%s/releases/%s", f.Source.APIURL, f.Repo, f.Tag)
+	resp, err := GetWithSource(url, f.Source)
 	if err != nil {
 		return nil, err
 	}
@@ -207,8 +216,8 @@ func (f *GithubAssetFinder) FindMatch() ([]string, error) {
 	tag := f.Tag[len("tags/"):]
 
 	for page := 1; ; page++ {
-		url := fmt.Sprintf("https://api.github.com/repos/%s/releases?page=%d", f.Repo, page)
-		resp, err := Get(url)
+		url := fmt.Sprintf("%s/repos/%s/releases?page=%d", f.Source.APIURL, f.Repo, page)
+		resp, err := GetWithSource(url, f.Source)
 		if err != nil {
 			return nil, err
 		}
@@ -275,8 +284,8 @@ func (f *GithubAssetFinder) FindMatch() ([]string, error) {
 
 // finds the latest pre-release and returns the tag
 func (f *GithubAssetFinder) getLatestTag() (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases", f.Repo)
-	resp, err := Get(url)
+	url := fmt.Sprintf("%s/repos/%s/releases", f.Source.APIURL, f.Repo)
+	resp, err := GetWithSource(url, f.Source)
 	if err != nil {
 		return "", fmt.Errorf("pre-release finder: %w", err)
 	}
@@ -315,11 +324,12 @@ func (f *DirectAssetFinder) Find() ([]string, error) {
 }
 
 type GithubSourceFinder struct {
-	Tool string
-	Repo string
-	Tag  string
+	Tool   string
+	Repo   string
+	Tag    string
+	Source config.Source
 }
 
 func (f *GithubSourceFinder) Find() ([]string, error) {
-	return []string{fmt.Sprintf("https://github.com/%s/tarball/%s/%s.tar.gz", f.Repo, f.Tag, f.Tool)}, nil
+	return []string{fmt.Sprintf("https://%s/%s/tarball/%s/%s.tar.gz", f.Source.Host, f.Repo, url.PathEscape(f.Tag), f.Tool)}, nil
 }

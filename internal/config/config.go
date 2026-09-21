@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -47,10 +48,21 @@ type Repository struct {
 	SourceType   string   `mapstructure:"source" toml:"source" yaml:"source"`
 }
 
+type Source struct {
+	Name                string   `mapstructure:"-" toml:"-" yaml:"-"`
+	Type                string   `mapstructure:"type" toml:"type" yaml:"type"`
+	Host                string   `mapstructure:"host" toml:"host" yaml:"host"`
+	APIURL              string   `mapstructure:"api_url" toml:"api_url" yaml:"api_url"`
+	TokenEnv            []string `mapstructure:"token_env" toml:"token_env" yaml:"token_env"`
+	Token               string   `mapstructure:"token" toml:"token" yaml:"token"`
+	DisableTokenWarning bool     `mapstructure:"disable_token_warning" toml:"disable_token_warning" yaml:"disable_token_warning"`
+}
+
 type Config struct {
 	Path         string
 	Global       Global
 	Repositories map[string]Repository
+	Sources      map[string]Source
 }
 
 func Default() *Config {
@@ -67,7 +79,72 @@ func Default() *Config {
 			DisableSSL:   false,
 		},
 		Repositories: map[string]Repository{},
+		Sources: map[string]Source{
+			"github": defaultSource("github", "github"),
+			"gitlab": defaultSource("gitlab", "gitlab"),
+		},
 	}
+}
+
+func defaultSource(name, sourceType string) Source {
+	source := Source{Name: name, Type: strings.ToLower(sourceType)}
+	switch source.Type {
+	case "github":
+		source.Host = "github.com"
+		source.APIURL = "https://api.github.com"
+		source.TokenEnv = []string{"XGET_GITHUB_TOKEN", "GITHUB_TOKEN", "EGET_GITHUB_TOKEN"}
+	case "gitlab":
+		source.Host = "gitlab.com"
+		source.APIURL = "https://gitlab.com/api/v4"
+		source.TokenEnv = []string{"XGET_GITLAB_TOKEN", "GITLAB_TOKEN"}
+	}
+	return source
+}
+
+func normalizeSource(name string, configured Source) (Source, error) {
+	sourceType := strings.ToLower(configured.Type)
+	if sourceType == "" && (strings.EqualFold(name, "github") || strings.EqualFold(name, "gitlab")) {
+		sourceType = strings.ToLower(name)
+	}
+	if sourceType != "github" && sourceType != "gitlab" {
+		return Source{}, fmt.Errorf("source %q has unsupported type %q (expected github or gitlab)", name, configured.Type)
+	}
+
+	resolved := defaultSource(name, sourceType)
+	if configured.Host != "" {
+		resolved.Host = configured.Host
+		if configured.APIURL == "" {
+			if sourceType == "github" {
+				resolved.APIURL = "https://" + configured.Host + "/api/v3"
+			} else {
+				resolved.APIURL = "https://" + configured.Host + "/api/v4"
+			}
+		}
+	}
+	if configured.APIURL != "" {
+		resolved.APIURL = strings.TrimRight(configured.APIURL, "/")
+	}
+	if configured.TokenEnv != nil {
+		resolved.TokenEnv = configured.TokenEnv
+	}
+	resolved.Token = configured.Token
+	resolved.DisableTokenWarning = configured.DisableTokenWarning
+	return resolved, nil
+}
+
+func (c *Config) ResolveSource(name string) (Source, error) {
+	if name == "" {
+		name = "github"
+	}
+	name = strings.ToLower(name)
+	source, ok := c.Sources[name]
+	if !ok && (name == "github" || name == "gitlab") {
+		return defaultSource(name, name), nil
+	}
+	if !ok {
+		return Source{}, fmt.Errorf("source profile %q is not configured", name)
+	}
+	return source, nil
 }
 
 func GetOSConfigPath(homePath string, ext string) string {
@@ -140,13 +217,27 @@ func loadFromFile(path string) (*Config, error) {
 		}
 	}
 
-	// if github_token is set in the config file, print a warning to stderr
-	if cfg.Global.GithubToken != "" {
-		fmt.Fprintln(os.Stderr, "⚠️ Warning: github_token is set in the config file. It is recommended to use XGET_GITHUB_TOKEN or GITHUB_TOKEN environment variable instead. Storing your GitHub token in a config file is not recommended, as it may be accidentally committed to source control and stored in plaintext.")
+	if sources := v.Sub("sources"); sources != nil {
+		for name := range sources.AllSettings() {
+			section := sources.Sub(name)
+			if section == nil {
+				continue
+			}
+			configured := Source{}
+			if err := section.Unmarshal(&configured); err != nil {
+				return nil, fmt.Errorf("parse source %q: %w", name, err)
+			}
+			resolved, err := normalizeSource(name, configured)
+			if err != nil {
+				return nil, err
+			}
+			cfg.Sources[strings.ToLower(name)] = resolved
+		}
 	}
+	warnStoredTokens(cfg, os.Stderr)
 
 	for key := range v.AllSettings() {
-		if key == "global" {
+		if key == "global" || key == "sources" {
 			continue
 		}
 		section := v.Sub(key)
@@ -203,6 +294,18 @@ func loadFromFile(path string) (*Config, error) {
 		cfg.Repositories[key] = repo
 	}
 	return cfg, nil
+}
+
+func warnStoredTokens(cfg *Config, output io.Writer) {
+	github := cfg.Sources["github"]
+	if cfg.Global.GithubToken != "" && !github.DisableTokenWarning {
+		_, _ = fmt.Fprintln(output, "Warning: global.github_token is stored in the config file as plaintext. Prefer a token environment variable or token file. To disable this warning, set sources.github.disable_token_warning to true.")
+	}
+	for name, source := range cfg.Sources {
+		if source.Token != "" && !source.DisableTokenWarning {
+			_, _ = fmt.Fprintf(output, "Warning: sources.%s.token is stored in the config file as plaintext. Prefer one of sources.%s.token_env or a token file. To disable this warning, set sources.%s.disable_token_warning to true.\n", name, name, name)
+		}
+	}
 }
 
 func Load(explicitPath ...string) (*Config, error) {

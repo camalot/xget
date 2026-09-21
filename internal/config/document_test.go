@@ -38,13 +38,13 @@ func TestFormatForPath(t *testing.T) {
 }
 
 func TestValidateSection(t *testing.T) {
-	valid := []string{"global", "zyedidia/micro", "camalot/xget"}
+	valid := []string{"global", "zyedidia/micro", "camalot/xget", "sources.github", "sources.work"}
 	for _, section := range valid {
 		if err := ValidateSection(section); err != nil {
 			t.Fatalf("ValidateSection(%q) = %v, want nil", section, err)
 		}
 	}
-	invalid := []string{"", "micro", "a/b/c", "/repo", "owner/"}
+	invalid := []string{"", "micro", "a/b/c", "/repo", "owner/", "sources.", "sources.work.github", "sources.work/github"}
 	for _, section := range invalid {
 		if err := ValidateSection(section); err == nil {
 			t.Fatalf("ValidateSection(%q) expected error", section)
@@ -99,6 +99,59 @@ func TestSectionKeysCoverGlobalAndRepository(t *testing.T) {
 	}
 	if _, ok := repos["github_token"]; ok {
 		t.Fatal("github_token must not be a repository key")
+	}
+
+	sources := SectionKeys("sources.work")
+	if sources["type"] != KindString || sources["token_env"] != KindStringSlice || sources["disable_token_warning"] != KindBool {
+		t.Fatalf("unexpected source keys: %#v", sources)
+	}
+}
+
+func TestDocumentEditsNestedSourceSection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".xget.toml")
+	doc, err := LoadDocument(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, assignment := range []struct{ key, value string }{
+		{key: "type", value: "github"},
+		{key: "host", value: "github.example.com"},
+		{key: "token_env", value: "WORK_GITHUB_TOKEN"},
+		{key: "disable_token_warning", value: "true"},
+	} {
+		if err := doc.Set("sources.work", assignment.key, assignment.value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := doc.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	work, err := cfg.ResolveSource("work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if work.Type != "github" || work.Host != "github.example.com" || !work.DisableTokenWarning {
+		t.Fatalf("unexpected source: %#v", work)
+	}
+
+	entries := doc.Entries()
+	wantEntry := Entry{Section: "sources.work", Key: "host", Value: "github.example.com"}
+	found := false
+	for _, entry := range entries {
+		if reflect.DeepEqual(entry, wantEntry) {
+			found = true
+		}
+		if entry.Section == "sources" {
+			t.Fatalf("source profiles must be flattened, got %#v", entry)
+		}
+	}
+	if !found {
+		t.Fatalf("missing source profile entry in %#v", entries)
 	}
 }
 

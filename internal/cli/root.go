@@ -36,6 +36,7 @@ type rootFlags struct {
 	disableSSL  bool
 	config      string
 	untracked   bool
+	provider    string
 
 	nonInteractive bool
 }
@@ -77,11 +78,16 @@ func splitTargetTag(target string) (repo, tag string, ok bool) {
 		return target, "", false
 	}
 	repo, tag, ok = strings.Cut(target, "@")
-	if !ok || tag == "" || strings.Count(repo, "/") != 1 {
+	if !ok || tag == "" || !strings.Contains(repo, "/") {
 		return target, "", false
 	}
-	owner, name, valid := strings.Cut(repo, "/")
-	if !valid || owner == "" || name == "" {
+	parts := strings.Split(repo, "/")
+	for _, part := range parts {
+		if part == "" {
+			return target, "", false
+		}
+	}
+	if len(parts) < 2 {
 		return target, "", false
 	}
 	return repo, tag, true
@@ -92,7 +98,7 @@ func newRootCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:           "xget [TARGET]",
-		Short:         "Download pre-built binaries from GitHub releases",
+		Short:         "Download pre-built binaries from GitHub or GitLab releases",
 		Version:       versionString(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -131,7 +137,7 @@ func newRateCommand(f *rootFlags) *cobra.Command {
 func newInstallCommand(f *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "install TARGET",
-		Short:         "Download and install a pre-built binary from GitHub releases",
+		Short:         "Download and install a pre-built binary from GitHub or GitLab releases",
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -145,6 +151,7 @@ func addInstallFlags(cmd *cobra.Command, f *rootFlags) {
 	cmd.Flags().StringVarP(&f.tag, "tag", "t", "", "tagged release to use instead of latest")
 	cmd.Flags().BoolVar(&f.prerelease, "pre-release", false, "include pre-releases when fetching the latest version")
 	cmd.Flags().BoolVar(&f.source, "source", false, "download the source code for the target repo instead of a release")
+	cmd.Flags().StringVar(&f.provider, "provider", "", "release source profile to use (default github)")
 	cmd.Flags().StringVar(&f.output, "to", "", "move to given location after extracting")
 	cmd.Flags().StringVarP(&f.system, "system", "s", "", "target system to download for (use all for all choices)")
 	cmd.Flags().StringVarP(&f.extractFile, "file", "f", "", "glob to select files for extraction")
@@ -174,10 +181,6 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 			return err
 		}
 
-		if err := configureGithubToken(cfg); err != nil {
-			return err
-		}
-
 		disableSSL := cfg.Global.DisableSSL
 		if cmd.Flags().Changed("disable-ssl") {
 			disableSSL = f.disableSSL
@@ -185,6 +188,9 @@ func installRunE(f *rootFlags) func(*cobra.Command, []string) error {
 		engine.SetDisableSSL(disableSSL)
 
 		if f.rate {
+			if err := configureGithubToken(cfg); err != nil {
+				return err
+			}
 			return printRateLimit(cmd)
 		}
 
@@ -318,6 +324,9 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 	if cmd.Flags().Changed("source") {
 		opts.Source = f.source
 	}
+	if cmd.Flags().Changed("provider") {
+		opts.SourceType = f.provider
+	}
 	if cmd.Flags().Changed("to") {
 		expanded, err := home.Expand(f.output)
 		if err != nil {
@@ -377,6 +386,15 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 	if !cmd.Flags().Changed("ignore") {
 		opts.Ignore = config.SubstituteTemplateVarsSlice(opts.Ignore, systemForTemplate)
 	}
+	resolvedSource, err := cfg.ResolveSource(opts.SourceType)
+	if err != nil {
+		return options.Flags{}, err
+	}
+	if resolvedSource.Type == "github" && resolvedSource.Token == "" {
+		resolvedSource.Token = cfg.Global.GithubToken
+	}
+	opts.SourceType = resolvedSource.Name
+	opts.SourceConfig = resolvedSource
 
 	return opts, nil
 }

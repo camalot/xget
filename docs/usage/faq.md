@@ -13,7 +13,7 @@ parent: 🧭 Usage
 
 - `xget` is a fork of `eget` with additional features and improvements. It aims to provide better compatibility with various release patterns, enhanced
 asset filtering, and more robust handling of pre-built binaries. While `eget` is no longer actively maintained, `xget` continues to evolve to meet the
-needs of users who rely on pre-built binaries from GitHub releases.
+needs of users who rely on pre-built binaries from GitHub or GitLab releases.
 - `xget` uses a up to date version of Go, as well as modern libraries and practices to ensure better performance, security, and maintainability compared to the original `eget`.
 - While introducing new features and improvements that enhance usability and performance,`xget` v2.0.0 is backwards compatible with the v1.x releases of `eget`. this means you can take your existing `eget` workflows and configurations and continue using them with `xget` without major changes. All you need to do is replace `eget` with `xget` in your commands, or create a symbolic link to `xget` named `eget`.
 
@@ -35,7 +35,7 @@ When no installed package matches, xget removes the target basename from `$XGET_
 
 ## Is this secure?
 
-xget does not execute downloaded code. It only finds and extracts binaries from GitHub releases. If you trust the code you are downloading, then using xget is
+xget does not execute downloaded code. It only finds and extracts binaries from GitHub or GitLab releases. If you trust the code you are downloading, then using xget is
 reasonable. If xget finds a checksum file such as `xxx.sha256` or `xxx.sha256sum`, it will automatically verify the download checksum. You can also use
 `--sha256` or `--verify / --verify-sha256` to validate checksums manually. If downloading a package directly from GitHub, if the asset in the release
 has a sha256 checksum associated with the asset, xget will automatically verify it.
