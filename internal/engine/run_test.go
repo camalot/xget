@@ -13,6 +13,51 @@ import (
 	"github.com/camalot/xget/internal/options"
 )
 
+func TestGetFinderUsesDirectAssetFinderForProviderHostedAssetURLs(t *testing.T) {
+	githubSource, err := config.Default().ResolveSource("github")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitlabSource, err := config.Default().ResolveSource("gitlab")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name    string
+		project string
+		source  config.Source
+	}{
+		{
+			name:    "github release asset",
+			project: "https://github.com/owner/repo/releases/download/v1.0.0/tool.tar.gz",
+			source:  githubSource,
+		},
+		{
+			name:    "gitlab release asset",
+			project: "https://gitlab.com/group/subgroup/project/-/releases/v1.0.0/downloads/tool.tar.gz",
+			source:  gitlabSource,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			opts := &options.Flags{SourceType: test.source.Name, SourceConfig: test.source}
+			finder, _, err := getFinder(test.project, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			direct, ok := finder.(*DirectAssetFinder)
+			if !ok {
+				t.Fatalf("finder = %T, want *DirectAssetFinder", finder)
+			}
+			if direct.URL != test.project {
+				t.Fatalf("URL = %q, want %q", direct.URL, test.project)
+			}
+		})
+	}
+}
+
 func TestGetExtractorSelectsArchiveExtractorForURLWithQueryString(t *testing.T) {
 	extractor, err := getExtractor("https://gitlab.example.com/api/v4/projects/1/repository/archive.tar.gz?sha=v1.0.0", "tool", &options.Flags{})
 	if err != nil {

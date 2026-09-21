@@ -99,6 +99,33 @@ func checksumAsset(asset string, assets []string) string {
 	return ""
 }
 
+// isProviderRepoRootPath reports whether urlPath names a repository root
+// (e.g. "/owner/repo") rather than a release asset, archive, or other
+// provider-hosted subpath, which must stay on the DirectAssetFinder path.
+func isProviderRepoRootPath(source config.Source, urlPath string) bool {
+	trimmed := strings.TrimSuffix(strings.Trim(urlPath, "/"), ".git")
+	if trimmed == "" {
+		return false
+	}
+	parts := strings.Split(trimmed, "/")
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+	}
+	if source.Type == "gitlab" {
+		for _, part := range parts {
+			// GitLab prefixes non-root project pages (releases, archives,
+			// blobs, etc.) with a literal "-" path segment.
+			if part == "-" {
+				return false
+			}
+		}
+		return len(parts) >= 2
+	}
+	return len(parts) == 2
+}
+
 // Determine the appropriate Finder to use. If url is a local/direct URL we use
 // a DirectAssetFinder. Otherwise we use a GithubAssetFinder.
 func getFinder(project string, opts *options.Flags) (finder Finder, tool string, err error) {
@@ -123,7 +150,7 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 
 	if IsUrl(project) {
 		parsed, parseErr := url.Parse(project)
-		if parseErr != nil || !strings.EqualFold(parsed.Hostname(), source.Host) {
+		if parseErr != nil || !strings.EqualFold(parsed.Hostname(), source.Host) || !isProviderRepoRootPath(source, parsed.Path) {
 			finder = &DirectAssetFinder{URL: project}
 			tool = path.Base(parsed.Path)
 			opts.SourceType = "URL"
