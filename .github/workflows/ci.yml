@@ -92,7 +92,7 @@ jobs:
       - run: go build ./...
       - run: go test ./... -coverprofile="coverage.out"
 
-      - uses: camalot/actions/smells/test/coverage@main
+      - uses: camalot/actions/smells/test/coverage@v1
         if: always()
         with:
           title: ${{ matrix.os }}
