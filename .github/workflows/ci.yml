@@ -72,6 +72,8 @@ jobs:
   test:
     permissions:
       contents: read
+      pull-requests: write
+
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
@@ -89,10 +91,24 @@ jobs:
           go-version-file: go.mod
       - run: go build ./...
       - run: go test ./... -coverprofile=coverage.out
+
+      - uses: camalot/actions/smells/test/coverage@v1
+        if: always()
+        with:
+          title: ${{ matrix.os }}
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
+          flags: ${{ matrix.os }}
+
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}
           path: coverage.out
+
 
   build-snapshot:
     permissions:
