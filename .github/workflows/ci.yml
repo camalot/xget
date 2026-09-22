@@ -90,7 +90,7 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go build ./...
-      - run: go test ./... -coverprofile=coverage.out
+      - run: go test ./... -coverprofile="coverage.out"
 
       - uses: camalot/actions/smells/test/coverage@main
         if: always()
