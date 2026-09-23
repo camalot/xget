@@ -1,0 +1,193 @@
+---
+name: "AUR Action"
+description: >-
+  Render the PKGBUILD for a release, build the xget-bin pacman packages for
+  every supported architecture, attest/checksum them and attach them to the
+  GitHub release, and (when the account exists) publish the PKGBUILD to the
+  AUR git repo.
+inputs:
+  version:
+    description: "The plain (no 'v' prefix) version of the xget project to package, e.g. 2.1.2"
+    required: true
+  token:
+    description: "The GitHub token used to read checksums.txt and upload assets to the release"
+    required: false
+    default: "${{ github.token }}"
+  aur-username:
+    description: "Username to use for the AUR commit"
+    required: true
+  aur-email:
+    description: "Email to use for the AUR commit"
+    required: true
+  aur-ssh-private-key:
+    description: "SSH private key with push access to the aur-bin AUR git repo"
+    required: true
+  dry-run:
+    description: "Whether to only test-build the PKGBUILD without publishing/uploading anything"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Determine release checksums
+      id: checksums
+      shell: bash
+      run: |
+        set -euo pipefail
+        gh release download "v${VERSION}" --repo camalot/xget --pattern checksums.txt --dir "$RUNNER_TEMP" --clobber
+        amd64_sha=$(grep -F "xget_${VERSION}_linux_amd64.tar.gz" "$RUNNER_TEMP/checksums.txt" | awk '{print $1}')
+        arm64_sha=$(grep -F "xget_${VERSION}_linux_arm64.tar.gz" "$RUNNER_TEMP/checksums.txt" | awk '{print $1}')
+        if [ -z "$amd64_sha" ] || [ -z "$arm64_sha" ]; then
+          echo "Could not determine linux amd64/arm64 checksums for xget v${VERSION}" >&2
+          exit 1
+        fi
+        {
+          echo "amd64_sha256=$amd64_sha"
+          echo "arm64_sha256=$arm64_sha"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        VERSION: ${{ inputs.version }}
+
+    - name: Render PKGBUILD
+      id: render
+      shell: bash
+      run: |
+        set -euo pipefail
+        outdir="$RUNNER_TEMP/aur"
+        mkdir -p "$outdir"
+        sed \
+          -e "s/__VERSION__/$VERSION/g" \
+          -e "s/__SHA256_X86_64__/$AMD64_SHA/g" \
+          -e "s/__SHA256_AARCH64__/$ARM64_SHA/g" \
+          .packages/aur/PKGBUILD > "$outdir/PKGBUILD"
+        {
+          echo "pkgbuild_dir=$outdir"
+          echo "pkgbuild_path=$outdir/PKGBUILD"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        VERSION: ${{ inputs.version }}
+        AMD64_SHA: ${{ steps.checksums.outputs.amd64_sha256 }}
+        ARM64_SHA: ${{ steps.checksums.outputs.arm64_sha256 }}
+
+    # Also doubles as the "test build" for KSXGitHub/github-actions-deploy-aur:
+    # its own `test` input builds the package as part of the same run that
+    # commits/pushes to the AUR, so it can't be used as a standalone dry run.
+    # makepkg's package() step is a plain file copy (no compiled code), so
+    # both architectures can be built natively here by overriding CARCH -
+    # no QEMU/emulation needed.
+    - name: Build xget-bin packages (x86_64, aarch64)
+      id: build
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker run --rm -v "${PKGBUILD_DIR}:/pkg" -w /pkg archlinux:base-devel bash -euc '
+          pacman -Sy --noconfirm --needed
+          useradd -m builder
+          chown -R builder:builder /pkg
+          for arch in x86_64 aarch64; do
+            su builder -c "CARCH=$arch makepkg --clean --cleanbuild --nodeps --skippgpcheck"
+          done
+        '
+
+        outdir="$RUNNER_TEMP/aur/dist"
+        mkdir -p "$outdir"
+        mv "$PKGBUILD_DIR"/*.pkg.tar.zst "$outdir/"
+
+        x86_64_pkg=$(ls "$outdir"/*-x86_64.pkg.tar.zst)
+        aarch64_pkg=$(ls "$outdir"/*-aarch64.pkg.tar.zst)
+        checksums_file="$outdir/aur-checksums.txt"
+        (cd "$outdir" && sha256sum "$(basename "$x86_64_pkg")" "$(basename "$aarch64_pkg")" > "$checksums_file")
+
+        {
+          echo "outdir=$outdir"
+          echo "x86_64_pkg=$x86_64_pkg"
+          echo "aarch64_pkg=$aarch64_pkg"
+          echo "checksums_file=$checksums_file"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        PKGBUILD_DIR: ${{ steps.render.outputs.pkgbuild_dir }}
+
+    # the official AUR account isn't approved yet (see the disabled publish
+    # step below), so the built packages are attested/checksummed and
+    # attached to the GitHub release as a verifiable historical reference
+    # in the meantime.
+    - name: Generate SPDX SBOM (x86_64 package)
+      if: inputs.dry-run == 'false'
+      uses: anchore/sbom-action@v0
+      with:
+        file: ${{ steps.build.outputs.x86_64_pkg }}
+        format: spdx-json
+        output-file: ${{ steps.build.outputs.outdir }}/xget-bin-x86_64.spdx.json
+        upload-artifact: false
+        upload-release-assets: false
+
+    - name: Generate SPDX SBOM (aarch64 package)
+      if: inputs.dry-run == 'false'
+      uses: anchore/sbom-action@v0
+      with:
+        file: ${{ steps.build.outputs.aarch64_pkg }}
+        format: spdx-json
+        output-file: ${{ steps.build.outputs.outdir }}/xget-bin-aarch64.spdx.json
+        upload-artifact: false
+        upload-release-assets: false
+
+    - name: Attest build provenance (x86_64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.build.outputs.x86_64_pkg }}
+
+    - name: Attest SBOM (x86_64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.build.outputs.x86_64_pkg }}
+        sbom-path: ${{ steps.build.outputs.outdir }}/xget-bin-x86_64.spdx.json
+
+    - name: Attest build provenance (aarch64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.build.outputs.aarch64_pkg }}
+
+    - name: Attest SBOM (aarch64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.build.outputs.aarch64_pkg }}
+        sbom-path: ${{ steps.build.outputs.outdir }}/xget-bin-aarch64.spdx.json
+
+    - name: Upload AUR packages, checksums, and SBOMs to the release
+      if: inputs.dry-run == 'false'
+      shell: bash
+      run: |
+        set -euo pipefail
+        gh release upload "$TAG" \
+          "$X86_64_PKG" "$AARCH64_PKG" "$CHECKSUMS_FILE" \
+          "$OUTDIR/xget-bin-x86_64.spdx.json" "$OUTDIR/xget-bin-aarch64.spdx.json" \
+          --clobber
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        TAG: v${{ inputs.version }}
+        X86_64_PKG: ${{ steps.build.outputs.x86_64_pkg }}
+        AARCH64_PKG: ${{ steps.build.outputs.aarch64_pkg }}
+        CHECKSUMS_FILE: ${{ steps.build.outputs.checksums_file }}
+        OUTDIR: ${{ steps.build.outputs.outdir }}
+
+    - name: Publish PKGBUILD to AUR
+      # if: inputs.dry-run == 'false'
+      # right now, sign up for the AUR is disabled. this needs to be disabled until it is re-enabled.
+      if: false
+      uses: KSXGitHub/github-actions-deploy-aur@v4
+      with:
+        pkgname: xget-bin
+        pkgbuild: ${{ steps.render.outputs.pkgbuild_path }}
+        commit_username: ${{ inputs.aur-username }}
+        commit_email: ${{ inputs.aur-email }}
+        ssh_private_key: ${{ inputs.aur-ssh-private-key }}
+        commit_message: "xget-bin ${{ inputs.version }}"
+        # belt-and-suspenders: also build inside the action's own runner before it commits/pushes
+        test: true
+        ssh_keyscan_types: rsa,ecdsa,ed25519

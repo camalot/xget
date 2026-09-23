@@ -1,0 +1,87 @@
+name: publish aur package
+
+# Renders and publishes the xget-bin AUR package for a tag that already has a
+# GitHub release with the linux binary archives + checksums.txt uploaded.
+# Unlike publish-packages.yml, this doesn't rebuild anything at that tag's
+# commit: the PKGBUILD only references the release's existing download URLs,
+# so it's rendered using the *current* main branch's packaging definition
+# (.packages/aur/PKGBUILD) and just targets the given version.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish the AUR package for (e.g. v2.1.2)
+        required: true
+        type: string
+      dry-run:
+        description: 'Dry-Run: test-build the PKGBUILD without pushing it to the AUR'
+        required: false
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing release tag to publish the AUR package for (e.g. v2.1.2)
+        required: true
+        type: string
+    secrets:
+      AUR_USERNAME:
+        required: true
+      AUR_EMAIL:
+        required: true
+      AUR_SSH_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+jobs:
+  aur:
+    permissions:
+      # attach the built packages/checksums/SBOMs to the release
+      contents: write
+      # sign and publish the build provenance and SBOM attestations
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    steps:
+      # deliberately not checked out at inputs.tag: the package only needs
+      # today's packaging/action definition, not that tag's source tree
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - name: Determine plain version
+        id: plain_version
+        shell: bash
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ inputs.tag }}
+
+      - name: Verify release assets exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          assets_file="$RUNNER_TEMP/assets.txt"
+          gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' > "$assets_file"
+          for asset in "xget_${VERSION}_linux_amd64.tar.gz" "xget_${VERSION}_linux_arm64.tar.gz" "checksums.txt"; do
+            if ! grep -qF "$asset" "$assets_file"; then
+              echo "Release $TAG is missing expected asset '$asset'" >&2
+              exit 1
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.plain_version.outputs.version }}
+
+      - name: Render, build, attest, and publish the AUR package
+        uses: ./.github/actions/aur
+        with:
+          version: ${{ steps.plain_version.outputs.version }}
+          dry-run: ${{ inputs.dry-run || 'false' }}
+          aur-username: ${{ secrets.AUR_USERNAME }}
+          aur-email: ${{ secrets.AUR_EMAIL }}
+          aur-ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+

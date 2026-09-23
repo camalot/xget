@@ -267,3 +267,29 @@ jobs:
           name: chocolatey-package
           path: dist/chocolatey/**
           if-no-files-found: error
+
+  aur:
+    permissions:
+      # attach the built packages/checksums/SBOMs to the release
+      contents: write
+      # sign and publish the build provenance and SBOM attestations
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    needs:
+      - version
+      - release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - name: Render, build, attest, and publish the AUR package
+        uses: ./.github/actions/aur
+        with:
+          # AUR pkgver can't have a "v" prefix, unlike the git tag
+          version: ${{ needs.version.outputs.ver_major_minor_patch }}
+          dry-run: ${{ inputs.dry-run }}
+          aur-username: ${{ secrets.AUR_USERNAME }}
+          aur-email: ${{ secrets.AUR_EMAIL }}
+          aur-ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
