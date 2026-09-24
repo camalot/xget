@@ -85,6 +85,8 @@ runs:
           echo "outdir=$outdir"
           echo "amd64_deb=$amd64_deb"
           echo "arm64_deb=$arm64_deb"
+          echo "amd64_sbom=${amd64_deb}.sbom.json"
+          echo "arm64_sbom=${arm64_deb}.sbom.json"
           echo "checksums_file=$checksums_file"
         } >> "$GITHUB_OUTPUT"
       env:
@@ -180,7 +182,7 @@ runs:
       with:
         file: ${{ steps.build.outputs.amd64_deb }}
         format: spdx-json
-        output-file: ${{ steps.build.outputs.outdir }}/xget-debian-amd64.spdx.json
+        output-file: ${{ steps.build.outputs.amd64_sbom }}
         upload-artifact: false
         upload-release-assets: false
 
@@ -190,7 +192,7 @@ runs:
       with:
         file: ${{ steps.build.outputs.arm64_deb }}
         format: spdx-json
-        output-file: ${{ steps.build.outputs.outdir }}/xget-debian-arm64.spdx.json
+        output-file: ${{ steps.build.outputs.arm64_sbom }}
         upload-artifact: false
         upload-release-assets: false
 
@@ -205,7 +207,7 @@ runs:
       uses: actions/attest@v4
       with:
         subject-path: ${{ steps.build.outputs.amd64_deb }}
-        sbom-path: ${{ steps.build.outputs.outdir }}/xget-debian-amd64.spdx.json
+        sbom-path: ${{ steps.build.outputs.amd64_sbom }}
 
     - name: Attest build provenance (arm64 package)
       if: inputs.dry-run == 'false'
@@ -218,7 +220,7 @@ runs:
       uses: actions/attest@v4
       with:
         subject-path: ${{ steps.build.outputs.arm64_deb }}
-        sbom-path: ${{ steps.build.outputs.outdir }}/xget-debian-arm64.spdx.json
+        sbom-path: ${{ steps.build.outputs.arm64_sbom }}
 
     - name: Upload Debian packages, checksums, and SBOMs to the release
       if: inputs.dry-run == 'false'
@@ -227,12 +229,13 @@ runs:
         set -euo pipefail
         gh release upload "$TAG" \
           "$AMD64_DEB" "$ARM64_DEB" "$CHECKSUMS_FILE" \
-          "$OUTDIR/xget-debian-amd64.spdx.json" "$OUTDIR/xget-debian-arm64.spdx.json" \
+          "$AMD64_SBOM" "$ARM64_SBOM" \
           --clobber
       env:
         GH_TOKEN: ${{ inputs.token }}
         TAG: v${{ inputs.version }}
         AMD64_DEB: ${{ steps.build.outputs.amd64_deb }}
         ARM64_DEB: ${{ steps.build.outputs.arm64_deb }}
+        AMD64_SBOM: ${{ steps.build.outputs.amd64_sbom }}
+        ARM64_SBOM: ${{ steps.build.outputs.arm64_sbom }}
         CHECKSUMS_FILE: ${{ steps.build.outputs.checksums_file }}
-        OUTDIR: ${{ steps.build.outputs.outdir }}
