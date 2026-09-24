@@ -1,0 +1,41 @@
+# Maintainer: Ryan Conrad <camalot@gmail.com>
+# This file is a template: __VERSION__, __SHA512_X86_64__, and __SHA512_AARCH64__
+# are substituted (e.g. via sed) by .github/actions/alpine before abuild is run.
+pkgname=xget
+pkgver=__VERSION__
+pkgrel=0
+pkgdesc="Download pre-built binaries from GitHub and GitLab releases"
+url="https://github.com/camalot/xget"
+arch="x86_64 aarch64"
+license="MIT"
+# repack of an upstream static (CGO_ENABLED=0) Go binary: nothing to compile,
+# test, strip, or trace for shared library dependencies
+options="!check !strip !tracedeps"
+# no -doc subpackage on purpose: the release ships a single artifact per arch,
+# so abuild's "Found /usr/share/{doc,man}" warnings are expected
+
+case "$CARCH" in
+x86_64)
+	_relarch="amd64"
+	_sha512="__SHA512_X86_64__"
+	;;
+aarch64)
+	_relarch="arm64"
+	_sha512="__SHA512_AARCH64__"
+	;;
+esac
+
+source="$pkgname-$pkgver-$CARCH.tar.gz::$url/releases/download/v$pkgver/xget_${pkgver}_linux_${_relarch}.tar.gz"
+sha512sums="$_sha512  $pkgname-$pkgver-$CARCH.tar.gz"
+
+# the release archives are not wrapped in a directory
+builddir="$srcdir"
+
+package() {
+	install -Dm755 "$srcdir"/xget "$pkgdir"/usr/bin/xget
+	# abuild's postcheck rejects uncompressed man pages
+	install -Dm644 "$srcdir"/xget.1 "$pkgdir"/usr/share/man/man1/xget.1
+	gzip -9n "$pkgdir"/usr/share/man/man1/xget.1
+	install -Dm644 "$srcdir"/LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+	install -Dm644 "$srcdir"/README.md "$pkgdir"/usr/share/doc/$pkgname/README.md
+}

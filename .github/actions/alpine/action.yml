@@ -1,0 +1,251 @@
+---
+name: "Alpine Action"
+description: >-
+  Render the APKBUILD for a release, build and sign the xget apk packages for
+  every supported architecture inside an Alpine chroot, verify they install and
+  run, then attest/checksum them and attach them to the GitHub release.
+inputs:
+  version:
+    description: "The plain (no 'v' prefix) version of the xget project to package, e.g. 2.2.0"
+    required: true
+  token:
+    description: "The GitHub token used to read the release assets and upload the built packages"
+    required: false
+    default: "${{ github.token }}"
+  packager:
+    description: "The 'Name <email>' recorded as the packager in the apk"
+    required: false
+    default: "Ryan Conrad <camalot@gmail.com>"
+  signing-key-name:
+    description: "File name of the abuild RSA key pair (the public key is installed as <name>.pub)"
+    required: false
+    default: "camalot@gmail.com-xget.rsa"
+  signing-private-key:
+    description: "PEM private key used to sign the apk; an ephemeral key is generated when empty"
+    required: false
+    default: ""
+  signing-public-key:
+    description: "PEM public key matching signing-private-key"
+    required: false
+    default: ""
+  dry-run:
+    description: "Whether to only build/verify the packages without attesting or uploading anything"
+    required: false
+    default: "true"
+outputs:
+  outdir:
+    description: "Directory containing the built apk packages, checksums, and SBOMs"
+    value: ${{ steps.collect.outputs.outdir }}
+  x86_64-apk:
+    description: "Path to the built x86_64 apk package"
+    value: ${{ steps.collect.outputs.x86_64_apk }}
+  aarch64-apk:
+    description: "Path to the built aarch64 apk package"
+    value: ${{ steps.collect.outputs.aarch64_apk }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download release archives and render the APKBUILD
+      id: render
+      shell: bash
+      run: |
+        set -euo pipefail
+        # everything lives under RUNNER_TEMP, which setup-alpine bind-mounts
+        # into the chroot at the same path
+        workdir="$RUNNER_TEMP/alpine"
+        rm -rf "$workdir"
+        mkdir -p "$workdir/main/xget" "$workdir/srcdest" "$workdir/packages" "$workdir/dl"
+
+        gh release download "v${VERSION}" --repo "$REPO" \
+          --pattern checksums.txt \
+          --pattern "xget_${VERSION}_linux_amd64.tar.gz" \
+          --pattern "xget_${VERSION}_linux_arm64.tar.gz" \
+          --dir "$workdir/dl" --clobber
+
+        # only verify the two archives this package is built from
+        (
+          cd "$workdir/dl"
+          grep -E "xget_${VERSION}_linux_(amd64|arm64)\.tar\.gz$" checksums.txt > expected.txt
+          test "$(wc -l < expected.txt)" -eq 2
+          sha256sum --check --strict expected.txt
+        )
+
+        # abuild fetches by source name, so seed SRCDEST with the verified archives
+        cp "$workdir/dl/xget_${VERSION}_linux_amd64.tar.gz" "$workdir/srcdest/xget-${VERSION}-x86_64.tar.gz"
+        cp "$workdir/dl/xget_${VERSION}_linux_arm64.tar.gz" "$workdir/srcdest/xget-${VERSION}-aarch64.tar.gz"
+
+        x86_64_sha512=$(sha512sum "$workdir/srcdest/xget-${VERSION}-x86_64.tar.gz" | awk '{print $1}')
+        aarch64_sha512=$(sha512sum "$workdir/srcdest/xget-${VERSION}-aarch64.tar.gz" | awk '{print $1}')
+
+        sed \
+          -e "s/__VERSION__/$VERSION/g" \
+          -e "s/__SHA512_X86_64__/$x86_64_sha512/g" \
+          -e "s/__SHA512_AARCH64__/$aarch64_sha512/g" \
+          .packages/alpine/APKBUILD > "$workdir/main/xget/APKBUILD"
+
+        {
+          echo "workdir=$workdir"
+          echo "apkbuild_dir=$workdir/main/xget"
+          echo "srcdest=$workdir/srcdest"
+          echo "repodest=$workdir/packages"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+        VERSION: ${{ inputs.version }}
+
+    - name: Set up Alpine Linux (x86_64)
+      uses: jirutka/setup-alpine@v1.4.1
+      with:
+        packages: alpine-sdk
+        shell-name: alpine-x86_64.sh
+
+    - name: Set up Alpine Linux (aarch64)
+      uses: jirutka/setup-alpine@v1.4.1
+      with:
+        arch: aarch64
+        packages: alpine-sdk
+        shell-name: alpine-aarch64.sh
+
+    - name: Build apk (x86_64)
+      shell: alpine-x86_64.sh --root {0}
+      env:
+        APKBUILD_DIR: ${{ steps.render.outputs.apkbuild_dir }}
+        REPODEST: ${{ steps.render.outputs.repodest }}
+        SRCDEST: ${{ steps.render.outputs.srcdest }}
+        PACKAGER: ${{ inputs.packager }}
+        SIGNING_KEY_NAME: ${{ inputs.signing-key-name }}
+        SIGNING_PRIVATE_KEY: ${{ inputs.signing-private-key }}
+        SIGNING_PUBLIC_KEY: ${{ inputs.signing-public-key }}
+      run: sh .packages/alpine/build-apk.sh
+
+    - name: Build apk (aarch64)
+      shell: alpine-aarch64.sh --root {0}
+      env:
+        APKBUILD_DIR: ${{ steps.render.outputs.apkbuild_dir }}
+        REPODEST: ${{ steps.render.outputs.repodest }}
+        SRCDEST: ${{ steps.render.outputs.srcdest }}
+        PACKAGER: ${{ inputs.packager }}
+        SIGNING_KEY_NAME: ${{ inputs.signing-key-name }}
+        SIGNING_PRIVATE_KEY: ${{ inputs.signing-private-key }}
+        SIGNING_PUBLIC_KEY: ${{ inputs.signing-public-key }}
+      run: sh .packages/alpine/build-apk.sh
+
+    - name: Collect the built packages
+      id: collect
+      shell: bash
+      run: |
+        set -euo pipefail
+        outdir="$WORKDIR/dist"
+        mkdir -p "$outdir"
+
+        x86_64_apk=$(ls "$REPODEST"/main/x86_64/xget-*.apk)
+        aarch64_apk=$(ls "$REPODEST"/main/aarch64/xget-*.apk)
+        # same file name for both architectures, so keep them apart on disk
+        cp "$x86_64_apk" "$outdir/$(basename "${x86_64_apk%.apk}")-x86_64.apk"
+        cp "$aarch64_apk" "$outdir/$(basename "${aarch64_apk%.apk}")-aarch64.apk"
+
+        checksums_file="$outdir/alpine-checksums.txt"
+        (cd "$outdir" && sha256sum xget-*.apk > "$checksums_file")
+
+        {
+          echo "outdir=$outdir"
+          echo "x86_64_apk=$outdir/$(basename "${x86_64_apk%.apk}")-x86_64.apk"
+          echo "aarch64_apk=$outdir/$(basename "${aarch64_apk%.apk}")-aarch64.apk"
+          echo "x86_64_sbom=$outdir/$(basename "${x86_64_apk%.apk}")-x86_64.apk.sbom.json"
+          echo "aarch64_sbom=$outdir/$(basename "${aarch64_apk%.apk}")-aarch64.apk.sbom.json"
+          echo "x86_64_built=$x86_64_apk"
+          echo "aarch64_built=$aarch64_apk"
+          echo "checksums_file=$checksums_file"
+        } >> "$GITHUB_OUTPUT"
+
+        {
+          echo "### Alpine packages for v${VERSION}"
+          echo
+          echo '```'
+          cat "$checksums_file"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+      env:
+        WORKDIR: ${{ steps.render.outputs.workdir }}
+        REPODEST: ${{ steps.render.outputs.repodest }}
+        VERSION: ${{ inputs.version }}
+
+    - name: Verify the package installs and runs (x86_64)
+      shell: alpine-x86_64.sh --root {0}
+      env:
+        APK_FILE: ${{ steps.collect.outputs.x86_64_built }}
+        VERSION: ${{ inputs.version }}
+      run: sh .packages/alpine/verify-apk.sh
+
+    - name: Verify the package installs and runs (aarch64)
+      shell: alpine-aarch64.sh --root {0}
+      env:
+        APK_FILE: ${{ steps.collect.outputs.aarch64_built }}
+        VERSION: ${{ inputs.version }}
+      run: sh .packages/alpine/verify-apk.sh
+
+    - name: Generate SPDX SBOM (x86_64 package)
+      if: inputs.dry-run == 'false'
+      uses: anchore/sbom-action@v0
+      with:
+        file: ${{ steps.collect.outputs.x86_64_apk }}
+        format: spdx-json
+        output-file: ${{ steps.collect.outputs.x86_64_sbom }}
+        upload-artifact: false
+        upload-release-assets: false
+
+    - name: Generate SPDX SBOM (aarch64 package)
+      if: inputs.dry-run == 'false'
+      uses: anchore/sbom-action@v0
+      with:
+        file: ${{ steps.collect.outputs.aarch64_apk }}
+        format: spdx-json
+        output-file: ${{ steps.collect.outputs.aarch64_sbom }}
+        upload-artifact: false
+        upload-release-assets: false
+
+    - name: Attest build provenance (x86_64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.collect.outputs.x86_64_apk }}
+
+    - name: Attest SBOM (x86_64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.collect.outputs.x86_64_apk }}
+        sbom-path: ${{ steps.collect.outputs.x86_64_sbom }}
+
+    - name: Attest build provenance (aarch64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.collect.outputs.aarch64_apk }}
+
+    - name: Attest SBOM (aarch64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.collect.outputs.aarch64_apk }}
+        sbom-path: ${{ steps.collect.outputs.aarch64_sbom }}
+
+    - name: Upload apk packages, checksums, and SBOMs to the release
+      if: inputs.dry-run == 'false'
+      shell: bash
+      run: |
+        set -euo pipefail
+        gh release upload "$TAG" \
+          "$X86_64_APK" "$AARCH64_APK" "$CHECKSUMS_FILE" \
+          "$X86_64_SBOM" "$AARCH64_SBOM" \
+          --clobber
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        TAG: v${{ inputs.version }}
+        X86_64_APK: ${{ steps.collect.outputs.x86_64_apk }}
+        AARCH64_APK: ${{ steps.collect.outputs.aarch64_apk }}
+        X86_64_SBOM: ${{ steps.collect.outputs.x86_64_sbom }}
+        AARCH64_SBOM: ${{ steps.collect.outputs.aarch64_sbom }}
+        CHECKSUMS_FILE: ${{ steps.collect.outputs.checksums_file }}
