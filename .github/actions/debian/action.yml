@@ -107,7 +107,7 @@ runs:
             dpkg-deb --info "$deb"
             dpkg-deb --contents "$deb"
             # binary-only repack: lintian findings are advisory, not gating
-            lintian --no-tag-display-limit "$deb" 2>&1 || true
+            lintian --tag-display-limit 0 "$deb" 2>&1 || true
             echo '```'
             echo
             echo "</details>"
@@ -133,7 +133,7 @@ runs:
         expected="$RUNNER_TEMP/debian-expected-paths.txt"
         : > "$expected"
         while IFS=$'\t' read -r path type; do
-          if [ "$type" = "manpage" ]; then
+          if [ "$type" = "manpage" ] || [ "$type" = "changelog" ]; then
             path="${path}.gz"
           fi
           echo "$path" >> "$expected"

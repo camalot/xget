@@ -82,6 +82,38 @@ if [ -z "$package" ]; then
 	exit 1
 fi
 
+pkg_version="$(render "$(field version)")"
+maintainer="$(render "$(field maintainer)")"
+homepage="$(render "$(field homepage)")"
+distribution="$(render "$(field distribution)")"
+urgency="$(render "$(field urgency)")"
+changelog_url="$(render "$(field changelog-url)")"
+[ -n "$distribution" ] || distribution="unstable"
+[ -n "$urgency" ] || urgency="medium"
+if [ -z "$changelog_url" ] && [ -n "$homepage" ]; then
+	changelog_url="${homepage}/releases/tag/v${version}"
+fi
+
+# a Debian-format changelog entry pointing at the upstream release notes,
+# since the release archive only carries a Markdown changelog
+generate_changelog() {
+	local stamp
+	stamp="$(LC_ALL=C date -u -R -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}")"
+	printf '%s (%s) %s; urgency=%s\n\n' "$package" "$pkg_version" "$distribution" "$urgency"
+	printf '  * Packaged upstream release %s.\n' "$pkg_version"
+	if [ -n "$changelog_url" ]; then
+		printf '  * Upstream changelog: %s\n' "$changelog_url"
+	fi
+	printf '\n -- %s  %s\n' "$maintainer" "$stamp"
+}
+
+generate_lintian_overrides() {
+	yq -r '(.control.lintian-overrides // [])[]' "$control_yml" |
+		while IFS= read -r tag; do
+			printf '%s: %s\n' "$package" "$(render "$tag")"
+		done
+}
+
 staging="${outdir}/${package}_${version}_${arch}"
 rm -rf "$staging"
 mkdir -p "$staging/DEBIAN" "$outdir"
@@ -93,14 +125,27 @@ for ((i = 0; i < asset_count; i++)); do
 	type="$(IDX="$i" yq -r '.assets[env(IDX)].type // "doc"' "$control_yml")"
 	mode="$(IDX="$i" yq -r '.assets[env(IDX)].mode // "0644"' "$control_yml")"
 	source="$(IDX="$i" yq -r '.assets[env(IDX)].source // ""' "$control_yml")"
-	[ -n "$source" ] || source="$(basename "$path")"
+	dest="${staging}${path}"
 
+	case "$type" in
+	changelog | lintian-overrides)
+		mkdir -p "$(dirname "$dest")"
+		"generate_${type//-/_}" >"$dest"
+		chmod "$mode" "$dest"
+		if [ "$type" = "changelog" ]; then
+			gzip -9n --force "$dest"
+			chmod "$mode" "${dest}.gz"
+		fi
+		continue
+		;;
+	esac
+
+	[ -n "$source" ] || source="$(basename "$path")"
 	if [ ! -f "${srcdir}/${source}" ]; then
 		echo "Asset '${source}' (for ${path}) not found in ${srcdir}" >&2
 		exit 1
 	fi
 
-	dest="${staging}${path}"
 	install -D -m "$mode" "${srcdir}/${source}" "$dest"
 
 	case "$type" in
@@ -142,7 +187,7 @@ emit_yesno() {
 # field order follows debian-policy ch-controlfields; Description must be last
 emit Package "$package"
 emit Source "$(render "$(field source)")"
-emit Version "$(render "$(field version)")"
+emit Version "$pkg_version"
 emit Section "$(render "$(field section)")"
 emit Priority "$(render "$(field priority)")"
 emit Architecture "$(render "$(field architecture)")"
@@ -161,8 +206,8 @@ emit Built-Using "$(render "$(field built-using)")"
 emit Installed-Size "$installed_size"
 emit Origin "$(render "$(field origin)")"
 emit Bugs "$(render "$(field bugs)")"
-emit Homepage "$(render "$(field homepage)")"
-emit Maintainer "$(render "$(field maintainer)")"
+emit Homepage "$homepage"
+emit Maintainer "$maintainer"
 
 summary="$(render "$(field summary)")"
 if [ -z "$summary" ]; then

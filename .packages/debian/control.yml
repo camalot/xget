@@ -6,13 +6,16 @@
 #
 # Field reference: https://www.debian.org/doc/debian-policy/ch-controlfields.html
 
-# Files pulled out of the release archive and installed into the package.
+# Files installed into the package.
 #   path:   absolute install path inside the package
 #   source: name of the file inside the extracted release archive (defaults to
 #           the basename of `path`)
-#   type:   binary | manpage | copyright | doc | config
-#           `manpage` files are gzipped (-9n) to `<path>.gz`; `config` files are
-#           recorded in DEBIAN/conffiles
+#   type:   binary | manpage | copyright | doc | config | changelog |
+#           lintian-overrides
+#           `manpage` and `changelog` files are gzipped (-9n) to `<path>.gz`,
+#           `config` files are recorded in DEBIAN/conffiles, and `changelog` /
+#           `lintian-overrides` are generated from the `control` fields below
+#           rather than copied from the release archive
 #   mode:   octal permissions, quoted so YAML keeps it a string
 assets:
   - path: /usr/bin/xget
@@ -29,6 +32,14 @@ assets:
     source: README.md
     type: doc
     mode: "0644"
+  # required by Debian policy 12.7; generated because the release archive
+  # carries a Markdown changelog, not a Debian-format one
+  - path: /usr/share/doc/xget/changelog
+    type: changelog
+    mode: "0644"
+  - path: /usr/share/lintian/overrides/xget
+    type: lintian-overrides
+    mode: "0644"
 
 # Binary package control fields. Scalars are emitted verbatim, lists are joined
 # with ", ", and `Installed-Size` is always computed from the staged tree.
@@ -42,9 +53,8 @@ control:
   architecture: __ARCH__
   essential: false
   multi-arch: foreign
-  # CGO_ENABLED=0 static Go binary - only the libc runtime loader is required
-  depends:
-    - libc6
+  # nothing: the binary is a CGO_ENABLED=0 fully static Go build
+  depends: []
   suggests:
     - ca-certificates
   provides:
@@ -54,10 +64,25 @@ control:
   replaces:
     - xget-bin
   origin: camalot
-  bugs: https://github.com/camalot/xget/issues
+  # no `bugs` field: it is reserved for Debian BTS infrastructure, and a GitHub
+  # issues URL there trips bugs-field-does-not-refer-to-debian-infrastructure
   homepage: https://github.com/camalot/xget
   maintainer: Ryan Conrad <camalot@gmail.com>
-  summary: xget is a tool for downloading binaries from the GitHub releases.
+  # must not start with the package name and must stay under 80 columns,
+  # including the extended description lines below
+  summary: download pre-built binaries from GitHub and GitLab releases
   description: |
-    xget simplifies the process of fetching precompiled binaries from GitHub releases, ensuring you always get the latest version with minimal effort.
-    This tool is particularly useful for developers and system administrators who need to quickly obtain the latest versions of software without manually navigating GitHub releases.
+    Simplifies fetching precompiled binaries from GitHub and GitLab releases,
+    ensuring you always get the latest version with minimal effort.
+
+    Particularly useful for developers and system administrators who need to
+    quickly obtain the latest versions of software without manually navigating
+    release pages.
+
+  # suite and urgency used for the generated Debian changelog entry
+  distribution: unstable
+  urgency: medium
+  # `<package>: <tag>` override lines written to the lintian-overrides asset
+  lintian-overrides:
+    # Go binaries are statically linked by design (CGO_ENABLED=0)
+    - statically-linked-binary
