@@ -293,3 +293,37 @@ jobs:
           aur-username: ${{ secrets.AUR_USERNAME }}
           aur-email: ${{ secrets.AUR_EMAIL }}
           aur-ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+
+  debian:
+    permissions:
+      # attach the built packages/checksums/SBOMs to the release
+      contents: write
+      # sign and publish the build provenance and SBOM attestations
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    needs:
+      - version
+      - release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - name: Build, attest, and publish the Debian packages
+        id: debian
+        uses: ./.github/actions/debian
+        with:
+          # deb versions can't have a "v" prefix, unlike the git tag
+          version: ${{ needs.version.outputs.ver_major_minor_patch }}
+          dry-run: ${{ inputs.dry-run }}
+
+      - name: Upload Debian packages
+        if: ${{ inputs.dry-run == true }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: debian-packages
+          path: |
+            ${{ steps.debian.outputs.outdir }}/*.deb
+            ${{ steps.debian.outputs.outdir }}/debian-checksums.txt
+          if-no-files-found: error

@@ -1,42 +1,34 @@
-name: publish aur package
+name: publish debian package
 
-# Renders and publishes the xget-bin AUR package for a tag that already has a
+# Builds and publishes the xget .deb packages for a tag that already has a
 # GitHub release with the linux binary archives + checksums.txt uploaded.
-# Unlike publish-packages.yml, this doesn't rebuild anything at that tag's
-# commit: the PKGBUILD only references the release's existing download URLs,
-# so it's rendered using the *current* main branch's packaging definition
-# (.packages/aur/PKGBUILD) and just targets the given version.
+# Like publish-aur.yml, this doesn't rebuild anything at that tag's commit: the
+# packages are repacked from the release's existing archives using the *current*
+# main branch's packaging definition (.packages/debian/control.yml).
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to publish the AUR package for (e.g. v2.1.2)
+        description: Existing release tag to publish the Debian package for (e.g. v2.2.0)
         required: true
         type: string
       dry-run:
-        description: 'Dry-Run: test-build the PKGBUILD without pushing it to the AUR'
+        description: 'Dry-Run: build the .deb packages without attesting or uploading them'
         required: false
         type: boolean
         default: true
   workflow_call:
     inputs:
       tag:
-        description: Existing release tag to publish the AUR package for (e.g. v2.1.2)
+        description: Existing release tag to publish the Debian package for (e.g. v2.2.0)
         required: true
         type: string
-    secrets:
-      AUR_USERNAME:
-        required: true
-      AUR_EMAIL:
-        required: true
-      AUR_SSH_PRIVATE_KEY:
-        required: true
 
 permissions: {}
 
 jobs:
-  aur:
+  debian:
     permissions:
       # attach the built packages/checksums/SBOMs to the release
       contents: write
@@ -76,11 +68,8 @@ jobs:
           REPO: ${{ github.repository }}
           VERSION: ${{ steps.plain_version.outputs.version }}
 
-      - name: Render, build, attest, and publish the AUR package
-        uses: ./.github/actions/aur
+      - name: Build, attest, and publish the Debian packages
+        uses: ./.github/actions/debian
         with:
           version: ${{ steps.plain_version.outputs.version }}
           dry-run: ${{ inputs.dry-run || 'false' }}
-          aur-username: ${{ secrets.AUR_USERNAME }}
-          aur-email: ${{ secrets.AUR_EMAIL }}
-          aur-ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}

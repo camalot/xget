@@ -1,0 +1,63 @@
+---
+# Packaging definition for the xget .deb, consumed by .packages/debian/build-deb.sh
+# (driven by .github/actions/debian). __VERSION__ and __ARCH__ are substituted at
+# build time with the plain (no "v" prefix) release version and the Debian
+# architecture name (amd64 / arm64).
+#
+# Field reference: https://www.debian.org/doc/debian-policy/ch-controlfields.html
+
+# Files pulled out of the release archive and installed into the package.
+#   path:   absolute install path inside the package
+#   source: name of the file inside the extracted release archive (defaults to
+#           the basename of `path`)
+#   type:   binary | manpage | copyright | doc | config
+#           `manpage` files are gzipped (-9n) to `<path>.gz`; `config` files are
+#           recorded in DEBIAN/conffiles
+#   mode:   octal permissions, quoted so YAML keeps it a string
+assets:
+  - path: /usr/bin/xget
+    type: binary
+    mode: "0755"
+  - path: /usr/share/man/man1/xget.1
+    type: manpage
+    mode: "0644"
+  - path: /usr/share/doc/xget/copyright
+    source: LICENSE
+    type: copyright
+    mode: "0644"
+  - path: /usr/share/doc/xget/README.md
+    source: README.md
+    type: doc
+    mode: "0644"
+
+# Binary package control fields. Scalars are emitted verbatim, lists are joined
+# with ", ", and `Installed-Size` is always computed from the staged tree.
+control:
+  package: xget
+  source: xget
+  # https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
+  version: __VERSION__
+  section: utils
+  priority: optional
+  architecture: __ARCH__
+  essential: false
+  multi-arch: foreign
+  # CGO_ENABLED=0 static Go binary - only the libc runtime loader is required
+  depends:
+    - libc6
+  suggests:
+    - ca-certificates
+  provides:
+    - xget
+  conflicts:
+    - xget-bin
+  replaces:
+    - xget-bin
+  origin: camalot
+  bugs: https://github.com/camalot/xget/issues
+  homepage: https://github.com/camalot/xget
+  maintainer: Ryan Conrad <camalot@gmail.com>
+  summary: xget is a tool for downloading binaries from the GitHub releases.
+  description: |
+    xget simplifies the process of fetching precompiled binaries from GitHub releases, ensuring you always get the latest version with minimal effort.
+    This tool is particularly useful for developers and system administrators who need to quickly obtain the latest versions of software without manually navigating GitHub releases.

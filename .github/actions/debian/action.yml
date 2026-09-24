@@ -1,0 +1,238 @@
+---
+name: "Debian Action"
+description: >-
+  Render the Debian control file for a release from .packages/debian/control.yml,
+  build the xget .deb packages for every supported architecture, attest/checksum
+  them and attach them to the GitHub release.
+inputs:
+  version:
+    description: "The plain (no 'v' prefix) version of the xget project to package, e.g. 2.2.0"
+    required: true
+  token:
+    description: "The GitHub token used to read the release assets and upload the built packages"
+    required: false
+    default: "${{ github.token }}"
+  dry-run:
+    description: "Whether to only build the packages without attesting/uploading anything"
+    required: false
+    default: "true"
+outputs:
+  outdir:
+    description: "Directory containing the built .deb packages, checksums, and SBOMs"
+    value: ${{ steps.build.outputs.outdir }}
+  amd64-deb:
+    description: "Path to the built amd64 .deb package"
+    value: ${{ steps.build.outputs.amd64_deb }}
+  arm64-deb:
+    description: "Path to the built arm64 .deb package"
+    value: ${{ steps.build.outputs.arm64_deb }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download and verify the release archives
+      id: download
+      shell: bash
+      run: |
+        set -euo pipefail
+        workdir="$RUNNER_TEMP/debian"
+        rm -rf "$workdir"
+        mkdir -p "$workdir/src"
+
+        gh release download "v${VERSION}" --repo "$REPO" \
+          --pattern checksums.txt \
+          --pattern "xget_${VERSION}_linux_amd64.tar.gz" \
+          --pattern "xget_${VERSION}_linux_arm64.tar.gz" \
+          --dir "$workdir" --clobber
+
+        # only verify the two archives this package is built from
+        (
+          cd "$workdir"
+          grep -E "xget_${VERSION}_linux_(amd64|arm64)\.tar\.gz$" checksums.txt > expected.txt
+          test "$(wc -l < expected.txt)" -eq 2
+          sha256sum --check --strict expected.txt
+        )
+
+        for arch in amd64 arm64; do
+          mkdir -p "$workdir/src/$arch"
+          tar -xzf "$workdir/xget_${VERSION}_linux_${arch}.tar.gz" -C "$workdir/src/$arch"
+        done
+
+        echo "workdir=$workdir" >> "$GITHUB_OUTPUT"
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+        VERSION: ${{ inputs.version }}
+
+    - name: Build the .deb packages (amd64, arm64)
+      id: build
+      shell: bash
+      run: |
+        set -euo pipefail
+        outdir="$WORKDIR/dist"
+        mkdir -p "$outdir"
+
+        chmod +x .packages/debian/build-deb.sh
+        amd64_deb=$(.packages/debian/build-deb.sh \
+          --version "$VERSION" --arch amd64 --srcdir "$WORKDIR/src/amd64" --outdir "$outdir")
+        arm64_deb=$(.packages/debian/build-deb.sh \
+          --version "$VERSION" --arch arm64 --srcdir "$WORKDIR/src/arm64" --outdir "$outdir")
+
+        checksums_file="$outdir/debian-checksums.txt"
+        (cd "$outdir" && sha256sum "$(basename "$amd64_deb")" "$(basename "$arm64_deb")" > "$checksums_file")
+
+        {
+          echo "outdir=$outdir"
+          echo "amd64_deb=$amd64_deb"
+          echo "arm64_deb=$arm64_deb"
+          echo "checksums_file=$checksums_file"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        WORKDIR: ${{ steps.download.outputs.workdir }}
+        VERSION: ${{ inputs.version }}
+
+    - name: Inspect and lint the packages
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq lintian
+
+        {
+          echo "### Debian packages for v${VERSION}"
+          for deb in "$AMD64_DEB" "$ARM64_DEB"; do
+            echo "<details><summary>$(basename "$deb")</summary>"
+            echo
+            echo '```'
+            dpkg-deb --info "$deb"
+            dpkg-deb --contents "$deb"
+            # binary-only repack: lintian findings are advisory, not gating
+            lintian --no-tag-display-limit "$deb" 2>&1 || true
+            echo '```'
+            echo
+            echo "</details>"
+          done
+        } >> "$GITHUB_STEP_SUMMARY"
+      env:
+        VERSION: ${{ inputs.version }}
+        AMD64_DEB: ${{ steps.build.outputs.amd64_deb }}
+        ARM64_DEB: ${{ steps.build.outputs.arm64_deb }}
+
+    # arm64 packages are installed under emulation
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
+
+    - name: Verify the packages install and run
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # expected on-disk paths, derived from the packaging definition
+        expected="$RUNNER_TEMP/debian-expected-paths.txt"
+        : > "$expected"
+        while IFS=$'\t' read -r path type; do
+          if [ "$type" = "manpage" ]; then
+            path="${path}.gz"
+          fi
+          echo "$path" >> "$expected"
+        done < <(yq -r '.assets[] | [.path, (.type // "doc")] | join("\t")' .packages/debian/control.yml)
+
+        for arch in amd64 arm64; do
+          echo "::group::install xget_${VERSION}_${arch}.deb"
+          docker run --rm --platform "linux/${arch}" \
+            -v "${OUTDIR}:/pkgs:ro" -v "${expected}:/expected.txt:ro" \
+            -e "VERSION=${VERSION}" -e "ARCH=${arch}" \
+            debian:stable-slim bash -euc '
+              # the slim image drops docs/manpages on install, which would hide packaged files
+              rm -f /etc/dpkg/dpkg.cfg.d/docker
+
+              # no --force-depends: this must also prove the declared Depends are satisfiable
+              dpkg --install "/pkgs/xget_${VERSION}_${ARCH}.deb"
+              dpkg --audit
+
+              while read -r path; do
+                if [ ! -f "$path" ]; then
+                  echo "Installed package is missing $path" >&2
+                  exit 1
+                fi
+                echo "ok: $path ($(stat -c "%a %U:%G" "$path"))"
+              done < /expected.txt
+
+              test -x /usr/bin/xget
+              out=$(xget --version)
+              echo "$out"
+              grep -qF "xget ${VERSION}" <<< "$out"
+
+              dpkg --purge xget
+              test ! -e /usr/bin/xget
+            '
+          echo "::endgroup::"
+        done
+      env:
+        VERSION: ${{ inputs.version }}
+        OUTDIR: ${{ steps.build.outputs.outdir }}
+
+    - name: Generate SPDX SBOM (amd64 package)
+      if: inputs.dry-run == 'false'
+      uses: anchore/sbom-action@v0
+      with:
+        file: ${{ steps.build.outputs.amd64_deb }}
+        format: spdx-json
+        output-file: ${{ steps.build.outputs.outdir }}/xget-debian-amd64.spdx.json
+        upload-artifact: false
+        upload-release-assets: false
+
+    - name: Generate SPDX SBOM (arm64 package)
+      if: inputs.dry-run == 'false'
+      uses: anchore/sbom-action@v0
+      with:
+        file: ${{ steps.build.outputs.arm64_deb }}
+        format: spdx-json
+        output-file: ${{ steps.build.outputs.outdir }}/xget-debian-arm64.spdx.json
+        upload-artifact: false
+        upload-release-assets: false
+
+    - name: Attest build provenance (amd64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.build.outputs.amd64_deb }}
+
+    - name: Attest SBOM (amd64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.build.outputs.amd64_deb }}
+        sbom-path: ${{ steps.build.outputs.outdir }}/xget-debian-amd64.spdx.json
+
+    - name: Attest build provenance (arm64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.build.outputs.arm64_deb }}
+
+    - name: Attest SBOM (arm64 package)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.build.outputs.arm64_deb }}
+        sbom-path: ${{ steps.build.outputs.outdir }}/xget-debian-arm64.spdx.json
+
+    - name: Upload Debian packages, checksums, and SBOMs to the release
+      if: inputs.dry-run == 'false'
+      shell: bash
+      run: |
+        set -euo pipefail
+        gh release upload "$TAG" \
+          "$AMD64_DEB" "$ARM64_DEB" "$CHECKSUMS_FILE" \
+          "$OUTDIR/xget-debian-amd64.spdx.json" "$OUTDIR/xget-debian-arm64.spdx.json" \
+          --clobber
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        TAG: v${{ inputs.version }}
+        AMD64_DEB: ${{ steps.build.outputs.amd64_deb }}
+        ARM64_DEB: ${{ steps.build.outputs.arm64_deb }}
+        CHECKSUMS_FILE: ${{ steps.build.outputs.checksums_file }}
+        OUTDIR: ${{ steps.build.outputs.outdir }}
