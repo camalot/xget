@@ -1,0 +1,57 @@
+name: publish rpm package
+
+# Builds and publishes the xget RPM package for a tag that already has a
+# GitHub release. The RPM action builds from the tag's source because
+# naveenrajm7/rpmbuild archives the checked-out source before running rpmbuild.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish the RPM package for (e.g. v2.2.0)
+        required: true
+        type: string
+      dry-run:
+        description: 'Dry-Run: build and inspect the RPM packages without attesting or uploading them'
+        required: false
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing release tag to publish the RPM package for (e.g. v2.2.0)
+        required: true
+        type: string
+      dry-run:
+        description: Whether to only build and inspect the RPM packages
+        required: false
+        type: boolean
+        default: true
+
+permissions: {}
+
+jobs:
+  rpm:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+
+      - name: Determine plain version
+        id: plain_version
+        shell: bash
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ inputs.tag }}
+
+      - name: Build, verify, attest, and publish the RPM packages
+        uses: ./.github/actions/rpm
+        with:
+          version: ${{ steps.plain_version.outputs.version }}
+          dry-run: ${{ inputs.dry-run || 'false' }}

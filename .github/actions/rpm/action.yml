@@ -1,0 +1,156 @@
+---
+name: "RPM Action"
+description: >-
+  Render the RPM spec for a release, build xget binary and source RPMs,
+  verify them, then attest/checksum them and attach them to the GitHub release.
+inputs:
+  version:
+    description: "The plain (no 'v' prefix) version of the xget project to package, e.g. 2.2.0"
+    required: true
+  token:
+    description: "The GitHub token used to upload the built packages"
+    required: false
+    default: "${{ github.token }}"
+  dry-run:
+    description: "Whether to only build and verify the packages without attesting/uploading anything"
+    required: false
+    default: "true"
+outputs:
+  outdir:
+    description: "Directory containing the built RPMs, checksums, and SBOMs"
+    value: ${{ steps.collect.outputs.outdir }}
+  rpm:
+    description: "Path to the built binary RPM"
+    value: ${{ steps.collect.outputs.rpm_file }}
+  source-rpm:
+    description: "Path to the built source RPM"
+    value: ${{ steps.collect.outputs.srpm_file }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Render RPM spec
+      shell: bash
+      run: sed -i "s/__VERSION__/$VERSION/g" .packages/rpm/xget.spec
+      env:
+        VERSION: ${{ inputs.version }}
+
+    - name: Build RPM packages
+      id: build
+      uses: naveenrajm7/rpmbuild@master
+      with:
+        spec_file: .packages/rpm/xget.spec
+
+    - name: Collect and inspect RPM packages
+      id: collect
+      shell: bash
+      run: |
+        set -euo pipefail
+        outdir="$RUNNER_TEMP/rpm/dist"
+        mkdir -p "$outdir"
+
+        find "$GITHUB_WORKSPACE/$RPM_DIR" -type f -name '*.rpm' -exec cp {} "$outdir" \;
+        find "$GITHUB_WORKSPACE/$SRPM_DIR" -type f -name '*.rpm' -exec cp {} "$outdir" \;
+
+        rpm_file=$(find "$outdir" -maxdepth 1 -type f -name 'xget-[0-9]*.rpm' ! -name '*.src.rpm' -print -quit)
+        srpm_file=$(find "$outdir" -maxdepth 1 -type f -name 'xget-[0-9]*.src.rpm' -print -quit)
+        test -n "$rpm_file"
+        test -n "$srpm_file"
+
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq rpm
+        rpm -qpi "$rpm_file"
+        rpm -qpl "$rpm_file"
+        rpm -qpi "$srpm_file"
+
+        checksums_file="$outdir/rpm-checksums.txt"
+        (cd "$outdir" && sha256sum "$(basename "$rpm_file")" "$(basename "$srpm_file")" > "$checksums_file")
+        {
+          echo "outdir=$outdir"
+          echo "rpm_file=$rpm_file"
+          echo "srpm_file=$srpm_file"
+          echo "rpm_sbom=${rpm_file}.sbom.json"
+          echo "srpm_sbom=${srpm_file}.sbom.json"
+          echo "checksums_file=$checksums_file"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        RPM_DIR: ${{ steps.build.outputs.rpm_dir_path }}
+        SRPM_DIR: ${{ steps.build.outputs.source_rpm_dir_path }}
+
+    - name: Verify RPM installs and runs
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker run --rm -e VERSION -v "$RPM_FILE:/tmp/xget.rpm:ro" almalinux:9 bash -euc '
+          dnf install -y /tmp/xget.rpm
+          xget --version | grep -qF "xget ${VERSION}"
+          rpm -e xget
+          test ! -e /usr/bin/xget
+        '
+      env:
+        RPM_FILE: ${{ steps.collect.outputs.rpm_file }}
+        VERSION: ${{ inputs.version }}
+
+    - name: Generate SPDX SBOM (RPM)
+      if: inputs.dry-run == 'false'
+      uses: anchore/sbom-action@v0
+      with:
+        file: ${{ steps.collect.outputs.rpm_file }}
+        format: spdx-json
+        output-file: ${{ steps.collect.outputs.rpm_sbom }}
+        upload-artifact: false
+        upload-release-assets: false
+
+    - name: Generate SPDX SBOM (source RPM)
+      if: inputs.dry-run == 'false'
+      uses: anchore/sbom-action@v0
+      with:
+        file: ${{ steps.collect.outputs.srpm_file }}
+        format: spdx-json
+        output-file: ${{ steps.collect.outputs.srpm_sbom }}
+        upload-artifact: false
+        upload-release-assets: false
+
+    - name: Attest build provenance (RPM)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.collect.outputs.rpm_file }}
+
+    - name: Attest SBOM (RPM)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.collect.outputs.rpm_file }}
+        sbom-path: ${{ steps.collect.outputs.rpm_sbom }}
+
+    - name: Attest build provenance (source RPM)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.collect.outputs.srpm_file }}
+
+    - name: Attest SBOM (source RPM)
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ steps.collect.outputs.srpm_file }}
+        sbom-path: ${{ steps.collect.outputs.srpm_sbom }}
+
+    - name: Upload RPM packages, checksums, and SBOMs to the release
+      if: inputs.dry-run == 'false'
+      shell: bash
+      run: |
+        set -euo pipefail
+        gh release upload "$TAG" \
+          "$RPM_FILE" "$SRPM_FILE" "$CHECKSUMS_FILE" \
+          "$RPM_SBOM" "$SRPM_SBOM" \
+          --clobber
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        TAG: v${{ inputs.version }}
+        RPM_FILE: ${{ steps.collect.outputs.rpm_file }}
+        SRPM_FILE: ${{ steps.collect.outputs.srpm_file }}
+        RPM_SBOM: ${{ steps.collect.outputs.rpm_sbom }}
+        SRPM_SBOM: ${{ steps.collect.outputs.srpm_sbom }}
+        CHECKSUMS_FILE: ${{ steps.collect.outputs.checksums_file }}
