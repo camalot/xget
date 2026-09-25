@@ -47,35 +47,21 @@ jobs:
         with:
           persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
 
-      - name: Determine plain version
-        id: plain_version
-        shell: bash
-        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-        env:
-          TAG: ${{ inputs.tag }}
-
       - name: Verify release assets exist
-        shell: bash
-        run: |
-          set -euo pipefail
-          assets_file="$RUNNER_TEMP/assets.txt"
-          gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' > "$assets_file"
-          for asset in "xget_${VERSION}_linux_amd64.tar.gz" "xget_${VERSION}_linux_arm64.tar.gz" "checksums.txt"; do
-            if ! grep -qF "$asset" "$assets_file"; then
-              echo "Release $TAG is missing expected asset '$asset'" >&2
-              exit 1
-            fi
-          done
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
-          REPO: ${{ github.repository }}
-          VERSION: ${{ steps.plain_version.outputs.version }}
+        id: verify-release-asset
+        uses: ./.github/actions/verify-release-asset
+        with:
+          tag: ${{ inputs.tag }}
+          platform: linux
+          architecture: |
+            amd64
+            arm64
+          token: ${{ github.token }}
 
       - name: Build, verify, attest, and publish the Alpine packages
         uses: ./.github/actions/alpine
         with:
-          version: ${{ steps.plain_version.outputs.version }}
+          version: ${{ steps.verify-release-asset.outputs.version }}
           dry-run: ${{ inputs.dry-run || 'false' }}
           signing-private-key: ${{ secrets.RSA_PRIVATE_KEY }}
           signing-public-key: ${{ vars.RSA_PUBLIC_KEY }}

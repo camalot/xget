@@ -5,9 +5,7 @@ Summary:        Download pre-built binaries from GitHub and GitLab releases
 
 License:         MIT
 URL:             https://github.com/camalot/xget
-Source0:         %{name}-%{version}.tar.gz
-BuildRequires:   golang >= 1.27
-BuildRequires:   pandoc
+Source0:         xget_%{version}_linux___ARCHITECTURE__.tar.gz
 
 %description
 xget downloads and extracts pre-built binaries from GitHub and GitLab releases.
@@ -15,13 +13,11 @@ It selects a suitable release asset for the current platform, verifies available
 checksums, and installs the requested executable locally.
 
 %prep
-%autosetup
+echo "__SHA256__  %{_sourcedir}/%{SOURCE0}" | sha256sum --check --strict
+tar -xzf %{_sourcedir}/%{SOURCE0}
 
 %build
-CGO_ENABLED=0 go build -buildvcs=false \
-	-ldflags="-s -w -X github.com/camalot/xget/internal/cli.version=%{version}" \
-	-o xget ./cmd/xget
-pandoc docs/_man/xget.md -s -t man -o xget.1
+# The release archive supplies the pre-built binary, manual page, and docs.
 
 %install
 install -Dpm 0755 xget %{buildroot}%{_bindir}/xget

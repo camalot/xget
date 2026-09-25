@@ -51,6 +51,17 @@ jobs:
         with:
           persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
 
+      - name: Verify release assets exist
+        id: verify-release-asset
+        uses: ./.github/actions/verify-release-asset
+        with:
+          token: ${{ github.token }}
+          tag: ${{ inputs.tag }}
+          platform: linux
+          architecture: |
+            amd64
+            arm64
+
       - name: Determine plain version
         id: plain_version
         shell: bash

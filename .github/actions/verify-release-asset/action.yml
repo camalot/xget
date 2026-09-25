@@ -1,0 +1,104 @@
+---
+name: "Verify Release Asset"
+description: "Verify that the expected release assets exist for a given GitHub release tag"
+inputs:
+  tag:
+    description: "The GitHub release tag to verify, e.g. v2.2.0"
+    required: true
+    default: ""
+  platform:
+    description: "Target platforms, separated by spaces, commas, or newlines, e.g. linux darwin"
+    required: true
+    default: "linux"
+  architecture:
+    description: "Target architectures, separated by spaces, commas, or newlines, e.g. amd64 arm64"
+    required: true
+    default: "amd64"
+  asset-extension:
+    description: "The expected asset extension for the release, e.g. tar.gz"
+    required: true
+    default: "tar.gz"
+  asset-prefix:
+    description: "The prefix for the expected assets, e.g. xget"
+    required: true
+    default: "xget"
+  additional-assets:
+    description: "Additional asset names, separated by spaces, commas, or newlines"
+    required: false
+    default: |
+      checksums.txt
+  token:
+    description: "The GitHub token used to access the release assets"
+    required: false
+    default: "${{ github.token }}"
+outputs:
+  version:
+    description: "The plain version derived from the tag"
+    value: ${{ steps.prepare.outputs.version }}
+  platform:
+    description: "The normalized, space-delimited platforms"
+    value: ${{ steps.prepare.outputs.platform }}
+  architecture:
+    description: "The normalized, space-delimited architectures"
+    value: ${{ steps.prepare.outputs.architecture }}
+runs:
+  using: "composite"
+  steps:
+    - name: Determine plain version
+      id: prepare
+      shell: bash
+      run: |
+        normalize_values() {
+          printf '%s\n' "$1" | tr ',\r\n' '   ' | awk '{ for (i = 1; i <= NF; i++) print tolower($i) }' | paste -sd' ' -
+        }
+
+        platforms=$(normalize_values "$PLATFORM")
+        architectures=$(normalize_values "$ARCHITECTURE")
+        test -n "$platforms"
+        test -n "$architectures"
+        {
+          echo "version=${TAG#v}"
+          echo "platform=$platforms"
+          echo "architecture=$architectures"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        TAG: ${{ inputs.tag }}
+        PLATFORM: ${{ inputs.platform }}
+        ARCHITECTURE: ${{ inputs.architecture }}
+
+    - name: Verify release assets exist
+      shell: bash
+      run: |
+        set -euo pipefail
+        assets_file="$RUNNER_TEMP/assets.txt"
+        gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' > "$assets_file"
+
+        read -r -a platforms <<< "$PLATFORMS"
+        read -r -a architectures <<< "$ARCHITECTURES"
+        assets=()
+        for platform in "${platforms[@]}"; do
+          for architecture in "${architectures[@]}"; do
+            assets+=("${ASSET_PREFIX}_${VERSION}_${platform}_${architecture}.${ASSET_EXTENSION}")
+          done
+        done
+
+        while IFS= read -r asset; do
+          test -n "$asset" && assets+=("$asset")
+        done < <(printf '%s\n' "$ADDITIONAL_ASSETS" | tr ',\r\n' '   ' | awk '{ for (i = 1; i <= NF; i++) print $i }')
+
+        for asset in "${assets[@]}"; do
+          if ! grep -qF "$asset" "$assets_file"; then
+            echo "Release $TAG is missing expected asset '$asset'" >&2
+            exit 1
+          fi
+        done
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ inputs.tag }}
+        REPO: ${{ github.repository }}
+        VERSION: ${{ steps.prepare.outputs.version }}
+        PLATFORMS: ${{ steps.prepare.outputs.platform }}
+        ARCHITECTURES: ${{ steps.prepare.outputs.architecture }}
+        ASSET_PREFIX: ${{ inputs.asset-prefix }}
+        ASSET_EXTENSION: ${{ inputs.asset-extension }}
+        ADDITIONAL_ASSETS: ${{ inputs.additional-assets }}

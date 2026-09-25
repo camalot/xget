@@ -1,8 +1,9 @@
 name: publish rpm package
 
 # Builds and publishes the xget RPM package for a tag that already has a
-# GitHub release. The RPM action builds from the tag's source because
-# naveenrajm7/rpmbuild archives the checked-out source before running rpmbuild.
+# GitHub release with the Linux binary archive and checksums.txt uploaded.
+# Like publish-aur.yml / publish-alpine.yml / publish-debian.yml, it repacks
+# the existing release binary using the current RPM packaging definition.
 
 on:
   workflow_dispatch:
@@ -40,18 +41,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: refs/tags/${{ inputs.tag }}
           persist-credentials: false
 
-      - name: Determine plain version
-        id: plain_version
-        shell: bash
-        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-        env:
-          TAG: ${{ inputs.tag }}
-
+      - name: Verify release assets exist
+        id: verify-release-asset
+        uses: ./.github/actions/verify-release-asset
+        with:
+          token: ${{ github.token }}
+          tag: ${{ inputs.tag }}
+          platform: linux
+          architecture: |
+            amd64
+            arm64
       - name: Build, verify, attest, and publish the RPM packages
         uses: ./.github/actions/rpm
         with:
-          version: ${{ steps.plain_version.outputs.version }}
+          version: ${{ steps.verify-release-asset.outputs.version }}
           dry-run: ${{ inputs.dry-run || 'false' }}
