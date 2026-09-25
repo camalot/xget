@@ -31,6 +31,7 @@ func readValidatedFile(p string) ([]byte, error) {
 		return nil, fmt.Errorf("invalid file path %q", p)
 	}
 
+	//nolint:gosec // Token-file paths are explicitly selected by local configuration.
 	info, err := os.Stat(clean)
 	if err != nil {
 		return nil, err
@@ -39,7 +40,7 @@ func readValidatedFile(p string) ([]byte, error) {
 		return nil, fmt.Errorf("%s is not a regular file", clean)
 	}
 
-	// #nosec G304 -- path is normalized and validated to a regular file above.
+	//nolint:gosec // Token-file paths are explicitly selected by local configuration.
 	return os.ReadFile(clean)
 }
 

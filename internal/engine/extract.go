@@ -216,6 +216,7 @@ func safeMkdirAll(base, target string) error {
 			continue
 		}
 		current = filepath.Join(current, part)
+		//nolint:gosec // requireWithinBase above confines current to the trusted extraction root.
 		info, err := os.Lstat(current)
 		if err == nil {
 			if info.Mode()&os.ModeSymlink != 0 {
@@ -229,6 +230,7 @@ func safeMkdirAll(base, target string) error {
 		if !os.IsNotExist(err) {
 			return err
 		}
+		//nolint:gosec // requireWithinBase above confines current to the trusted extraction root.
 		if err := os.Mkdir(current, 0750); err != nil && !os.IsExist(err) {
 			return err
 		}

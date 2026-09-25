@@ -6,6 +6,8 @@ vars: {}
 tasks:
   build:
     desc: Build the project
+    deps:
+      - lint
     cmds:
       - chmod +x ./scripts/generate-install-sha256.sh
       - chmod +x ./install/xget.sh
@@ -14,11 +16,15 @@ tasks:
       - echo "Building the project..."
       - mkdir -p bin
       - go mod tidy
-      - golangci-lint run ./...
       - goreleaser build --snapshot --clean --id xget-windows --id xget-unix
       - go vet ./...
       - gofmt -l .
       - go test ./...
+
+  lint:
+    desc: Run the same golangci-lint version as CI
+    cmds:
+      - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0 run ./...
 
   manpage:
     desc: Generate xget.1 (falls back to a stub when pandoc is unavailable)
