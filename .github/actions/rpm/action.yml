@@ -90,7 +90,7 @@ runs:
             -v "$WORKDIR:/work" -v "$PACKAGES:/packages" \
             -e RELEASE_ARCH="$release_arch" -e RPM_ARCH="$rpm_arch" \
             almalinux:9 bash -euc '
-              dnf install -y rpm-build tar gzip coreutils
+              dnf install -y rpm-build
               rpmbuild -bb \
                 --define "_topdir /work/build/${RELEASE_ARCH}" \
                 --define "_rpmdir /packages/${RELEASE_ARCH}" \
