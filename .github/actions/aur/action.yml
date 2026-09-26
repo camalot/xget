@@ -71,13 +71,17 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        docker run --rm -v "${PKGBUILD_DIR}:/pkg" -w /pkg archlinux:base-devel bash -euc '
+        docker run --rm -v "${PKGBUILD_DIR}:/pkg" -w /pkg \
+          -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+          archlinux:base-devel bash -euc '
           pacman -Sy --noconfirm --needed
           useradd -m builder
           chown -R builder:builder /pkg
           for arch in x86_64 aarch64; do
             su builder -c "CARCH=$arch makepkg --clean --cleanbuild --nodeps --skippgpcheck"
           done
+          # hand the bind mount back to the runner user, which owns it on the host
+          chown -R "${HOST_UID}:${HOST_GID}" /pkg
         '
 
         outdir="$RUNNER_TEMP/aur/dist"
