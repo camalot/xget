@@ -1,0 +1,25 @@
+---
+name: Publish Documentation
+"on": # ymllint-disable truthy
+  workflow_dispatch:
+permissions: {}
+jobs:
+  publish-documentation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Dr. Jekyll Build
+        uses: camalot/actions/docs/drjekyll@v1
+        with:
+          input_dir: ./docs
+          output_dir: ./_site
+          jekyll_env: production
+          token: ${{ github.token }}

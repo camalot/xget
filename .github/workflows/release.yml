@@ -374,10 +374,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      statuses: write
       issues: read
-      checks: write
-      pull-requests: write
       pages: write
       id-token: write
     needs:
