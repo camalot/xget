@@ -5,15 +5,19 @@ nav_order: 1
 ---
 
 <!-- markdownlint-disable MD022 MD025 -->
-# Welcome to the Documentation
+# XGET
 {: .no_toc }
 
 > [!NOTE]
 > xget is a forked codebase of [zyedidia/eget](https://github.com/zyedidia/eget) focusing on some additional features and improvements. The original project does not seem to be actively maintained.
 > The version of xget is starting at v2.0.0 to avoid confusion with the original project.
 
-[![Release](https://img.shields.io/github/release/camalot/xget.svg?label=Release)](https://github.com/camalot/xget/releases)
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/camalot/xget/blob/master/LICENSE)
+[![Release](https://img.shields.io/github/release/camalot/xget.svg?label=Release&style=for-the-badge)](https://github.com/camalot/xget/releases)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge&label=license&labelColor=%23555555)](https://github.com/camalot/xget/blob/main/LICENSE)
+[![Codecov](https://img.shields.io/codecov/c/github/camalot/xget?style=for-the-badge&label=COVERAGE&logo=codecov&logoColor=white)](https://app.codecov.io/gh/camalot/xget/tree/develop)
+[![GitHub Build](https://img.shields.io/github/actions/workflow/status/camalot/xget/.github%2Fworkflows%2Fci.yml?style=for-the-badge&logo=github&label=BUILD)](https://github.com/camalot/xget/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/actions/workflow/status/camalot/xget/.github%2Fworkflows%2Frelease.yml?style=for-the-badge&logo=github&label=RELEASE)](https://github.com/camalot/xget/actions/workflows/release.yml)
+[![Issues](https://img.shields.io/github/issues/camalot/xget?style=for-the-badge&logo=github&color=blue)](https://github.com/camalot/xget/issues)
 
 <!-- markdownlint-disable MD033 -->
 <p align="center">

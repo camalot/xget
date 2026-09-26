@@ -1,5 +1,5 @@
 ---
-title: "Shell Completion"
+title: "🐚 Shell Completion"
 nav_order: 1
 layout: default
 parent: 🧭 Usage

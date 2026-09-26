@@ -1,12 +1,12 @@
 ---
-title: "Upgrading Packages"
+title: "⬆️ Updating Packages"
 nav_order: 2
 layout: default
 parent: 🧭 Usage
 ---
 
 <!-- markdownlint-disable-next-line MD025 MD022 -->
-# Upgrading Packages
+# Updating Packages
 {: .no_toc }
 
 `xget upgrade` reports and applies newer releases for the packages recorded in
@@ -25,7 +25,7 @@ xget self-update
 1. TOC
 {:toc}
 
-## Listing available upgrades
+## Listing available updates
 
 ```bash
 xget upgrade
@@ -74,7 +74,7 @@ bschaatsbergen/cidr  v2.2.0   v2.3.0     ~/.local/bin  GitHub
 Upgrading one requires naming it:
 
 ```bash
-xget upgrade bschaatsbergen/cidr
+xget update bschaatsbergen/cidr
 ```
 
 The package stays pinned afterward; the stored `tag` is updated to the newer
@@ -83,8 +83,8 @@ release.
 ## Upgrading
 
 ```bash
-xget upgrade <package>   # upgrade one package
-xget upgrade --all       # upgrade everything that is not pinned
+xget update <package>   # upgrade one package
+xget update --all       # upgrade everything that is not pinned
 ```
 
 `<package>` accepts the full name (`bschaatsbergen/cidr`), the store key
@@ -130,7 +130,7 @@ makes this the way to reinstall the version that is already present. The tag
 applies to every tracked location unless `--to` selects one. `--tag` requires a
 package name; the inline form takes precedence only when `--tag` is not given.
 
-Downgrading does not pin the package: a later `xget upgrade` will offer the
+Downgrading does not pin the package: a later `xget update` will offer the
 newest release again. Use `xget install <package> --tag <tag>` to pin it.
 
 ## Options used for the upgrade
@@ -159,6 +159,6 @@ Use `--config <file>` to resolve the config layers from a specific file.
 
 ## Refreshing without upgrading
 
-Running `xget upgrade` with no arguments only refreshes metadata and prints the
+Running `xget update` with no arguments only refreshes metadata and prints the
 report; nothing is downloaded. `xget list --installed` performs the same refresh
 and prints the full installed package table.

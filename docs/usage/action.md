@@ -1,6 +1,6 @@
 ---
-title: ❓ FAQ
-nav_order: 4
+title: 🎬 GitHub Action
+nav_order: 5
 layout: default
 parent: 🧭 Usage
 ---

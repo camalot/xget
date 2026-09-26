@@ -10,8 +10,10 @@ has_children: false
 # Configuration Loading and Precedence
 {: .no_toc }
 
-xget supports both TOML and YAML configuration formats while maintaining
-backward compatibility with original [zyedidia/eget](https://github.com/zyedidia/eget) TOML files.
+---
+
+xget supports both `TOML` and `YAML` configuration formats while maintaining
+backward compatibility with original [zyedidia/eget](https://github.com/zyedidia/eget) `TOML` files.
 
 ## Supported filenames
 
