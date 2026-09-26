@@ -5,12 +5,10 @@ nav_order: 1
 ---
 
 <!-- markdownlint-disable MD022 MD025 -->
-# XGET
+# xget
 {: .no_toc }
 
-> [!NOTE]
-> xget is a forked codebase of [zyedidia/eget](https://github.com/zyedidia/eget) focusing on some additional features and improvements. The original project does not seem to be actively maintained.
-> The version of xget is starting at v2.0.0 to avoid confusion with the original project.
+xget is a forked codebase of [zyedidia/eget](https://github.com/zyedidia/eget) focusing on some additional features and improvements. The original project does not seem to be actively maintained. The version of xget is starting at v2.0.0 to avoid confusion with the original project.
 
 [![Release](https://img.shields.io/github/release/camalot/xget.svg?label=Release&style=for-the-badge)](https://github.com/camalot/xget/releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge&label=license&labelColor=%23555555)](https://github.com/camalot/xget/blob/main/LICENSE)
@@ -44,12 +42,4 @@ software.
 xget has a number of detection mechanisms and should work out-of-the-box with
 most software that is distributed via single binaries on GitHub or GitLab releases. First
 try using xget on your software, it may already just work. Otherwise, see the
-[FAQ](usage/faq) for a clear set of rules to make your software compatible with xget.
-
-## Documentation sections
-
-- [Installation](installation)
-- [Usage](usage)
-- [Asset Filtering](usage/asset-filtering)
-- [Configuration](configuration)
-- [FAQ](usage/faq)
+[FAQ](faq) for a clear set of rules to make your software compatible with xget.

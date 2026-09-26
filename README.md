@@ -42,6 +42,7 @@ compatible with xget.
 ## Documentation
 
 - [Documentation](https://camalot.github.io/xget)
+- [Features](https://camalot.github.io/xget/features)
 - [Examples](https://camalot.github.io/xget/usage/examples)
 - [Installation](https://camalot.github.io/xget/installation)
 - [GitHub Action](https://camalot.github.io/xget/usage/action)
