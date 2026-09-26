@@ -32,36 +32,22 @@ runs:
   steps:
     - name: Download and verify the release archives
       id: download
+      uses: ./.github/actions/release-archives
+      with:
+        version: ${{ inputs.version }}
+        token: ${{ inputs.token }}
+        path: ${{ runner.temp }}/debian
+
+    - name: Extract the release archives
       shell: bash
       run: |
         set -euo pipefail
-        workdir="$RUNNER_TEMP/debian"
-        rm -rf "$workdir"
-        mkdir -p "$workdir/src"
-
-        gh release download "v${VERSION}" --repo "$REPO" \
-          --pattern checksums.txt \
-          --pattern "xget_${VERSION}_linux_amd64.tar.gz" \
-          --pattern "xget_${VERSION}_linux_arm64.tar.gz" \
-          --dir "$workdir" --clobber
-
-        # only verify the two archives this package is built from
-        (
-          cd "$workdir"
-          grep -E "xget_${VERSION}_linux_(amd64|arm64)\.tar\.gz$" checksums.txt > expected.txt
-          test "$(wc -l < expected.txt)" -eq 2
-          sha256sum --check --strict expected.txt
-        )
-
         for arch in amd64 arm64; do
-          mkdir -p "$workdir/src/$arch"
-          tar -xzf "$workdir/xget_${VERSION}_linux_${arch}.tar.gz" -C "$workdir/src/$arch"
+          mkdir -p "$WORKDIR/src/$arch"
+          tar -xzf "$WORKDIR/xget_${VERSION}_linux_${arch}.tar.gz" -C "$WORKDIR/src/$arch"
         done
-
-        echo "workdir=$workdir" >> "$GITHUB_OUTPUT"
       env:
-        GH_TOKEN: ${{ inputs.token }}
-        REPO: ${{ github.repository }}
+        WORKDIR: ${{ steps.download.outputs.path }}
         VERSION: ${{ inputs.version }}
 
     - name: Build the .deb packages (amd64, arm64)
@@ -90,7 +76,7 @@ runs:
           echo "checksums_file=$checksums_file"
         } >> "$GITHUB_OUTPUT"
       env:
-        WORKDIR: ${{ steps.download.outputs.workdir }}
+        WORKDIR: ${{ steps.download.outputs.path }}
         VERSION: ${{ inputs.version }}
 
     - name: Inspect and lint the packages

@@ -46,34 +46,27 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Download release archives and render the APKBUILD
+    # everything lives under RUNNER_TEMP, which setup-alpine bind-mounts
+    # into the chroot at the same path
+    - name: Download and verify the release archives
+      id: download
+      uses: ./.github/actions/release-archives
+      with:
+        version: ${{ inputs.version }}
+        token: ${{ inputs.token }}
+        path: ${{ runner.temp }}/alpine/dl
+
+    - name: Render the APKBUILD
       id: render
       shell: bash
       run: |
         set -euo pipefail
-        # everything lives under RUNNER_TEMP, which setup-alpine bind-mounts
-        # into the chroot at the same path
         workdir="$RUNNER_TEMP/alpine"
-        rm -rf "$workdir"
-        mkdir -p "$workdir/main/xget" "$workdir/srcdest" "$workdir/packages" "$workdir/dl"
-
-        gh release download "v${VERSION}" --repo "$REPO" \
-          --pattern checksums.txt \
-          --pattern "xget_${VERSION}_linux_amd64.tar.gz" \
-          --pattern "xget_${VERSION}_linux_arm64.tar.gz" \
-          --dir "$workdir/dl" --clobber
-
-        # only verify the two archives this package is built from
-        (
-          cd "$workdir/dl"
-          grep -E "xget_${VERSION}_linux_(amd64|arm64)\.tar\.gz$" checksums.txt > expected.txt
-          test "$(wc -l < expected.txt)" -eq 2
-          sha256sum --check --strict expected.txt
-        )
+        mkdir -p "$workdir/main/xget" "$workdir/srcdest" "$workdir/packages"
 
         # abuild fetches by source name, so seed SRCDEST with the verified archives
-        cp "$workdir/dl/xget_${VERSION}_linux_amd64.tar.gz" "$workdir/srcdest/xget-${VERSION}-x86_64.tar.gz"
-        cp "$workdir/dl/xget_${VERSION}_linux_arm64.tar.gz" "$workdir/srcdest/xget-${VERSION}-aarch64.tar.gz"
+        cp "$AMD64_ARCHIVE" "$workdir/srcdest/xget-${VERSION}-x86_64.tar.gz"
+        cp "$ARM64_ARCHIVE" "$workdir/srcdest/xget-${VERSION}-aarch64.tar.gz"
 
         x86_64_sha512=$(sha512sum "$workdir/srcdest/xget-${VERSION}-x86_64.tar.gz" | awk '{print $1}')
         aarch64_sha512=$(sha512sum "$workdir/srcdest/xget-${VERSION}-aarch64.tar.gz" | awk '{print $1}')
@@ -91,9 +84,9 @@ runs:
           echo "repodest=$workdir/packages"
         } >> "$GITHUB_OUTPUT"
       env:
-        GH_TOKEN: ${{ inputs.token }}
-        REPO: ${{ github.repository }}
         VERSION: ${{ inputs.version }}
+        AMD64_ARCHIVE: ${{ steps.download.outputs.amd64-archive }}
+        ARM64_ARCHIVE: ${{ steps.download.outputs.arm64-archive }}
 
     - name: Set up Alpine Linux (x86_64)
       uses: jirutka/setup-alpine@v1.4.1

@@ -32,24 +32,12 @@ runs:
   steps:
     - name: Determine release checksums
       id: checksums
-      shell: bash
-      run: |
-        set -euo pipefail
-        gh release download "v${VERSION}" --repo camalot/xget --pattern checksums.txt --dir "$RUNNER_TEMP" --clobber
-        # match the file name exactly - a substring match also hits the archive's .sbom.json entry
-        amd64_sha=$(awk -v f="xget_${VERSION}_linux_amd64.tar.gz" '$2 == f { print $1 }' "$RUNNER_TEMP/checksums.txt")
-        arm64_sha=$(awk -v f="xget_${VERSION}_linux_arm64.tar.gz" '$2 == f { print $1 }' "$RUNNER_TEMP/checksums.txt")
-        if [ -z "$amd64_sha" ] || [ -z "$arm64_sha" ]; then
-          echo "Could not determine linux amd64/arm64 checksums for xget v${VERSION}" >&2
-          exit 1
-        fi
-        {
-          echo "amd64_sha256=$amd64_sha"
-          echo "arm64_sha256=$arm64_sha"
-        } >> "$GITHUB_OUTPUT"
-      env:
-        GH_TOKEN: ${{ inputs.token }}
-        VERSION: ${{ inputs.version }}
+      uses: ./.github/actions/release-archives
+      with:
+        version: ${{ inputs.version }}
+        token: ${{ inputs.token }}
+        path: ${{ runner.temp }}/aur-release
+        archives: "false"
 
     - name: Render PKGBUILD
       id: render
@@ -69,8 +57,8 @@ runs:
         } >> "$GITHUB_OUTPUT"
       env:
         VERSION: ${{ inputs.version }}
-        AMD64_SHA: ${{ steps.checksums.outputs.amd64_sha256 }}
-        ARM64_SHA: ${{ steps.checksums.outputs.arm64_sha256 }}
+        AMD64_SHA: ${{ steps.checksums.outputs.amd64-sha256 }}
+        ARM64_SHA: ${{ steps.checksums.outputs.arm64-sha256 }}
 
     # Also doubles as the "test build" for KSXGitHub/github-actions-deploy-aur:
     # its own `test` input builds the package as part of the same run that

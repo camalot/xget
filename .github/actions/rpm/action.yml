@@ -31,31 +31,11 @@ runs:
   steps:
     - name: Download and verify the release archives
       id: download
-      shell: bash
-      run: |
-        set -euo pipefail
-        workdir="$RUNNER_TEMP/rpm"
-        rm -rf "$workdir"
-        mkdir -p "$workdir/download" "$workdir/build" "$workdir/packages"
-
-        gh release download "v${VERSION}" --repo "$REPO" \
-          --pattern checksums.txt \
-          --pattern "xget_${VERSION}_linux_amd64.tar.gz" \
-          --pattern "xget_${VERSION}_linux_arm64.tar.gz" \
-          --dir "$workdir/download" --clobber
-
-        (
-          cd "$workdir/download"
-          grep -E "xget_${VERSION}_linux_(amd64|arm64)\.tar\.gz$" checksums.txt > expected.txt
-          test "$(wc -l < expected.txt)" -eq 2
-          sha256sum --check --strict expected.txt
-        )
-
-        echo "workdir=$workdir" >> "$GITHUB_OUTPUT"
-      env:
-        GH_TOKEN: ${{ inputs.token }}
-        REPO: ${{ github.repository }}
-        VERSION: ${{ inputs.version }}
+      uses: ./.github/actions/release-archives
+      with:
+        version: ${{ inputs.version }}
+        token: ${{ inputs.token }}
+        path: ${{ runner.temp }}/rpm/download
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
@@ -76,10 +56,10 @@ runs:
           topdir="$WORKDIR/build/$release_arch"
           mkdir -p "$topdir/SOURCES" "$topdir/SPECS" "$PACKAGES/$release_arch"
           archive="xget_${VERSION}_linux_${release_arch}.tar.gz"
-          sha256=$(awk -v archive="$archive" '$2 == archive { print $1 }' "$WORKDIR/download/checksums.txt")
+          sha256=$(awk -v archive="$archive" '$2 == archive { print $1 }' "$CHECKSUMS")
           test -n "$sha256"
 
-          cp "$WORKDIR/download/$archive" "$topdir/SOURCES/$archive"
+          cp "$DOWNLOAD/$archive" "$topdir/SOURCES/$archive"
           sed \
             -e "s/__VERSION__/$VERSION/g" \
             -e "s/__ARCHITECTURE__/$release_arch/g" \
@@ -99,8 +79,10 @@ runs:
             '
         done
       env:
-        WORKDIR: ${{ steps.download.outputs.workdir }}
-        PACKAGES: ${{ steps.download.outputs.workdir }}/packages
+        WORKDIR: ${{ runner.temp }}/rpm
+        PACKAGES: ${{ runner.temp }}/rpm/packages
+        DOWNLOAD: ${{ steps.download.outputs.path }}
+        CHECKSUMS: ${{ steps.download.outputs.checksums }}
         VERSION: ${{ inputs.version }}
 
     - name: Collect and inspect RPM packages
@@ -142,8 +124,8 @@ runs:
           echo "checksums_file=$checksums_file"
         } >> "$GITHUB_OUTPUT"
       env:
-        WORKDIR: ${{ steps.download.outputs.workdir }}
-        PACKAGES: ${{ steps.download.outputs.workdir }}/packages
+        WORKDIR: ${{ runner.temp }}/rpm
+        PACKAGES: ${{ runner.temp }}/rpm/packages
 
     - name: Verify RPM installs and runs (x86_64)
       shell: bash

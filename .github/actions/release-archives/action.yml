@@ -1,0 +1,91 @@
+---
+name: "Release Archives"
+description: >-
+  Download the Linux release archives for a tag (along with checksums.txt),
+  verify their sha256 checksums, and expose the archive paths and hashes to the
+  packaging actions that repack them.
+inputs:
+  version:
+    description: "The plain (no 'v' prefix) version of the xget project, e.g. 2.2.0"
+    required: true
+  path:
+    description: "Directory the archives are downloaded into; it is removed and recreated"
+    required: true
+  token:
+    description: "The GitHub token used to read the release assets"
+    required: false
+    default: "${{ github.token }}"
+  repository:
+    description: "The repository holding the release"
+    required: false
+    default: "${{ github.repository }}"
+  archives:
+    description: "Set to 'false' to only download checksums.txt (when just the hashes are needed)"
+    required: false
+    default: "true"
+outputs:
+  path:
+    description: "Directory containing the verified archives and checksums.txt"
+    value: ${{ steps.download.outputs.path }}
+  checksums:
+    description: "Path to the release checksums.txt"
+    value: ${{ steps.download.outputs.checksums }}
+  amd64-archive:
+    description: "Path to the verified linux/amd64 archive (empty when archives is 'false')"
+    value: ${{ steps.download.outputs.amd64_archive }}
+  arm64-archive:
+    description: "Path to the verified linux/arm64 archive (empty when archives is 'false')"
+    value: ${{ steps.download.outputs.arm64_archive }}
+  amd64-sha256:
+    description: "Released sha256 of the linux/amd64 archive"
+    value: ${{ steps.download.outputs.amd64_sha256 }}
+  arm64-sha256:
+    description: "Released sha256 of the linux/arm64 archive"
+    value: ${{ steps.download.outputs.arm64_sha256 }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download and verify the release archives
+      id: download
+      shell: bash
+      run: |
+        set -euo pipefail
+        rm -rf "$DEST"
+        mkdir -p "$DEST"
+
+        patterns=(--pattern checksums.txt)
+        if [ "$ARCHIVES" = "true" ]; then
+          patterns+=(
+            --pattern "xget_${VERSION}_linux_amd64.tar.gz"
+            --pattern "xget_${VERSION}_linux_arm64.tar.gz"
+          )
+        fi
+        gh release download "v${VERSION}" --repo "$REPO" "${patterns[@]}" --dir "$DEST" --clobber
+
+        cd "$DEST"
+        # only consider the two archives the packages are built from - the anchored
+        # pattern keeps the matching .sbom.json entries out of the checksum list
+        grep -E "xget_${VERSION}_linux_(amd64|arm64)\.tar\.gz$" checksums.txt > expected.txt
+        test "$(wc -l < expected.txt)" -eq 2
+        if [ "$ARCHIVES" = "true" ]; then
+          sha256sum --check --strict expected.txt
+        fi
+
+        {
+          echo "path=$DEST"
+          echo "checksums=$DEST/checksums.txt"
+          for arch in amd64 arm64; do
+            archive="xget_${VERSION}_linux_${arch}.tar.gz"
+            echo "${arch}_sha256=$(awk -v f="$archive" '$2 == f { print $1 }' expected.txt)"
+            if [ "$ARCHIVES" = "true" ]; then
+              echo "${arch}_archive=$DEST/$archive"
+            fi
+          done
+        } >> "$GITHUB_OUTPUT"
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repository }}
+        VERSION: ${{ inputs.version }}
+        DEST: ${{ inputs.path }}
+        ARCHIVES: ${{ inputs.archives }}
