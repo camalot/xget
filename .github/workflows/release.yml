@@ -121,11 +121,11 @@ jobs:
           # write outside the repo so the untracked file doesn't trip goreleaser's dirty-git check
           git-cliff --github-token "${GH_TOKEN}" --unreleased --tag "${GC_TAG}" --prepend CHANGELOG.md --output "${RUNNER_TEMP}/RELEASE_NOTES.md"
 
-          # add the docs/_release/install.md to the release notes
+          # add the docs/_includes/_install.md to the release notes
           echo -e "\n\### Install Instructions\n" >> "${RUNNER_TEMP}/RELEASE_NOTES.md"
 
           # we need to replace <VERSION> with the actual version in the install instructions
-          sed "s/<VERSION>/${GC_TAG#v}/g" docs/_release/install.md >> "${RUNNER_TEMP}/RELEASE_NOTES.md"
+          sed "s/<VERSION>/${GC_TAG#v}/g" docs/_includes/_install.md >> "${RUNNER_TEMP}/RELEASE_NOTES.md"
 
           # send the release notes to the GITHUB_SUMMARY
           echo "### Release Notes for ${GC_TAG}" >> $GITHUB_STEP_SUMMARY
