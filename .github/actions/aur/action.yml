@@ -36,8 +36,9 @@ runs:
       run: |
         set -euo pipefail
         gh release download "v${VERSION}" --repo camalot/xget --pattern checksums.txt --dir "$RUNNER_TEMP" --clobber
-        amd64_sha=$(grep -F "xget_${VERSION}_linux_amd64.tar.gz" "$RUNNER_TEMP/checksums.txt" | awk '{print $1}')
-        arm64_sha=$(grep -F "xget_${VERSION}_linux_arm64.tar.gz" "$RUNNER_TEMP/checksums.txt" | awk '{print $1}')
+        # match the file name exactly - a substring match also hits the archive's .sbom.json entry
+        amd64_sha=$(awk -v f="xget_${VERSION}_linux_amd64.tar.gz" '$2 == f { print $1 }' "$RUNNER_TEMP/checksums.txt")
+        arm64_sha=$(awk -v f="xget_${VERSION}_linux_arm64.tar.gz" '$2 == f { print $1 }' "$RUNNER_TEMP/checksums.txt")
         if [ -z "$amd64_sha" ] || [ -z "$arm64_sha" ]; then
           echo "Could not determine linux amd64/arm64 checksums for xget v${VERSION}" >&2
           exit 1
