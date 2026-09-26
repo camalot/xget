@@ -9,11 +9,6 @@ github_image_docs_url: https://raw.githubusercontent.com/camalot/xget/refs/heads
 github_images_url: https://raw.githubusercontent.com/camalot/xget/refs/heads/main/docs/assets/images
 version: 2.0.0
 
-plugins:
-  - jekyll-seo-tag
-  - jekyll-remote-theme
-  - jekyll-gfm-admonitions
-
 # Aux links (top nav)
 aux_links:
   "GitHub":
