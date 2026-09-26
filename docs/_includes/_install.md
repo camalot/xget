@@ -1,6 +1,6 @@
 
-<details>
-<summary><b>Windows</b></summary>
+<details markdown="block">
+<summary markdown="span"><b>Windows</b></summary>
 
 ### Bash (Git Bash / WSL)
 
@@ -54,8 +54,8 @@ choco install xget
 
 </details>
 
-<details>
-<summary><b>Linux</b></summary>
+<details markdown="block">
+<summary markdown="span"><b>Linux</b></summary>
 
 ### Bash
 
@@ -127,8 +127,8 @@ brew install camalot/scoop/xget
 
 </details>
 
-<details>
-<summary><b>macOS</b></summary>
+<details markdown="block">
+<summary markdown="span"><b>macOS</b></summary>
 
 ### Bash
 
@@ -164,8 +164,8 @@ brew install camalot/scoop/xget
 
 </details>
 
-<details>
-<summary><b>Android (Termux)</b></summary>
+<details markdown="block">
+<summary markdown="span"><b>Android (Termux)</b></summary>
 
 ### Bash
 
@@ -194,8 +194,8 @@ install -Dm755 xget "$PREFIX/bin/xget"
 
 </details>
 
-<details>
-<summary><b>Verify a download</b></summary>
+<details markdown="block">
+<summary markdown="span"><b>Verify a download</b></summary>
 
 ```shell
 curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/checksums.txt
@@ -204,8 +204,8 @@ sha256sum --check --ignore-missing checksums.txt
 
 </details>
 
-<details>
-<summary><b>zyedidia/eget</b></summary>
+<details markdown="block">
+<summary markdown="span"><b>zyedidia/eget</b></summary>
 
 If you already have eget, you can use it to install xget by running:
 
