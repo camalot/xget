@@ -1,5 +1,5 @@
 
-### GitHub Action
+## GitHub Action
 
 For GitHub Actions workflows, use [xget-action](https://github.com/camalot/xget-action)
 to install `xget` (with binary caching) and run it in a single step:
