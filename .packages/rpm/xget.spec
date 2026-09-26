@@ -13,8 +13,8 @@ It selects a suitable release asset for the current platform, verifies available
 checksums, and installs the requested executable locally.
 
 %prep
-echo "__SHA256__  %{_sourcedir}/%{SOURCE0}" | sha256sum --check --strict
-tar -xzf %{_sourcedir}/%{SOURCE0}
+echo "__SHA256__  %{SOURCE0}" | sha256sum --check --strict
+tar -xzf %{SOURCE0}
 
 %build
 # The release archive supplies the pre-built binary, manual page, and docs.
