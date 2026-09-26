@@ -4,8 +4,12 @@
 > xget is a forked codebase of [zyedidia/eget](https://github.com/zyedidia/eget) focusing on some additional features and improvements. The original project does not seem to be actively maintained.
 > The version of xget is starting at v2.0.0 to avoid confusion with the original project.
 
-[![Release](https://img.shields.io/github/release/camalot/xget.svg?label=Release)](https://github.com/camalot/xget/releases)
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/camalot/xget/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/release/camalot/xget.svg?label=Release&style=for-the-badge)](https://github.com/camalot/xget/releases)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge&label=license&labelColor=%23555555)](https://github.com/camalot/xget/blob/main/LICENSE)
+[![Codecov](https://img.shields.io/codecov/c/github/camalot/xget?style=for-the-badge&label=COVERAGE&logo=codecov&logoColor=white)](https://app.codecov.io/gh/camalot/xget/tree/develop)
+[![GitHub Build](https://img.shields.io/github/actions/workflow/status/camalot/xget/.github%2Fworkflows%2Fci.yml?style=for-the-badge&logo=github&label=BUILD)](https://github.com/camalot/xget/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/actions/workflow/status/camalot/xget/.github%2Fworkflows%2Frelease.yml?style=for-the-badge&logo=github&label=RELEASE)](https://github.com/camalot/xget/actions/workflows/release.yml)
+[![Issues](https://img.shields.io/github/issues/camalot/xget?style=for-the-badge&logo=github&color=blue)](https://github.com/camalot/xget/issues)
 
 <!-- markdownlint-disable MD033 -->
 <p align="center">
@@ -62,24 +66,216 @@ xget install gitlab-org/cli --provider gitlab
 xget install gitlab:gitlab-org/cli
 ```
 
+
+<details>
+<summary><b>Windows</b></summary>
+
+**Bash (Git Bash / WSL)**
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
+```
+
+**PowerShell**
+
+```powershell
+iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
+```
+
+**Scoop**
+
+```shell
+scoop bucket add camalot https://github.com/camalot/scoop
+scoop install camalot/xget
+```
+
+<!-- NOT YET AVAILABLE 
+**WinGet**
+
+```shell
+winget install camalot.xget
+```
+
+**Chocolatey**
+
+```shell
+choco install xget
+```
+-->
+
+**Archive**
+
+| Asset | Architecture |
+| --- | --- |
+| `xget_<VERSION>_windows_amd64.zip` | x64 |
+| `xget_<VERSION>_windows_arm64.zip` | ARM64 |
+
+</details>
+
+<details>
+<summary><b>Linux</b></summary>
+
+**Bash**
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
+```
+
+Installs to `$HOME/.local/bin` by default; pass `-d <dir>` to change it.
+
+**PowerShell**
+
+```powershell
+iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
+```
+
+**Debian / Ubuntu (`.deb`)**
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget_<VERSION>_amd64.deb
+sudo dpkg --install xget_<VERSION>_amd64.deb
+```
+
+Also available: `xget_<VERSION>_arm64.deb`.
+
+**Fedora / RHEL / AlmaLinux (`.rpm`)**
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-<VERSION>-1.el9.x86_64.rpm
+sudo dnf install ./xget-<VERSION>-1.el9.x86_64.rpm
+```
+
+Also available: `xget-<VERSION>-1.el9.aarch64.rpm`.
+
+**Alpine (`.apk`)**
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-<VERSION>-r0-x86_64.apk
+sudo apk add --allow-untrusted xget-<VERSION>-r0-x86_64.apk
+```
+
+Also available: `xget-<VERSION>-r0-aarch64.apk`.
+
+**Arch Linux (`.pkg.tar.zst`)**
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-bin-<VERSION>-1-x86_64.pkg.tar.zst
+sudo pacman -U xget-bin-<VERSION>-1-x86_64.pkg.tar.zst
+```
+
+Also available: `xget-bin-<VERSION>-1-aarch64.pkg.tar.zst`.
+
+**Homebrew**
+
+```shell
+brew install camalot/scoop/xget
+```
+
+**Archive**
+
+| Asset | Architecture |
+| --- | --- |
+| `xget_<VERSION>_linux_amd64.tar.gz` | x86_64 |
+| `xget_<VERSION>_linux_arm64.tar.gz` | aarch64 |
+
+</details>
+
+<details>
+<summary><b>macOS</b></summary>
+
+**Bash**
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
+```
+
+**PowerShell**
+
+```powershell
+iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
+```
+
+**Homebrew**
+
+```shell
+brew install camalot/scoop/xget
+```
+
+**Archive**
+
+| Asset | Architecture |
+| --- | --- |
+| `xget_<VERSION>_darwin_amd64.tar.gz` | Intel |
+| `xget_<VERSION>_darwin_arm64.tar.gz` | Apple Silicon |
+
+</details>
+
+<details>
+<summary><b>Android (Termux)</b></summary>
+
+**Bash**
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
+```
+
+**Archive**
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget_<VERSION>_android_arm64.tar.gz
+tar -xzf xget_<VERSION>_android_arm64.tar.gz xget
+install -Dm755 xget "$PREFIX/bin/xget"
+```
+
+| Asset | Architecture |
+| --- | --- |
+| `xget_<VERSION>_android_arm64.tar.gz` | ARM64 |
+
+</details>
+
+<details>
+<summary><b>Verify a download</b></summary>
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/checksums.txt
+sha256sum --check --ignore-missing checksums.txt
+```
+
+</details>
+
+<details>
+<summary><b>zyedidia/eget</b></summary>
+
+If you already have eget, you can use it to install xget by running:
+
+```shell
+eget camalot/xget
+```
+
+</details>
+
+Already have `xget`? Upgrade in place with `xget self-update`.
+Full instructions: <https://camalot.github.io/xget/installation.html>
+
+
 <!-- markdownlint-disable MD041 -->
 
 ## How to get xget
 
 Before you can get anything, you have to get xget. If you already have xget and want to upgrade, use `xget self-update`.
 
-### Quick-install script
 
-> [!NOTE]
-> When run from a downloaded file, the quick-install scripts will download and verify the sha256 checksum of the install script before continuing. When piped directly to `bash` or `iex`, script checksum verification is skipped because there is no local script file to hash. Release asset checksums are still verified.
+<details>
+<summary><b>Windows</b></summary>
 
-### Bash
+### Bash (Git Bash / WSL)
 
-``` shell
+```shell
 curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
 ```
 
-The default install location is `$HOME/.local/bin`. You can change the install location with the `-d` or `--dir` option:
+> [!NOTE]
+> The default install location is `$HOME/.local/bin`. You can change the install location with the `-d` or `--dir` option
 
 ``` shell
 curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh && bash xget.sh -d /usr/local/bin
@@ -87,77 +283,206 @@ curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/instal
 
 ### PowerShell
 
-``` powershell
+> [!NOTE]
+> When run from a downloaded file, the quick-install scripts will download and verify the sha256 checksum of the install script before continuing. When piped directly to `bash` or `iex`, script checksum verification is skipped because there is no local script file to hash. Release asset checksums are still verified.
+
+```powershell
 iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
 ```
 
+### Scoop
+
+```shell
+scoop bucket add camalot https://github.com/camalot/scoop
+scoop install camalot/xget
+```
+
+<!-- NOT YET AVAILABLE 
+### WinGet
+
+```shell
+winget install camalot.xget
+```
+
+### Chocolatey
+
+```shell
+choco install xget
+```
+-->
+
+### Archive
+
+| Asset | Architecture |
+| --- | --- |
+| `xget_<VERSION>_windows_amd64.zip` | x64 |
+| `xget_<VERSION>_windows_arm64.zip` | ARM64 |
+
+</details>
+
+<details>
+<summary><b>Linux</b></summary>
+
+### Bash
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
+```
+
 > [!NOTE]
-> The powershell script can also specify the installation directory with the `-InstallDir` parameter.
+> The default install location is `$HOME/.local/bin`. You can change the install location with the `-d` or `--dir` option
+
+``` shell
+curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh && bash xget.sh -d /usr/local/bin
+```
+
+### PowerShell
+
+```powershell
+iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
+```
+
+### Debian / Ubuntu (`.deb`)
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget_<VERSION>_amd64.deb
+sudo dpkg --install xget_<VERSION>_amd64.deb
+```
+
+Also available: `xget_<VERSION>_arm64.deb`.
+
+### Fedora / RHEL / AlmaLinux (`.rpm`)
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-<VERSION>-1.el9.x86_64.rpm
+sudo dnf install ./xget-<VERSION>-1.el9.x86_64.rpm
+```
+
+Also available: `xget-<VERSION>-1.el9.aarch64.rpm`.
+
+### Alpine (`.apk`)
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-<VERSION>-r0-x86_64.apk
+sudo apk add --allow-untrusted xget-<VERSION>-r0-x86_64.apk
+```
+
+Also available: `xget-<VERSION>-r0-aarch64.apk`.
+
+### Arch Linux (`.pkg.tar.zst`)
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-bin-<VERSION>-1-x86_64.pkg.tar.zst
+sudo pacman -U xget-bin-<VERSION>-1-x86_64.pkg.tar.zst
+```
+
+Also available: `xget-bin-<VERSION>-1-aarch64.pkg.tar.zst`.
 
 ### Homebrew
 
-``` shell
+```shell
 brew install camalot/scoop/xget
 ```
 
-<!-- ### Chocolatey
+### Archive
 
-``` shell
-choco install xget
-``` -->
+| Asset | Architecture |
+| --- | --- |
+| `xget_<VERSION>_linux_amd64.tar.gz` | x86_64 |
+| `xget_<VERSION>_linux_arm64.tar.gz` | aarch64 |
 
-### Scoop
+</details>
 
-``` shell
-scoop bucket add https://github.com/camalot/scoop
-scoop install xget
+<details>
+<summary><b>macOS</b></summary>
+
+### Bash
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
 ```
 
-<!-- ### Winget
+> [!NOTE]
+> The default install location is `$HOME/.local/bin`. You can change the install location with the `-d` or `--dir` option
 
 ``` shell
-winget install camalot.xget
-``` -->
-
-### eget
-
-``` shell
-eget camalot/xget --asset '^.sbom.json'
+curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh && bash xget.sh -d /usr/local/bin
 ```
 
-### Pre-built binaries
+### PowerShell
 
-Pre-built binaries are available on the [releases](https://github.com/camalot/xget/releases) page.
-
-### From source
-
-Install the latest released version:
-
-``` shell
-go install github.com/camalot/xget/cmd/xget@latest
+```powershell
+iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
 ```
 
-You can run directly via `go run`
+### Homebrew
 
-``` shell
-go run github.com/camalot/xget/cmd/xget@latest
+```shell
+brew install camalot/scoop/xget
 ```
 
-or install from HEAD:
+### Archive
 
-``` shell
-git clone https://github.com/camalot/xget
-cd xget
-go build ./...
+| Asset | Architecture |
+| --- | --- |
+| `xget_<VERSION>_darwin_amd64.tar.gz` | Intel |
+| `xget_<VERSION>_darwin_arm64.tar.gz` | Apple Silicon |
+
+</details>
+
+<details>
+<summary><b>Android (Termux)</b></summary>
+
+### Bash
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
 ```
 
-A man page can be generated from the source tree with `pandoc`:
+> [!NOTE]
+> The default install location is `$HOME/.local/bin`. You can change the install location with the `-d` or `--dir` option
 
 ``` shell
-pandoc docs/_man/xget.md -s -t man -o xget.1
+curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh && bash xget.sh -d /usr/local/bin
 ```
 
-You can also use `xget` to download the man page: `xget -f xget.1 camalot/xget`.
+### Archive
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget_<VERSION>_android_arm64.tar.gz
+tar -xzf xget_<VERSION>_android_arm64.tar.gz xget
+install -Dm755 xget "$PREFIX/bin/xget"
+```
+
+| Asset | Architecture |
+| --- | --- |
+| `xget_<VERSION>_android_arm64.tar.gz` | ARM64 |
+
+</details>
+
+<details>
+<summary><b>Verify a download</b></summary>
+
+```shell
+curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/checksums.txt
+sha256sum --check --ignore-missing checksums.txt
+```
+
+</details>
+
+<details>
+<summary><b>zyedidia/eget</b></summary>
+
+If you already have eget, you can use it to install xget by running:
+
+```shell
+eget camalot/xget --asset "^.sbom.json"
+```
+
+</details>
+
+Already have `xget`? Upgrade in place with `xget self-update`.
+Full instructions: <https://camalot.github.io/xget/installation.html>
 
 ### GitHub Action
 
