@@ -13,6 +13,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func printInstalledPackages(cmd *cobra.Command, packages []installed.Package) {
+	printInstalledPackagesWithColor(cmd, packages, false)
+}
+
 func TestPrintInstalledPackagesUsesTableFormat(t *testing.T) {
 	cmd := &cobra.Command{}
 	buf := &bytes.Buffer{}

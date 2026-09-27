@@ -203,10 +203,6 @@ func installedTargetName(matches []installed.Package, target string) string {
 	return target
 }
 
-func printInstalledPackages(cmd *cobra.Command, packages []installed.Package) {
-	printInstalledPackagesWithColor(cmd, packages, false)
-}
-
 func printInstalledPackagesWithColor(cmd *cobra.Command, packages []installed.Package, colorUpgrades bool) {
 	rows := make([][]string, 0, len(packages))
 	coloredRows := make([]bool, 0, len(packages))

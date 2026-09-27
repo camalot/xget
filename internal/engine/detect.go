@@ -5,6 +5,8 @@ import (
 	"path"
 	"regexp"
 	"strings"
+
+	"github.com/camalot/xget/internal/lib/constants"
 )
 
 // A Detector selects an asset from a list of possibilities.
@@ -15,28 +17,32 @@ type Detector interface {
 	Detect(assets []string) (string, []string, error)
 }
 
+// DetectorChain runs detectors in order, narrowing candidates, then applies the system detector.
 type DetectorChain struct {
 	detectors []Detector
 	system    Detector
 }
 
+// Detect runs each detector in the chain, returning the first direct match.
 func (dc *DetectorChain) Detect(assets []string) (string, []string, error) {
 	for _, d := range dc.detectors {
 		choice, candidates, err := d.Detect(assets)
-		if len(candidates) == 0 && err != nil {
+		switch {
+		case len(candidates) == 0 && err != nil:
 			return "", nil, err
-		} else if len(candidates) == 0 {
+		case len(candidates) == 0:
 			return choice, nil, nil
-		} else {
+		default:
 			assets = candidates
 		}
 	}
 	choice, candidates, err := dc.system.Detect(assets)
-	if len(candidates) == 0 && err != nil {
+	switch {
+	case len(candidates) == 0 && err != nil:
 		return "", nil, err
-	} else if len(candidates) == 0 {
+	case len(candidates) == 0:
 		return choice, nil, nil
-	} else if len(candidates) >= 1 {
+	default:
 		assets = candidates
 	}
 	return "", assets, fmt.Errorf("%d candidates found for asset chain", len(assets))
@@ -62,47 +68,48 @@ func (os *OS) Match(s string) (bool, bool) {
 	return os.regex.MatchString(s), false
 }
 
+// Known OS matchers.
 var (
 	OSDarwin = OS{
-		name:  "darwin",
+		name:  constants.RuntimeDarwin,
 		regex: regexp.MustCompile(`(?i)(darwin|mac.?(os)?|osx)`),
 	}
 	OSWindows = OS{
-		name:  "windows",
+		name:  constants.RuntimeWindows,
 		regex: regexp.MustCompile(`(?i)([^r]win|windows)`),
 	}
 	OSLinux = OS{
-		name:     "linux",
+		name:     constants.RuntimeLinux,
 		regex:    regexp.MustCompile(`(?i)(linux|ubuntu)`),
 		anti:     regexp.MustCompile(`(?i)(android)`),
 		priority: regexp.MustCompile(`\.appimage$`),
 	}
 	OSNetBSD = OS{
-		name:  "netbsd",
+		name:  constants.RuntimeNetBSD,
 		regex: regexp.MustCompile(`(?i)(netbsd)`),
 	}
 	OSFreeBSD = OS{
-		name:  "freebsd",
+		name:  constants.RuntimeFreeBSD,
 		regex: regexp.MustCompile(`(?i)(freebsd)`),
 	}
 	OSOpenBSD = OS{
-		name:  "openbsd",
+		name:  constants.RuntimeOpenBSD,
 		regex: regexp.MustCompile(`(?i)(openbsd)`),
 	}
 	OSAndroid = OS{
-		name:  "android",
+		name:  constants.RuntimeAndroid,
 		regex: regexp.MustCompile(`(?i)(android)`),
 	}
 	OSIllumos = OS{
-		name:  "illumos",
+		name:  constants.RuntimeIllumos,
 		regex: regexp.MustCompile(`(?i)(illumos)`),
 	}
 	OSSolaris = OS{
-		name:  "solaris",
+		name:  constants.RuntimeSolaris,
 		regex: regexp.MustCompile(`(?i)(solaris)`),
 	}
 	OSPlan9 = OS{
-		name:  "plan9",
+		name:  constants.RuntimePlan9,
 		regex: regexp.MustCompile(`(?i)(plan9)`),
 	}
 )
@@ -133,6 +140,7 @@ func (a *Arch) Match(s string) bool {
 	return a.regex.MatchString(s)
 }
 
+// Known architecture matchers.
 var (
 	ArchAMD64 = Arch{
 		name:  "amd64",
@@ -170,6 +178,7 @@ var goarchmap = map[string]Arch{
 // candidates.
 type AllDetector struct{}
 
+// Detect returns the single asset as a match, or all assets as candidates.
 func (a *AllDetector) Detect(assets []string) (string, []string, error) {
 	if len(assets) == 1 {
 		return assets[0], nil, nil
@@ -185,6 +194,7 @@ type SingleAssetDetector struct {
 	Regex *regexp.Regexp
 }
 
+// Detect finds assets matching (or, if Anti, not matching) the configured asset.
 func (s *SingleAssetDetector) Detect(assets []string) (string, []string, error) {
 	var candidates []string
 	for _, a := range assets {
@@ -266,19 +276,20 @@ func (d *SystemDetector) Detect(assets []string) (string, []string, error) {
 		}
 		all = append(all, a)
 	}
-	if len(priority) == 1 {
+	switch {
+	case len(priority) == 1:
 		return priority[0], nil, nil
-	} else if len(priority) > 1 {
+	case len(priority) > 1:
 		return "", priority, fmt.Errorf("%d priority matches found", len(matches))
-	} else if len(matches) == 1 {
+	case len(matches) == 1:
 		return matches[0], nil, nil
-	} else if len(matches) > 1 {
+	case len(matches) > 1:
 		return "", matches, fmt.Errorf("%d matches found", len(matches))
-	} else if len(candidates) == 1 {
+	case len(candidates) == 1:
 		return candidates[0], nil, nil
-	} else if len(candidates) > 1 {
+	case len(candidates) > 1:
 		return "", candidates, fmt.Errorf("%d candidates found (unsure architecture)", len(candidates))
-	} else if len(all) == 1 {
+	case len(all) == 1:
 		return all[0], nil, nil
 	}
 	return "", all, fmt.Errorf("no candidates found")

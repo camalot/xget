@@ -1,3 +1,4 @@
+// Package config loads and resolves xget configuration files.
 package config
 
 import (
@@ -9,11 +10,14 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/camalot/xget/internal/lib/constants"
 	"github.com/spf13/viper"
 )
 
+// Global holds settings applied to every target unless overridden.
 type Global struct {
 	All                 bool     `mapstructure:"all" toml:"all" yaml:"all"`
+	ConfigMerge         bool     `mapstructure:"config_merge" toml:"config_merge" yaml:"config_merge"`
 	Ignore              []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
 	DownloadOnly        bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
 	File                string   `mapstructure:"file" toml:"file" yaml:"file"`
@@ -27,8 +31,10 @@ type Global struct {
 	DisableSSL          bool     `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
 	SourceType          string   `mapstructure:"source" toml:"source" yaml:"source"`
 	DisableTokenWarning bool     `mapstructure:"disable_token_warning" toml:"disable_token_warning" yaml:"disable_token_warning"`
+	XgetUpdateCheck     bool     `mapstructure:"xget_update_check" toml:"xget_update_check" yaml:"xget_update_check"`
 }
 
+// Repository holds per-repository overrides.
 type Repository struct {
 	All          bool     `mapstructure:"all" toml:"all" yaml:"all"`
 	AssetFilters []string `mapstructure:"asset_filters" toml:"asset_filters" yaml:"asset_filters"`
@@ -49,6 +55,7 @@ type Repository struct {
 	SourceType   string   `mapstructure:"source" toml:"source" yaml:"source"`
 }
 
+// Source describes a release provider (GitHub or GitLab) profile.
 type Source struct {
 	Name                string   `mapstructure:"-" toml:"-" yaml:"-"`
 	Type                string   `mapstructure:"type" toml:"type" yaml:"type"`
@@ -59,6 +66,7 @@ type Source struct {
 	DisableTokenWarning bool     `mapstructure:"disable_token_warning" toml:"disable_token_warning" yaml:"disable_token_warning"`
 }
 
+// Config is the fully loaded xget configuration.
 type Config struct {
 	Path         string
 	Global       Global
@@ -66,23 +74,26 @@ type Config struct {
 	Sources      map[string]Source
 }
 
+// Default returns a Config populated with built-in defaults.
 func Default() *Config {
 	return &Config{
 		Global: Global{
-			All:          false,
-			Ignore:       []string{},
-			DownloadOnly: false,
-			GithubToken:  "",
-			Quiet:        false,
-			ShowHash:     false,
-			Source:       false,
-			UpgradeOnly:  false,
-			DisableSSL:   false,
+			All:             false,
+			ConfigMerge:     true,
+			Ignore:          []string{},
+			DownloadOnly:    false,
+			GithubToken:     "",
+			Quiet:           false,
+			ShowHash:        false,
+			Source:          false,
+			UpgradeOnly:     false,
+			DisableSSL:      false,
+			XgetUpdateCheck: true,
 		},
 		Repositories: map[string]Repository{},
 		Sources: map[string]Source{
-			"github": defaultSource("github", "github"),
-			"gitlab": defaultSource("gitlab", "gitlab"),
+			constants.ProviderGithub: defaultSource(constants.ProviderGithub, constants.ProviderGithub),
+			constants.ProviderGitlab: defaultSource(constants.ProviderGitlab, constants.ProviderGitlab),
 		},
 	}
 }
@@ -90,11 +101,11 @@ func Default() *Config {
 func defaultSource(name, sourceType string) Source {
 	source := Source{Name: name, Type: strings.ToLower(sourceType)}
 	switch source.Type {
-	case "github":
+	case constants.ProviderGithub:
 		source.Host = "github.com"
 		source.APIURL = "https://api.github.com"
 		source.TokenEnv = []string{"XGET_GITHUB_TOKEN", "GITHUB_TOKEN", "EGET_GITHUB_TOKEN"}
-	case "gitlab":
+	case constants.ProviderGitlab:
 		source.Host = "gitlab.com"
 		source.APIURL = "https://gitlab.com/api/v4"
 		source.TokenEnv = []string{"XGET_GITLAB_TOKEN", "GITLAB_TOKEN"}
@@ -107,7 +118,7 @@ func normalizeSource(name string, configured Source) (Source, error) {
 	if sourceType == "" && (strings.EqualFold(name, "github") || strings.EqualFold(name, "gitlab")) {
 		sourceType = strings.ToLower(name)
 	}
-	if sourceType != "github" && sourceType != "gitlab" {
+	if sourceType != constants.ProviderGithub && sourceType != constants.ProviderGitlab {
 		return Source{}, fmt.Errorf("source %q has unsupported type %q (expected github or gitlab)", name, configured.Type)
 	}
 
@@ -115,7 +126,7 @@ func normalizeSource(name string, configured Source) (Source, error) {
 	if configured.Host != "" {
 		resolved.Host = configured.Host
 		if configured.APIURL == "" {
-			if sourceType == "github" {
+			if sourceType == constants.ProviderGithub {
 				resolved.APIURL = "https://" + configured.Host + "/api/v3"
 			} else {
 				resolved.APIURL = "https://" + configured.Host + "/api/v4"
@@ -133,13 +144,14 @@ func normalizeSource(name string, configured Source) (Source, error) {
 	return resolved, nil
 }
 
+// ResolveSource returns the named source profile, defaulting to github.
 func (c *Config) ResolveSource(name string) (Source, error) {
 	if name == "" {
-		name = "github"
+		name = constants.ProviderGithub
 	}
 	name = strings.ToLower(name)
 	source, ok := c.Sources[name]
-	if !ok && (name == "github" || name == "gitlab") {
+	if !ok && (name == constants.ProviderGithub || name == constants.ProviderGitlab) {
 		return defaultSource(name, name), nil
 	}
 	if !ok {
@@ -148,11 +160,12 @@ func (c *Config) ResolveSource(name string) (Source, error) {
 	return source, nil
 }
 
+// GetOSConfigPath returns the OS-specific default config file path.
 func GetOSConfigPath(homePath string, ext string) string {
 	var configDir string
 
 	switch runtime.GOOS {
-	case "windows":
+	case constants.RuntimeWindows:
 		configDir = os.Getenv("LOCALAPPDATA")
 		if configDir == "" {
 			configDir = filepath.Join(homePath, "AppData", "Local")
@@ -179,22 +192,18 @@ func configuredPath() string {
 
 func candidatePaths(homePath string) []string {
 	candidates := []string{}
-
-	for _, base := range []string{".xget", ".eget"} {
-		for _, ext := range []string{"toml", "yml", "yaml"} {
-			candidates = append(candidates,
-				filepath.Join(".", base+"."+ext),
-				filepath.Join(homePath, base+"."+ext),
-				filepath.Join(homePath, ".config", "xget", base+"."+ext),
-			)
-			if runtime.GOOS == "windows" {
-				localAppData := os.Getenv("LOCALAPPDATA")
-				if localAppData == "" {
-					localAppData = filepath.Join(homePath, "AppData", "Local")
-				}
-				candidates = append(candidates,
-					filepath.Join(localAppData, "xget", base+"."+ext),
-				)
+	locations := []string{".", homePath, filepath.Join(homePath, ".config", "xget")}
+	if runtime.GOOS == constants.RuntimeWindows {
+		localAppData := os.Getenv("LOCALAPPDATA")
+		if localAppData == "" {
+			localAppData = filepath.Join(homePath, "AppData", "Local")
+		}
+		locations = append(locations, filepath.Join(localAppData, "xget"))
+	}
+	for _, location := range locations {
+		for _, base := range []string{".xget", ".eget"} {
+			for _, ext := range []string{"toml", "yml", "yaml"} {
+				candidates = append(candidates, filepath.Join(location, base+"."+ext))
 			}
 		}
 	}
@@ -202,13 +211,7 @@ func candidatePaths(homePath string) []string {
 	return candidates
 }
 
-func loadFromFile(path string) (*Config, error) {
-	v := viper.New()
-	v.SetConfigFile(path)
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
-	}
-
+func decodeConfig(v *viper.Viper, path string, warnings io.Writer) (*Config, error) {
 	cfg := Default()
 	cfg.Path = path
 
@@ -235,7 +238,7 @@ func loadFromFile(path string) (*Config, error) {
 			cfg.Sources[strings.ToLower(name)] = resolved
 		}
 	}
-	warnStoredTokens(cfg, os.Stderr)
+	warnStoredTokens(cfg, warnings)
 
 	for key := range v.AllSettings() {
 		if key == "global" || key == "sources" {
@@ -313,42 +316,62 @@ func isPlaintextToken(token string) bool {
 	return token != "" && !strings.HasPrefix(token, "@")
 }
 
+// Load reads and merges discovered config files in priority order.
 func Load(explicitPath ...string) (*Config, error) {
+	return load(os.Stderr, explicitPath...)
+}
+
+// LoadQuiet is Load without printing plaintext-token warnings.
+func LoadQuiet(explicitPath ...string) (*Config, error) {
+	return load(io.Discard, explicitPath...)
+}
+
+func load(warnings io.Writer, explicitPath ...string) (*Config, error) {
 	homePath, _ := os.UserHomeDir()
-
+	paths := candidatePaths(homePath)
+	required := false
 	if len(explicitPath) > 0 && explicitPath[0] != "" {
-		cfg, err := loadFromFile(explicitPath[0])
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", explicitPath[0], err)
-		}
-		return cfg, nil
+		paths = append([]string{explicitPath[0]}, paths...)
+		required = true
+	} else if custom := configuredPath(); custom != "" {
+		paths = append([]string{custom}, paths...)
+		required = true
 	}
 
-	if custom := configuredPath(); custom != "" {
-		cfg, err := loadFromFile(custom)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", custom, err)
-		}
-		return cfg, nil
+	type layer struct {
+		path     string
+		settings map[string]any
 	}
-
-	var lastNotExist error
-	for _, p := range candidatePaths(homePath) {
-		cfg, err := loadFromFile(p)
-		if err == nil {
-			return cfg, nil
-		}
-
+	layers := []layer{}
+	for index, p := range paths {
+		v := viper.New()
+		v.SetConfigFile(p)
+		err := v.ReadInConfig()
 		var notFound viper.ConfigFileNotFoundError
 		if errors.Is(err, os.ErrNotExist) || errors.As(err, &notFound) {
-			lastNotExist = err
+			if index == 0 && required {
+				return nil, fmt.Errorf("%s: %w", p, err)
+			}
 			continue
 		}
-		return nil, fmt.Errorf("%s: %w", p, err)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", p, err)
+		}
+		layers = append(layers, layer{p, v.AllSettings()})
+		if len(layers) == 1 && v.IsSet("global.config_merge") && !v.GetBool("global.config_merge") {
+			break
+		}
 	}
-
-	_ = lastNotExist
-	return Default(), nil
+	if len(layers) == 0 {
+		return Default(), nil
+	}
+	merged := viper.New()
+	for index := len(layers) - 1; index >= 0; index-- {
+		if err := merged.MergeConfigMap(layers[index].settings); err != nil {
+			return nil, fmt.Errorf("%s: %w", layers[index].path, err)
+		}
+	}
+	return decodeConfig(merged, layers[0].path, warnings)
 }
 
 // SubstituteTemplateVars replaces {{.OS}} and {{.Arch}} in a filter string

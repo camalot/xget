@@ -25,7 +25,8 @@ backward compatibility with original [zyedidia/eget](https://github.com/zyedidia
 
 ## Search order
 
-The configuration loader checks the following locations in order:
+The configuration loader checks the following locations in descending priority
+(TOML, then YML, then YAML for `.xget` before `.eget` at each location):
 
 1. Path from `--config` if set.
 2. Path from `XGET_CONFIG` if set.
@@ -38,6 +39,26 @@ The configuration loader checks the following locations in order:
    - `.eget.<ext>` is also checked for backward compatibility.
 6. Windows: `%LOCALAPPDATA%/xget/.xget.<ext>`.
    - `.eget.<ext>` is also checked for backward compatibility.
+
+All existing files are merged from lowest to highest priority. An explicitly
+configured path (`--config`, `XGET_CONFIG`, or `EGET_CONFIG`) is the highest
+layer; it does not discard files found in the standard locations. Scalar values
+and lists in a higher-priority file replace lower-priority values, while
+unspecified keys, repository sections, and source profile fields are retained.
+The path reported by xget is the highest-priority file.
+
+To use only the highest-priority file, set `global.config_merge` to `false` in
+that file (default: `true`). A lower-priority file cannot disable merging for a
+higher-priority one. For example, if `~/.config/xget/.xget.yml` contains
+`global.target: ~/.local/bin` and `./.xget.yml` contains
+`global.target: /usr/local/bin`, the effective target is `/usr/local/bin`.
+
+```yaml
+global:
+   config_merge: false
+```
+
+For TOML, use `config_merge = false` under `[global]`.
 
 ## Resolution precedence
 
@@ -68,7 +89,7 @@ parent shell are not replaced and therefore have the highest priority.
 
 A repository section inherits any setting it does not define from the `global` section, so `global` acts as the default for every repository.
 
-The exceptions are `asset_filters`, `pre_release`, `tag`, and `verify_sha256`, which are repository-only settings and are never inherited. `github_token` is global-only. `source` selects a named profile from the `sources` section and defaults to the built-in `github` profile.
+The exceptions are `asset_filters`, `pre_release`, `tag`, and `verify_sha256`, which are repository-only settings and are never inherited. `github_token` and `config_merge` are global-only. `xget_update_check` is global-only and defaults to `true`. `source` selects a named profile from the `sources` section and defaults to the built-in `github` profile.
 
 Within a source profile, token environment variables are checked in the order
 listed by `token_env`, followed by the profile's `token`. GitHub profiles use

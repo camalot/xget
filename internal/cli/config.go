@@ -1,3 +1,4 @@
+// Package cli implements the xget cobra commands.
 package cli
 
 import (
@@ -216,7 +217,7 @@ func newConfigEditCommand(f *configFlags) *cobra.Command {
 			"The editor is taken from XGET_EDITOR, VISUAL, or EDITOR, falling back to nano\n" +
 			"(and notepad on Windows when nano is unavailable).",
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if engine.NonInteractive() {
 				return engine.ErrNonInteractive
 			}

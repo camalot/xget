@@ -1,7 +1,9 @@
+// Package options defines the resolved install options.
 package options
 
 import "github.com/camalot/xget/internal/config"
 
+// Flags holds the resolved options for a single install run.
 type Flags struct {
 	Tag          string
 	Prerelease   bool

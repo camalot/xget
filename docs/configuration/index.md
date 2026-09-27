@@ -93,6 +93,8 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | --- | --- | --- | --- |
 | `github_token` | N/A | GitHub API token or `@` token-file reference to use for requests | `""` |
 | `disable_token_warning` | N/A | Disable warnings for plaintext tokens stored anywhere in the config. | `false` |
+| `config_merge` | N/A | Merge lower-priority files when this is the highest-priority config; see [loading and precedence](loading-and-precedence). | `true` |
+| `xget_update_check` | N/A | Check for a newer xget release (at most once per day, and on `xget upgrade` / `xget list --installed`) and print a notice when one is available. Does not affect `xget self-update`. | `true` |
 | `all` | `--all` | Whether to extract all candidate files. | `false` |
 | `download_only` | `--download-only` | Stop after downloading the asset without extraction. | `false` |
 | `download_source` | `--source` | Download the source code for the repo instead of a release. | `false` |

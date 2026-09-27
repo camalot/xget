@@ -1,3 +1,4 @@
+// Package main is the xget command entry point.
 package main
 
 import (

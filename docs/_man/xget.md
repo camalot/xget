@@ -89,6 +89,7 @@ header: xget Manual
 
 :    Show GitHub API rate limiting information. This is equivalent to the backwards-compatible `xget --rate` form. When no token is configured, setup guidance is written to standard error while rate information remains on standard output. xget also provides this guidance after a GitHub API response with status 429.
 
+  `xget update [PACKAGE]`
   `xget upgrade [PACKAGE]`
 
 :    List and apply available upgrades for installed packages. With no arguments, the newest release of every installed package is looked up, the installed metadata store is refreshed, and packages with a newer release are listed in yellow. Pass `--no-color` for plain output. An upgrade is available only when the newest release is newer than the installed one; tags are compared as semantic versions, including prerelease ordering, falling back to a plain difference check for tags that are not semver-shaped. Packages installed from a direct URL or local file are skipped, since there is no release list to query. Pass a package to upgrade it, or `-a`/`--all` to upgrade everything that is not pinned. `PACKAGE` accepts the full name (`owner/repo`), the store key (`github:owner/repo`), or the bare repository name (`repo`). A package installed with a `tag` is pinned; it is listed separately, is never upgraded by `--all`, and must be named explicitly. Upgrading a pinned package re-pins it to the newer tag. The upgrade re-runs the download using options resolved from the `global` config section, then the matching `"owner/repo"` section, then the options stored at install time; `tag` and `upgrade_only` are never applied because either would prevent the newer release from being downloaded, and both are left untouched in the installed metadata store.
@@ -366,6 +367,10 @@ header: xget Manual
   `disable_token_warning`
 
 :    In the global section, disable warnings for every plaintext token stored in the config. In a source profile, disable the warning only for that profile.
+
+  `xget_update_check`
+
+:    Whether to check for a newer xget release and print a notice to stderr when one is available. Checks at most once every 24 hours, and on every `xget upgrade` and `xget list --installed`. Global section only. Defaults to `true`. Does not affect `xget self-update`.
 
   `ignore`
 

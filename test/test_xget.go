@@ -1,3 +1,4 @@
+// Package main runs xget end-to-end smoke tests.
 package main
 
 import (

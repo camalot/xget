@@ -119,7 +119,10 @@ func newSelfUpdateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return upgradeNamed(cmd, f, cfg, storePath, store, "camalot/xget")
+			if f.to == "" && len(findInstalledPackages(installed.SortedPackages(store), xgetRepo)) == 0 {
+				return selfUpdateRunningExecutable(cmd, f, cfg)
+			}
+			return upgradeNamed(cmd, f, cfg, storePath, store, xgetRepo)
 		},
 	}
 

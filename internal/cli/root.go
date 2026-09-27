@@ -43,6 +43,7 @@ type rootFlags struct {
 
 var getRateLimit = engine.GetRateLimit
 
+// Execute runs the root xget command.
 func Execute() error {
 	root := newRootCommand()
 	return root.Execute()
@@ -143,6 +144,11 @@ func newRootCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&f.nonInteractive, "non-interactive", false, "fail instead of prompting when user input is required")
 	cmd.PersistentPreRun = func(*cobra.Command, []string) {
 		engine.SetNonInteractive(f.nonInteractive)
+	}
+	cmd.PersistentPostRun = func(cmd *cobra.Command, _ []string) {
+		if run, force := selfCheckMode(cmd); run {
+			checkForSelfUpdate(cmd, force)
+		}
 	}
 
 	addInstallFlags(cmd, f)
@@ -351,6 +357,7 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 	return optionsForTargetProvider(cfg, cmd, f, target, "")
 }
 
+//nolint:gocyclo // TODO: split into smaller helpers.
 func optionsForTargetProvider(cfg *config.Config, cmd *cobra.Command, f *rootFlags, target, inlineProvider string) (options.Flags, error) {
 	opts, err := configOptionsForTarget(cfg, target)
 	if err != nil {

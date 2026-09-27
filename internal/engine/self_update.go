@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/camalot/xget/internal/lib/constants"
 )
 
 func isRunningExecutableDestination(destination, executable string, windows bool) bool {
@@ -33,20 +35,21 @@ func replaceStagedExecutable(destination string) error {
 		return err
 	}
 	// #nosec G703 -- safeDestination is normalized and validated via cleanLocalPath.
-	if err := os.Rename(staged, safeDestination); err == nil {
+	err = os.Rename(staged, safeDestination)
+	if err == nil {
 		return nil
-		// #nosec G703 -- safeDestination is normalized and validated via cleanLocalPath.
-	} else if restoreErr := os.Rename(previous, safeDestination); restoreErr != nil {
-		return errors.Join(err, restoreErr)
-	} else {
-		return err
 	}
+	// #nosec G703 -- safeDestination is normalized and validated via cleanLocalPath.
+	if restoreErr := os.Rename(previous, safeDestination); restoreErr != nil {
+		return errors.Join(err, restoreErr)
+	}
+	return err
 }
 
 // RemovePreviousExecutable removes the executable retained by a successful
 // Windows self-update. It is intentionally a no-op on other platforms.
 func RemovePreviousExecutable() error {
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != constants.RuntimeWindows {
 		return nil
 	}
 	executable, err := os.Executable()
