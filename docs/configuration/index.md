@@ -1,5 +1,5 @@
 ---
-title: 📄 Configuration
+title: ⚙️ Configuration
 nav_order: 3
 layout: default
 has_children: true
@@ -25,7 +25,7 @@ xget supports a variety of configuration options to customize its behavior. You 
 
 For backwards compatibility with eget, xget supports both `TOML` and `YAML` configuration files. The same options are available in either format and can be layered by CLI flags, per-repository settings, and global settings.
 
-For information on where xget looks for configuration files, see the [Configuration Loading and Precedence](configuration/loading-and-precedence) page.
+For information on where xget looks for configuration files, see the [Configuration Loading and Precedence](loading-and-precedence) page.
 
 ## Example configuration
 
@@ -195,4 +195,4 @@ global:
   target: "~/.local/bin"
 ```
 
-For the file lookup order and environment-variable behavior, see [Configuration Loading and Precedence](configuration/loading-and-precedence).
+For the file lookup order and environment-variable behavior, see [Configuration Loading and Precedence](loading-and-precedence).
