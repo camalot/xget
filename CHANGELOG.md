@@ -1,4 +1,152 @@
 
+## [v2.3.0](https://github.com/camalot/xget/releases/tag/v2.3.0) - 2026-09-27
+
+### 🚀 FEATURES
+
+#### _GENERAL_
+
+- Added coverage report -[@camalot](https://github.com/camalot)
+
+- Added coverage report [#19](https://github.com/camalot/xget/pull/19) -[@camalot](https://github.com/camalot)
+
+
+### 🐛 BUG FIXES
+
+
+#### _CONFIG_
+- Configs loaded and merged from lowest to highest priority. -[@camalot](https://github.com/camalot)
+
+
+#### _DEB_
+- Resolve issues with the deb package creation -[@camalot](https://github.com/camalot)
+
+
+#### _PACKAGE_
+- Resolved double path -[@camalot](https://github.com/camalot)
+
+- Fix issue with determine release checksums for AUR -[@camalot](https://github.com/camalot)
+
+- Fix issue with determine release checksums for AUR -[@camalot](https://github.com/camalot)
+
+
+#### _UPDATE_
+- Xget now can check for updates (daily) and displays message if update available -[@camalot](https://github.com/camalot)
+
+- Xget update available check can be disabled via global config value -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+- Fixed the installer, specifically in wsl -[@camalot](https://github.com/camalot)
+
+- Use main branch for coverage report -[@camalot](https://github.com/camalot)
+
+- Try to quote the coverage file name -[@camalot](https://github.com/camalot)
+
+- Use v1 of coverage report -[@camalot](https://github.com/camalot)
+
+- Resolve the gosec G703 error -[@camalot](https://github.com/camalot)
+
+- Fixed the AlmaLinux package conflict in rpm/action.yml -[@camalot](https://github.com/camalot)
+
+- Fix import / merge of gemfile for docs -[@camalot](https://github.com/camalot)
+
+- Some styling for markdown -> html -[@camalot](https://github.com/camalot)
+
+- Resolve issue reported by codeQL -[@camalot](https://github.com/camalot)
+
+
+### 💼 OTHER
+
+#### _GENERAL_
+
+- Merge pull request  from camalot/coverage-report[#19](https://github.com/camalot/xget/issues/19)  [#19](https://github.com/camalot/xget/pull/19) -[@camalot](https://github.com/camalot)
+
+- Merge pull request  from camalot/lint-enforcement-fixes[#21](https://github.com/camalot/xget/issues/21)  [#21](https://github.com/camalot/xget/pull/21) -[@camalot](https://github.com/camalot)
+
+- Lint enforcement fixes [#21](https://github.com/camalot/xget/pull/21) -[@camalot](https://github.com/camalot)
+
+
+### 📚 DOCUMENTATION
+
+#### _GENERAL_
+
+- Build documentation on release -[@camalot](https://github.com/camalot)
+
+- Added publish docs workflow -[@camalot](https://github.com/camalot)
+
+- Remove duplicate info in readme -[@camalot](https://github.com/camalot)
+
+- Updated some docs configs -[@camalot](https://github.com/camalot)
+
+- More docs updates to publish -[@camalot](https://github.com/camalot)
+
+- Update documentation and remove a lot from the base readme -[@camalot](https://github.com/camalot)
+
+- Added features documentation with eget comparison matrix -[@camalot](https://github.com/camalot)
+
+
+### ⚙️ MISCELLANEOUS TASKS
+
+
+#### _LINT_
+- Enabled more strict linting and fixed the errors -[@camalot](https://github.com/camalot)
+
+
+#### _PACKAGE_
+- Added aur package generation -[@camalot](https://github.com/camalot)
+
+- Unify the sbom file names -[@camalot](https://github.com/camalot)
+
+- Added alpine package generation -[@camalot](https://github.com/camalot)
+
+- Added rpm package workflow -[@camalot](https://github.com/camalot)
+
+- Refactor to reuse asset verification -[@camalot](https://github.com/camalot)
+
+- Rpm creation follows other package creation -[@camalot](https://github.com/camalot)
+
+- Refactor to reuse code for packages -[@camalot](https://github.com/camalot)
+
+- Refactor to reuse code for packages -[@camalot](https://github.com/camalot)
+
+- Fix permission of /pkg for aur -[@camalot](https://github.com/camalot)
+
+
+#### _REPO_
+- Create debian package workflow -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot) in
+[#21](https://github.com/camalot/xget/pull/21)
+
+## 📈 Commit Statistics
+
+
+- `39` commits contributed to the release.
+- `6` days have passed between the first and last commit.
+- `36` commits parsed as conventional.
+- `2` linked issues detected in commits.
+  - [#19](https://github.com/camalot/xget/issues/19) (referenced 1 time)
+  - [#21](https://github.com/camalot/xget/issues/21) (referenced 1 time)
+- `6` days  have passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[39,1,6,36,2,6]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.2.0...v2.3.0
+
 ## [v2.2.0](https://github.com/camalot/xget/releases/tag/v2.2.0) - 2026-09-21
 
 ### 🚀 FEATURES
