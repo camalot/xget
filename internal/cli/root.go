@@ -145,6 +145,11 @@ func newRootCommand() *cobra.Command {
 	cmd.PersistentPreRun = func(*cobra.Command, []string) {
 		engine.SetNonInteractive(f.nonInteractive)
 	}
+	cmd.PersistentPostRun = func(cmd *cobra.Command, _ []string) {
+		if run, force := selfCheckMode(cmd); run {
+			checkForSelfUpdate(cmd, force)
+		}
+	}
 
 	addInstallFlags(cmd, f)
 

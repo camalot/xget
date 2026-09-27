@@ -18,6 +18,22 @@ func TestLoadMissingReturnsEmptyStore(t *testing.T) {
 	}
 }
 
+func TestSelfUpdateCheckRoundTripsOutsidePackages(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".xget.installed.yml")
+	checked := time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
+	store := &Store{Packages: map[string][]Package{}, SelfUpdate: SelfUpdateCheck{LastChecked: checked}}
+	if err := Save(path, store); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded.SelfUpdate.LastChecked.Equal(checked) || len(loaded.Packages) != 0 {
+		t.Fatalf("loaded = %#v", loaded)
+	}
+}
+
 func TestUpsertCreatesAndUpdatesPackageRecord(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".config", "xget", ".xget.installed.yml")
 	installedAt := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)

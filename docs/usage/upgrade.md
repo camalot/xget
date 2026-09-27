@@ -18,6 +18,15 @@ parent: 🧭 Usage
 xget self-update
 ```
 
+If xget is not tracked in the installed store (for example, it was installed
+manually or with the install script), `self-update` replaces the running
+executable in place and leaves it untracked.
+
+xget checks for a newer release of itself at most once every 24 hours and prints
+a notice to stderr when one is available. The time of the last check is stored
+under `self_update` in `~/.config/xget/.xget.installed.yml`. `xget upgrade` and
+`xget list --installed` always check, and do not update that timestamp.
+
 <!-- markdownlint-disable-next-line MD025 MD022 -->
 ## Table of contents
 {: .no_toc .text-delta }

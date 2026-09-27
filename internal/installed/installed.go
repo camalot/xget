@@ -49,7 +49,13 @@ type Package struct {
 
 // Store maps a package key to every install location tracked for that package.
 type Store struct {
-	Packages map[string][]Package `yaml:"packages"`
+	Packages   map[string][]Package `yaml:"packages"`
+	SelfUpdate SelfUpdateCheck      `yaml:"self_update,omitempty"`
+}
+
+// SelfUpdateCheck records when xget last looked for a newer release of itself.
+type SelfUpdateCheck struct {
+	LastChecked time.Time `yaml:"last_checked,omitempty"`
 }
 
 // DefaultPath returns the default installed store path.
@@ -89,11 +95,13 @@ func Load(path string) (*Store, error) {
 // layout that stored a single record per package.
 func (s *Store) UnmarshalYAML(node *yaml.Node) error {
 	var raw struct {
-		Packages map[string]yaml.Node `yaml:"packages"`
+		Packages   map[string]yaml.Node `yaml:"packages"`
+		SelfUpdate SelfUpdateCheck      `yaml:"self_update"`
 	}
 	if err := node.Decode(&raw); err != nil {
 		return err
 	}
+	s.SelfUpdate = raw.SelfUpdate
 	s.Packages = map[string][]Package{}
 	for key := range raw.Packages {
 		entry := raw.Packages[key]
@@ -186,13 +194,21 @@ func (s *Store) MarshalYAML() (interface{}, error) {
 			&value,
 		)
 	}
-	return &yaml.Node{
+	root := &yaml.Node{
 		Kind: yaml.MappingNode,
 		Content: []*yaml.Node{
 			{Kind: yaml.ScalarNode, Value: "packages"},
 			packages,
 		},
-	}, nil
+	}
+	if !s.SelfUpdate.LastChecked.IsZero() {
+		selfUpdate := &yaml.Node{}
+		if err := selfUpdate.Encode(s.SelfUpdate); err != nil {
+			return nil, err
+		}
+		root.Content = append(root.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: "self_update"}, selfUpdate)
+	}
+	return root, nil
 }
 
 // Upsert loads the store at path, sets pkg, and saves it.
