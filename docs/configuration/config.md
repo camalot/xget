@@ -29,6 +29,10 @@ xget resolves the file using the normal
 1. `XGET_CONFIG` (or `EGET_CONFIG`) if set.
 2. The first existing file in the standard candidate locations.
 
+`config get`, `set`, `clear`, `pop`, `list`, `path`, and `edit` operate on that
+single file. Other xget commands merge configuration layers by default; set
+`global.config_merge=false` in the highest-priority file to disable merging.
+
 If no configuration file exists anywhere, a new one is created at
 `$XDG_CONFIG_HOME/xget/.xget.yml`. When `XDG_CONFIG_HOME` is empty or unset,
 `~/.config/xget/.xget.yml` is used. This applies on Linux, macOS, and Windows.

@@ -16,22 +16,18 @@ func TestCandidatePathsUsesDotPrefixedLocationsInOrder(t *testing.T) {
 
 	got := candidatePaths(homePath)
 	want := []string{}
-	baseNames := []string{".xget", ".eget"}
-	exts := []string{"toml", "yml", "yaml"}
-
-	for _, base := range baseNames {
-		for _, ext := range exts {
-			want = append(want,
-				filepath.Join(".", base+"."+ext),
-				filepath.Join(homePath, base+"."+ext),
-				filepath.Join(homePath, ".config", "xget", base+"."+ext),
-			)
-			if runtime.GOOS == "windows" {
-				localAppData := os.Getenv("LOCALAPPDATA")
-				if localAppData == "" {
-					localAppData = filepath.Join(homePath, "AppData", "Local")
-				}
-				want = append(want, filepath.Join(localAppData, "xget", base+"."+ext))
+	locations := []string{".", homePath, filepath.Join(homePath, ".config", "xget")}
+	if runtime.GOOS == "windows" {
+		localAppData := os.Getenv("LOCALAPPDATA")
+		if localAppData == "" {
+			localAppData = filepath.Join(homePath, "AppData", "Local")
+		}
+		locations = append(locations, filepath.Join(localAppData, "xget"))
+	}
+	for _, location := range locations {
+		for _, base := range []string{".xget", ".eget"} {
+			for _, ext := range []string{"toml", "yml", "yaml"} {
+				want = append(want, filepath.Join(location, base+"."+ext))
 			}
 		}
 	}
@@ -74,6 +70,111 @@ func TestConfiguredPathPrefersXgetAndExplicitOverride(t *testing.T) {
 	}
 	if got := configuredPath(); got != "/tmp/eget.toml" {
 		t.Fatalf("configuredPath() = %q, want %q", got, "/tmp/eget.toml")
+	}
+}
+
+func TestLoadMergesConfigLayers(t *testing.T) {
+	home := t.TempDir()
+	cwd := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
+	t.Setenv("XGET_CONFIG", "")
+	t.Setenv("EGET_CONFIG", "")
+	t.Chdir(cwd)
+
+	basePath := filepath.Join(home, ".config", "xget", ".xget.yml")
+	if err := os.MkdirAll(filepath.Dir(basePath), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	base := "global:\n  target: ~/.local/bin\n  system: linux/amd64\n  xget_update_check: false\n  ignore: [base]\nowner/base:\n  tag: stable\nowner/shared:\n  file: base.zip\nsources:\n  github:\n    token_env: [BASE_TOKEN]\n"
+	if err := os.WriteFile(basePath, []byte(base), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	homePath := filepath.Join(home, ".xget.toml")
+	if err := os.WriteFile(homePath, []byte("[global]\ntarget = \"~/bin\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cwdPath := filepath.Join(cwd, ".xget.yml")
+	cwdConfig := "global:\n  target: /usr/local/bin\n  ignore: [local]\nowner/shared:\n  tag: latest\nowner/local:\n  quiet: true\nsources:\n  github:\n    host: example.com\n"
+	if err := os.WriteFile(cwdPath, []byte(cwdConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadQuiet()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Path != filepath.Join(".", ".xget.yml") || cfg.Global.Target != "/usr/local/bin" || cfg.Global.System != "linux/amd64" || cfg.Global.XgetUpdateCheck || !cfg.Global.ConfigMerge {
+		t.Fatalf("unexpected merged global or path: %#v", cfg)
+	}
+	if !reflect.DeepEqual(cfg.Global.Ignore, []string{"local"}) || cfg.Repositories["owner/base"].Tag != "stable" || cfg.Repositories["owner/shared"].File != "base.zip" || cfg.Repositories["owner/shared"].Tag != "latest" || cfg.Repositories["owner/local"].Target != "/usr/local/bin" {
+		t.Fatalf("unexpected merged repositories or list: %#v", cfg)
+	}
+	if cfg.Sources["github"].Host != "example.com" || !reflect.DeepEqual(cfg.Sources["github"].TokenEnv, []string{"BASE_TOKEN"}) {
+		t.Fatalf("unexpected merged source: %#v", cfg.Sources["github"])
+	}
+
+	explicitPath := filepath.Join(t.TempDir(), ".xget.toml")
+	if err := os.WriteFile(explicitPath, []byte("[global]\ntarget = \"/opt/bin\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	explicit, err := LoadQuiet(explicitPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if explicit.Path != explicitPath || explicit.Global.Target != "/opt/bin" || explicit.Global.System != "linux/amd64" {
+		t.Fatalf("unexpected explicit override: %#v", explicit)
+	}
+}
+
+func TestLoadHighestPriorityCanDisableMerge(t *testing.T) {
+	home := t.TempDir()
+	cwd := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
+	t.Setenv("XGET_CONFIG", "")
+	t.Setenv("EGET_CONFIG", "")
+	t.Chdir(cwd)
+
+	basePath := filepath.Join(home, ".config", "xget", ".xget.toml")
+	if err := os.MkdirAll(filepath.Dir(basePath), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(basePath, []byte("[global]\ntarget = \"~/bin\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cwdPath := filepath.Join(cwd, ".xget.yml")
+	if err := os.WriteFile(cwdPath, []byte("global:\n  config_merge: false\n  quiet: true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadQuiet()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Global.ConfigMerge || !cfg.Global.Quiet || cfg.Global.Target != "" {
+		t.Fatalf("expected cwd config alone, got %#v", cfg.Global)
+	}
+
+	explicitPath := filepath.Join(t.TempDir(), ".xget.toml")
+	if err := os.WriteFile(explicitPath, []byte("[global]\ntarget = \"/opt/bin\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	explicit, err := LoadQuiet(explicitPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if explicit.Global.Target != "/opt/bin" || !explicit.Global.Quiet || explicit.Global.ConfigMerge {
+		t.Fatalf("lower-priority opt-out should not stop merging: %#v", explicit.Global)
+	}
+
+	if err := os.WriteFile(basePath, []byte("[global\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadQuiet(); err != nil {
+		t.Fatalf("disabled merge should skip lower-priority invalid files: %v", err)
 	}
 }
 

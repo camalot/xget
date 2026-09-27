@@ -17,6 +17,7 @@ import (
 // Global holds settings applied to every target unless overridden.
 type Global struct {
 	All                 bool     `mapstructure:"all" toml:"all" yaml:"all"`
+	ConfigMerge         bool     `mapstructure:"config_merge" toml:"config_merge" yaml:"config_merge"`
 	Ignore              []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
 	DownloadOnly        bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
 	File                string   `mapstructure:"file" toml:"file" yaml:"file"`
@@ -78,6 +79,7 @@ func Default() *Config {
 	return &Config{
 		Global: Global{
 			All:             false,
+			ConfigMerge:     true,
 			Ignore:          []string{},
 			DownloadOnly:    false,
 			GithubToken:     "",
@@ -190,22 +192,18 @@ func configuredPath() string {
 
 func candidatePaths(homePath string) []string {
 	candidates := []string{}
-
-	for _, base := range []string{".xget", ".eget"} {
-		for _, ext := range []string{"toml", "yml", "yaml"} {
-			candidates = append(candidates,
-				filepath.Join(".", base+"."+ext),
-				filepath.Join(homePath, base+"."+ext),
-				filepath.Join(homePath, ".config", "xget", base+"."+ext),
-			)
-			if runtime.GOOS == constants.RuntimeWindows {
-				localAppData := os.Getenv("LOCALAPPDATA")
-				if localAppData == "" {
-					localAppData = filepath.Join(homePath, "AppData", "Local")
-				}
-				candidates = append(candidates,
-					filepath.Join(localAppData, "xget", base+"."+ext),
-				)
+	locations := []string{".", homePath, filepath.Join(homePath, ".config", "xget")}
+	if runtime.GOOS == constants.RuntimeWindows {
+		localAppData := os.Getenv("LOCALAPPDATA")
+		if localAppData == "" {
+			localAppData = filepath.Join(homePath, "AppData", "Local")
+		}
+		locations = append(locations, filepath.Join(localAppData, "xget"))
+	}
+	for _, location := range locations {
+		for _, base := range []string{".xget", ".eget"} {
+			for _, ext := range []string{"toml", "yml", "yaml"} {
+				candidates = append(candidates, filepath.Join(location, base+"."+ext))
 			}
 		}
 	}
@@ -213,13 +211,7 @@ func candidatePaths(homePath string) []string {
 	return candidates
 }
 
-func loadFromFile(path string, warnings io.Writer) (*Config, error) {
-	v := viper.New()
-	v.SetConfigFile(path)
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
-	}
-
+func decodeConfig(v *viper.Viper, path string, warnings io.Writer) (*Config, error) {
 	cfg := Default()
 	cfg.Path = path
 
@@ -324,7 +316,7 @@ func isPlaintextToken(token string) bool {
 	return token != "" && !strings.HasPrefix(token, "@")
 }
 
-// Load reads the config from explicitPath or the first discovered candidate path.
+// Load reads and merges discovered config files in priority order.
 func Load(explicitPath ...string) (*Config, error) {
 	return load(os.Stderr, explicitPath...)
 }
@@ -336,40 +328,50 @@ func LoadQuiet(explicitPath ...string) (*Config, error) {
 
 func load(warnings io.Writer, explicitPath ...string) (*Config, error) {
 	homePath, _ := os.UserHomeDir()
-
+	paths := candidatePaths(homePath)
+	required := false
 	if len(explicitPath) > 0 && explicitPath[0] != "" {
-		cfg, err := loadFromFile(explicitPath[0], warnings)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", explicitPath[0], err)
-		}
-		return cfg, nil
+		paths = append([]string{explicitPath[0]}, paths...)
+		required = true
+	} else if custom := configuredPath(); custom != "" {
+		paths = append([]string{custom}, paths...)
+		required = true
 	}
 
-	if custom := configuredPath(); custom != "" {
-		cfg, err := loadFromFile(custom, warnings)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", custom, err)
-		}
-		return cfg, nil
+	type layer struct {
+		path     string
+		settings map[string]any
 	}
-
-	var lastNotExist error
-	for _, p := range candidatePaths(homePath) {
-		cfg, err := loadFromFile(p, warnings)
-		if err == nil {
-			return cfg, nil
-		}
-
+	layers := []layer{}
+	for index, p := range paths {
+		v := viper.New()
+		v.SetConfigFile(p)
+		err := v.ReadInConfig()
 		var notFound viper.ConfigFileNotFoundError
 		if errors.Is(err, os.ErrNotExist) || errors.As(err, &notFound) {
-			lastNotExist = err
+			if index == 0 && required {
+				return nil, fmt.Errorf("%s: %w", p, err)
+			}
 			continue
 		}
-		return nil, fmt.Errorf("%s: %w", p, err)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", p, err)
+		}
+		layers = append(layers, layer{p, v.AllSettings()})
+		if len(layers) == 1 && v.IsSet("global.config_merge") && !v.GetBool("global.config_merge") {
+			break
+		}
 	}
-
-	_ = lastNotExist
-	return Default(), nil
+	if len(layers) == 0 {
+		return Default(), nil
+	}
+	merged := viper.New()
+	for index := len(layers) - 1; index >= 0; index-- {
+		if err := merged.MergeConfigMap(layers[index].settings); err != nil {
+			return nil, fmt.Errorf("%s: %w", layers[index].path, err)
+		}
+	}
+	return decodeConfig(merged, layers[0].path, warnings)
 }
 
 // SubstituteTemplateVars replaces {{.OS}} and {{.Arch}} in a filter string
