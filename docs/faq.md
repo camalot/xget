@@ -65,4 +65,4 @@ Yes. Use `owner/repo@TAG` or `--tag TAG` to select a release tag or tag fragment
 
 Use `@latest` or `--tag latest` to explicitly select the latest stable release. Add `--pre-release` to select the newest release, whether it is stable or a prerelease.
 
-For more examples of matching and filtering, see [Asset Filtering](asset-filtering).
+For more examples of matching and filtering, see [Asset Filtering](usage/asset-filtering).
