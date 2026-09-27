@@ -149,18 +149,56 @@ func TestUpgradeAndListInstalledAlwaysCheckWithoutRecording(t *testing.T) {
 	storePath := useTempInstalledStore(t)
 	useVersion(t, "v1.0.0")
 	seen := stubRefresh(t, map[string]string{xgetRepo: "v1.1.0"})
+	current := time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
+	stubNow(t, &current)
 
-	for _, args := range [][]string{{"upgrade"}, {"upgrade"}, {"list", "--installed"}} {
+	for _, stored := range []time.Time{{}, current.Add(-48 * time.Hour)} {
+		store, err := installed.Load(storePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store.SelfUpdate.LastChecked = stored
+		if err := installed.Save(storePath, store); err != nil {
+			t.Fatal(err)
+		}
+		*seen = nil
+
+		commands := [][]string{{"upgrade"}, {"update"}, {"upgrade", "--all"}, {"list", "--installed"}}
+		for _, args := range commands {
+			out, err := runCLI(t, args...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(out, newVersionNotice) {
+				t.Fatalf("%v: expected update notice:\n%s", args, out)
+			}
+		}
+		if len(*seen) != len(commands) {
+			t.Fatalf("lookups = %d, want %d", len(*seen), len(commands))
+		}
+		if got := lastSelfCheck(t, storePath); !got.Equal(stored) {
+			t.Fatalf("last_checked = %v, want unchanged %v", got, stored)
+		}
+	}
+}
+
+func TestSelfCheckSkippedWhenDisabledInConfig(t *testing.T) {
+	storePath := useTempInstalledStore(t)
+	t.Setenv("XGET_CONFIG", writeUpgradeConfig(t, "global:\n  xget_update_check: false\n"))
+	useVersion(t, "v1.0.0")
+	seen := stubRefresh(t, map[string]string{xgetRepo: "v1.1.0"})
+
+	for _, args := range [][]string{{"version"}, {"upgrade"}, {"list", "--installed"}} {
 		out, err := runCLI(t, args...)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(out, newVersionNotice) {
-			t.Fatalf("%v: expected update notice:\n%s", args, out)
+		if strings.Contains(out, newVersionNotice) {
+			t.Fatalf("%v: unexpected update notice:\n%s", args, out)
 		}
 	}
-	if len(*seen) != 3 {
-		t.Fatalf("lookups = %d, want 3", len(*seen))
+	if len(*seen) != 0 {
+		t.Fatalf("lookups = %d, want 0", len(*seen))
 	}
 	if got := lastSelfCheck(t, storePath); !got.IsZero() {
 		t.Fatalf("last_checked = %v, want unset", got)

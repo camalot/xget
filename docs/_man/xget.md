@@ -368,6 +368,10 @@ header: xget Manual
 
 :    In the global section, disable warnings for every plaintext token stored in the config. In a source profile, disable the warning only for that profile.
 
+  `xget_update_check`
+
+:    Whether to check for a newer xget release and print a notice to stderr when one is available. Checks at most once every 24 hours, and on every `xget upgrade` and `xget list --installed`. Global section only. Defaults to `true`. Does not affect `xget self-update`.
+
   `ignore`
 
 :    An array of asset matchers to exclude. Supports the same matcher syntax as `asset_filters`.

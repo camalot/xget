@@ -27,6 +27,22 @@ a notice to stderr when one is available. The time of the last check is stored
 under `self_update` in `~/.config/xget/.xget.installed.yml`. `xget upgrade` and
 `xget list --installed` always check, and do not update that timestamp.
 
+To turn off the update check, set `xget_update_check` to `false` in the global
+section of your config (default `true`):
+
+```yaml
+global:
+  xget_update_check: false
+```
+
+or from the command line:
+
+```shell
+xget config set global xget_update_check=false
+```
+
+`xget self-update` still works when the check is disabled.
+
 <!-- markdownlint-disable-next-line MD025 MD022 -->
 ## Table of contents
 {: .no_toc .text-delta }

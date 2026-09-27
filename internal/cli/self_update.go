@@ -94,6 +94,11 @@ func checkForSelfUpdate(cmd *cobra.Command, force bool) {
 	if version == developmentVersion {
 		return
 	}
+	configPath, _ := cmd.Flags().GetString("config")
+	cfg, err := config.LoadQuiet(configPath)
+	if err != nil || !cfg.Global.XgetUpdateCheck {
+		return
+	}
 	if !force {
 		storePath, err := installed.DefaultPath()
 		if err != nil {
@@ -116,7 +121,7 @@ func checkForSelfUpdate(cmd *cobra.Command, force bool) {
 
 	result := make(chan string, 1)
 	go func() {
-		latest, err := latestXgetTag(config.Default())
+		latest, err := latestXgetTag(cfg)
 		if err != nil {
 			latest = ""
 		}

@@ -30,6 +30,7 @@ type Global struct {
 	DisableSSL          bool     `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
 	SourceType          string   `mapstructure:"source" toml:"source" yaml:"source"`
 	DisableTokenWarning bool     `mapstructure:"disable_token_warning" toml:"disable_token_warning" yaml:"disable_token_warning"`
+	XgetUpdateCheck     bool     `mapstructure:"xget_update_check" toml:"xget_update_check" yaml:"xget_update_check"`
 }
 
 // Repository holds per-repository overrides.
@@ -76,15 +77,16 @@ type Config struct {
 func Default() *Config {
 	return &Config{
 		Global: Global{
-			All:          false,
-			Ignore:       []string{},
-			DownloadOnly: false,
-			GithubToken:  "",
-			Quiet:        false,
-			ShowHash:     false,
-			Source:       false,
-			UpgradeOnly:  false,
-			DisableSSL:   false,
+			All:             false,
+			Ignore:          []string{},
+			DownloadOnly:    false,
+			GithubToken:     "",
+			Quiet:           false,
+			ShowHash:        false,
+			Source:          false,
+			UpgradeOnly:     false,
+			DisableSSL:      false,
+			XgetUpdateCheck: true,
 		},
 		Repositories: map[string]Repository{},
 		Sources: map[string]Source{
@@ -211,7 +213,7 @@ func candidatePaths(homePath string) []string {
 	return candidates
 }
 
-func loadFromFile(path string) (*Config, error) {
+func loadFromFile(path string, warnings io.Writer) (*Config, error) {
 	v := viper.New()
 	v.SetConfigFile(path)
 	if err := v.ReadInConfig(); err != nil {
@@ -244,7 +246,7 @@ func loadFromFile(path string) (*Config, error) {
 			cfg.Sources[strings.ToLower(name)] = resolved
 		}
 	}
-	warnStoredTokens(cfg, os.Stderr)
+	warnStoredTokens(cfg, warnings)
 
 	for key := range v.AllSettings() {
 		if key == "global" || key == "sources" {
@@ -324,10 +326,19 @@ func isPlaintextToken(token string) bool {
 
 // Load reads the config from explicitPath or the first discovered candidate path.
 func Load(explicitPath ...string) (*Config, error) {
+	return load(os.Stderr, explicitPath...)
+}
+
+// LoadQuiet is Load without printing plaintext-token warnings.
+func LoadQuiet(explicitPath ...string) (*Config, error) {
+	return load(io.Discard, explicitPath...)
+}
+
+func load(warnings io.Writer, explicitPath ...string) (*Config, error) {
 	homePath, _ := os.UserHomeDir()
 
 	if len(explicitPath) > 0 && explicitPath[0] != "" {
-		cfg, err := loadFromFile(explicitPath[0])
+		cfg, err := loadFromFile(explicitPath[0], warnings)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", explicitPath[0], err)
 		}
@@ -335,7 +346,7 @@ func Load(explicitPath ...string) (*Config, error) {
 	}
 
 	if custom := configuredPath(); custom != "" {
-		cfg, err := loadFromFile(custom)
+		cfg, err := loadFromFile(custom, warnings)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", custom, err)
 		}
@@ -344,7 +355,7 @@ func Load(explicitPath ...string) (*Config, error) {
 
 	var lastNotExist error
 	for _, p := range candidatePaths(homePath) {
-		cfg, err := loadFromFile(p)
+		cfg, err := loadFromFile(p, warnings)
 		if err == nil {
 			return cfg, nil
 		}
