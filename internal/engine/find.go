@@ -33,17 +33,19 @@ type GithubRelease struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+// Release summarizes a published release.
 type Release struct {
 	Name        string
 	Tag         string
 	PublishedAt time.Time
 }
 
+// GithubError is returned for non-200 GitHub API responses.
 type GithubError struct {
 	Code   int
 	Status string
 	Body   []byte
-	Url    string
+	URL    string
 }
 type errResponse struct {
 	Message string `json:"message"`
@@ -63,7 +65,7 @@ func (ge *GithubError) Error() string {
 		}
 		return fmt.Sprintf("%s: %s: %s", ge.Status, msg.Message, msg.Doc)
 	}
-	return fmt.Sprintf("%s (URL: %s)", ge.Status, ge.Url)
+	return fmt.Sprintf("%s (URL: %s)", ge.Status, ge.URL)
 }
 
 // A GithubAssetFinder finds assets for the given Repo at the given tag. Tags
@@ -78,8 +80,10 @@ type GithubAssetFinder struct {
 	Source     config.Source
 }
 
+// ErrNoUpgrade is returned when the release is not newer than the installed one.
 var ErrNoUpgrade = errors.New("requested release is not more recent than current version")
 
+// ListReleases lists up to 10 recent GitHub releases for repo.
 func ListReleases(repo string, includePrereleases bool) ([]Release, error) {
 	source, _ := config.Default().ResolveSource("github")
 	return listGithubReleases(repo, includePrereleases, source)
@@ -107,7 +111,7 @@ func listGithubReleases(repo string, includePrereleases bool, source config.Sour
 			if closeErr != nil {
 				return nil, closeErr
 			}
-			return nil, &GithubError{Status: resp.Status, Code: resp.StatusCode, Body: body, Url: url}
+			return nil, &GithubError{Status: resp.Status, Code: resp.StatusCode, Body: body, URL: url}
 		}
 		body, err := io.ReadAll(resp.Body)
 		closeErr := resp.Body.Close()
@@ -142,6 +146,7 @@ func listGithubReleases(repo string, includePrereleases bool, source config.Sour
 	return releases, nil
 }
 
+// Find returns the asset URLs for the configured release.
 func (f *GithubAssetFinder) Find() ([]string, error) {
 	if f.Prerelease && f.Tag == "latest" {
 		tag, err := f.getLatestTag()
@@ -176,7 +181,7 @@ func (f *GithubAssetFinder) Find() ([]string, error) {
 			Status: resp.Status,
 			Code:   resp.StatusCode,
 			Body:   body,
-			Url:    url,
+			URL:    url,
 		}
 	}
 
@@ -212,6 +217,7 @@ func (f *GithubAssetFinder) Find() ([]string, error) {
 	return assets, nil
 }
 
+// FindMatch pages through releases for one whose tag contains the requested tag.
 func (f *GithubAssetFinder) FindMatch() ([]string, error) {
 	tag := f.Tag[len("tags/"):]
 
@@ -237,7 +243,7 @@ func (f *GithubAssetFinder) FindMatch() ([]string, error) {
 				Status: resp.Status,
 				Code:   resp.StatusCode,
 				Body:   body,
-				Url:    url,
+				URL:    url,
 			}
 		}
 
@@ -301,7 +307,7 @@ func (f *GithubAssetFinder) getLatestTag() (string, error) {
 		return "", fmt.Errorf("pre-release finder: %w", err)
 	}
 
-	if len(releases) <= 0 {
+	if len(releases) == 0 {
 		return "", fmt.Errorf("no releases found")
 	}
 
@@ -319,10 +325,12 @@ type DirectAssetFinder struct {
 	URL string
 }
 
+// Find returns the embedded URL.
 func (f *DirectAssetFinder) Find() ([]string, error) {
 	return []string{f.URL}, nil
 }
 
+// GithubSourceFinder returns the source tarball URL for a GitHub repo tag.
 type GithubSourceFinder struct {
 	Tool   string
 	Repo   string
@@ -330,6 +338,7 @@ type GithubSourceFinder struct {
 	Source config.Source
 }
 
+// Find returns the source tarball URL.
 func (f *GithubSourceFinder) Find() ([]string, error) {
 	return []string{fmt.Sprintf("https://%s/%s/tarball/%s/%s.tar.gz", f.Source.Host, f.Repo, url.PathEscape(f.Tag), f.Tool)}, nil
 }

@@ -16,11 +16,13 @@ import (
 
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/home"
+	"github.com/camalot/xget/internal/lib/constants"
 	pb "github.com/schollz/progressbar/v3"
 )
 
 var runtimeDisableSSL bool
 
+// SetDisableSSL toggles TLS certificate verification for downloads.
 func SetDisableSSL(disable bool) {
 	runtimeDisableSSL = disable
 }
@@ -77,6 +79,7 @@ func tokenFrom(s string) (string, error) {
 	return s, nil
 }
 
+// ErrNoToken is returned when no token is configured for a source.
 var ErrNoToken = errors.New("no github token")
 
 func getGithubToken() (string, error) {
@@ -96,11 +99,13 @@ func getSourceToken(source config.Source) (string, error) {
 	return "", ErrNoToken
 }
 
+// GithubTokenConfigured reports whether a GitHub token is available.
 func GithubTokenConfigured() bool {
 	_, err := getGithubToken()
 	return err == nil
 }
 
+// SetAuthHeader adds GitHub authentication to req when appropriate.
 func SetAuthHeader(req *http.Request) *http.Request {
 	source, _ := config.Default().ResolveSource("github")
 	return setSourceAuthHeader(req, source)
@@ -112,12 +117,12 @@ func setSourceAuthHeader(req *http.Request, source config.Source) *http.Request 
 		fmt.Fprintf(os.Stderr, "warning: not using %s token: %v\n", source.Type, err)
 	}
 
-	if req.URL.Scheme == "https" && sourceMatchesRequest(source, req) && err == nil {
+	if req.URL.Scheme == constants.SchemeHTTPS && sourceMatchesRequest(source, req) && err == nil {
 		if runtimeDisableSSL {
 			fmt.Fprintf(os.Stderr, "warning: not using %s token while SSL verification is disabled\n", source.Type)
 			return req
 		}
-		if source.Type == "gitlab" {
+		if source.Type == constants.ProviderGitlab {
 			req.Header.Set("PRIVATE-TOKEN", token)
 		} else {
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -128,7 +133,7 @@ func setSourceAuthHeader(req *http.Request, source config.Source) *http.Request 
 }
 
 func sourceMatchesRequest(source config.Source, req *http.Request) bool {
-	if req.URL.Scheme != "https" {
+	if req.URL.Scheme != constants.SchemeHTTPS {
 		return false
 	}
 	reqHost, reqPort := splitHostPort(req.URL.Host, defaultPortForScheme(req.URL.Scheme))
@@ -139,7 +144,7 @@ func sourceMatchesRequest(source config.Source, req *http.Request) bool {
 		}
 	}
 	apiURL, err := url.Parse(source.APIURL)
-	if err != nil || apiURL.Scheme != "https" || apiURL.Host == "" {
+	if err != nil || apiURL.Scheme != constants.SchemeHTTPS || apiURL.Host == "" {
 		return false
 	}
 	apiHost, apiPort := splitHostPort(apiURL.Host, defaultPortForScheme(apiURL.Scheme))
@@ -158,7 +163,7 @@ func splitHostPort(hostport, defaultPort string) (string, string) {
 
 // defaultPortForScheme returns the implicit port for a URL scheme lacking one.
 func defaultPortForScheme(scheme string) string {
-	if scheme == "http" {
+	if scheme == constants.SchemeHTTP {
 		return "80"
 	}
 	return "443"
@@ -166,7 +171,7 @@ func defaultPortForScheme(scheme string) string {
 
 func sourceRedirectPolicy(source config.Source) func(*http.Request, []*http.Request) error {
 	return func(req *http.Request, _ []*http.Request) error {
-		if req.URL.Scheme != "https" || !sourceMatchesRequest(source, req) {
+		if req.URL.Scheme != constants.SchemeHTTPS || !sourceMatchesRequest(source, req) {
 			req.Header.Del("Authorization")
 			req.Header.Del("PRIVATE-TOKEN")
 		}
@@ -174,11 +179,13 @@ func sourceRedirectPolicy(source config.Source) func(*http.Request, []*http.Requ
 	}
 }
 
+// Get performs a GET request using the default GitHub source.
 func Get(url string) (*http.Response, error) {
 	source, _ := config.Default().ResolveSource("github")
 	return GetWithSource(url, source)
 }
 
+// GetWithSource performs a GET request authenticated for source.
 func GetWithSource(url string, source config.Source) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 
@@ -198,16 +205,19 @@ func GetWithSource(url string, source config.Source) (*http.Response, error) {
 	return proxyClient.Do(req)
 }
 
-type RateLimitJson struct {
+// RateLimitJSON is the GitHub rate_limit API response.
+type RateLimitJSON struct {
 	Resources map[string]RateLimit
 }
 
+// RateLimit describes a GitHub API rate limit bucket.
 type RateLimit struct {
 	Limit     int
 	Remaining int
 	Reset     int64
 }
 
+// ResetTime returns when the rate limit resets.
 func (r RateLimit) ResetTime() time.Time {
 	return time.Unix(r.Reset, 0)
 }
@@ -217,14 +227,14 @@ func (r RateLimit) String() string {
 	rtime := r.ResetTime()
 	if rtime.Before(now) {
 		return fmt.Sprintf("Limit: %d, Remaining: %d, Reset: %v", r.Limit, r.Remaining, rtime)
-	} else {
-		return fmt.Sprintf(
-			"Limit: %d, Remaining: %d, Reset: %v (%v)",
-			r.Limit, r.Remaining, rtime, rtime.Sub(now).Round(time.Second),
-		)
 	}
+	return fmt.Sprintf(
+		"Limit: %d, Remaining: %d, Reset: %v (%v)",
+		r.Limit, r.Remaining, rtime, rtime.Sub(now).Round(time.Second),
+	)
 }
 
+// GetRateLimit queries the current GitHub core API rate limit.
 func GetRateLimit() (RateLimit, error) {
 	url := "https://api.github.com/rate_limit"
 	req, err := http.NewRequest("GET", url, nil)
@@ -252,10 +262,10 @@ func GetRateLimit() (RateLimit, error) {
 		return RateLimit{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return RateLimit{}, &GithubError{Status: resp.Status, Code: resp.StatusCode, Body: b, Url: url}
+		return RateLimit{}, &GithubError{Status: resp.Status, Code: resp.StatusCode, Body: b, URL: url}
 	}
 
-	var parsed RateLimitJson
+	var parsed RateLimitJSON
 	err = json.Unmarshal(b, &parsed)
 
 	return parsed.Resources["core"], err
@@ -270,6 +280,7 @@ func Download(url string, out io.Writer, getbar func(size int64) *pb.ProgressBar
 	return DownloadWithSource(url, out, getbar, source)
 }
 
+// DownloadWithSource downloads url (or copies a local file) to out, authenticating for source.
 func DownloadWithSource(url string, out io.Writer, getbar func(size int64) *pb.ProgressBar, source config.Source) error {
 	if IsLocalFile(url) {
 		f, err := openValidatedFile(url)

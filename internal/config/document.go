@@ -18,6 +18,7 @@ import (
 // GlobalSection is the section name used for global configuration values.
 const GlobalSection = "global"
 
+// SourceSectionPrefix prefixes section names for source profiles.
 const SourceSectionPrefix = "sources."
 
 // ErrKeyNotSet is returned when a requested key is absent from the document.
@@ -26,6 +27,7 @@ var ErrKeyNotSet = errors.New("key is not set")
 // ValueKind describes how a configuration value is stored and parsed.
 type ValueKind int
 
+// Supported value kinds.
 const (
 	KindBool ValueKind = iota
 	KindString
@@ -35,6 +37,7 @@ const (
 // Format identifies the on-disk serialization of a config document.
 type Format string
 
+// Supported config document formats.
 const (
 	FormatTOML Format = "toml"
 	FormatYAML Format = "yaml"

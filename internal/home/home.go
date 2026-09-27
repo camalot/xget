@@ -1,3 +1,4 @@
+// Package home resolves and expands the user's home directory.
 package home
 
 import (
@@ -7,6 +8,7 @@ import (
 	"strings"
 )
 
+// Home returns the current user's home directory.
 func Home() (string, error) {
 	userData, err := user.Current()
 	if err != nil {

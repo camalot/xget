@@ -153,9 +153,13 @@ func NewExtractor(filename string, tool string, chooser Chooser) Extractor {
 	}
 }
 
+// ArchiveFn opens data as an Archive using decomp.
 type ArchiveFn func(data []byte, decomp DecompFn) (Archive, error)
+
+// DecompFn wraps r with a decompressor.
 type DecompFn func(r io.Reader) (io.Reader, error)
 
+// ArchiveExtractor extracts files selected by File from an archive.
 type ArchiveExtractor struct {
 	File       Chooser
 	Ar         ArchiveFn
@@ -263,6 +267,9 @@ func (l link) Write() error {
 	return os.Link(l.oldname, l.newname)
 }
 
+// Extract selects matching entries from the archive in data.
+//
+//nolint:gocyclo // TODO: split into smaller helpers.
 func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, []ExtractedFile, error) {
 	var candidates []ExtractedFile
 	var dirs []string
@@ -315,11 +322,14 @@ func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, [
 						subf, err := ar.Next()
 						if err == io.EOF {
 							break
-						} else if err != nil {
+						}
+						if err != nil {
 							return fmt.Errorf("extract: %w", err)
-						} else if !strings.HasPrefix(subf.Name, f.Name) {
+						}
+						switch {
+						case !strings.HasPrefix(subf.Name, f.Name):
 							continue
-						} else if subf.Dir() {
+						case subf.Dir():
 							dirName, err := safeArchiveJoin(to, subf.Name[len(f.Name):])
 							if err != nil {
 								return fmt.Errorf("extract: %w", err)
@@ -328,7 +338,7 @@ func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, [
 								return fmt.Errorf("extract: %w", err)
 							}
 							continue
-						} else if subf.Type == TypeLink || subf.Type == TypeSymlink {
+						case subf.Type == TypeLink || subf.Type == TypeSymlink:
 							newname, err := safeArchiveJoin(to, subf.Name[len(f.Name):])
 							if err != nil {
 								return fmt.Errorf("extract: %w", err)
@@ -399,7 +409,8 @@ type SingleFileExtractor struct {
 	Decompress func(r io.Reader) (io.Reader, error)
 }
 
-func (sf *SingleFileExtractor) Extract(data []byte, multiple bool) (ExtractedFile, []ExtractedFile, error) {
+// Extract returns a single file that decompresses data on extraction.
+func (sf *SingleFileExtractor) Extract(data []byte, _ bool) (ExtractedFile, []ExtractedFile, error) {
 	name := rename(sf.Name, sf.Rename)
 	return ExtractedFile{
 		Name:        name,
@@ -428,13 +439,14 @@ func rename(file string, nameguess string) string {
 	}
 
 	var rename string
-	if strings.HasSuffix(file, ".appimage") {
+	switch {
+	case strings.HasSuffix(file, ".appimage"):
 		// remove the .appimage extension
 		rename = file[:len(file)-len(".appimage")]
-	} else if strings.HasSuffix(file, ".exe") {
+	case strings.HasSuffix(file, ".exe"):
 		// directly use xxx.exe
 		rename = file
-	} else {
+	default:
 		// otherwise use the rename guess
 		rename = nameguess
 	}
@@ -448,6 +460,7 @@ type BinaryChooser struct {
 	Tool string
 }
 
+// Choose reports whether name is the named tool (direct) or any executable (possible).
 func (b *BinaryChooser) Choose(name string, dir bool, mode fs.FileMode) (bool, bool) {
 	if dir {
 		return false, false
@@ -489,7 +502,8 @@ type LiteralFileChooser struct {
 	File string
 }
 
-func (lf *LiteralFileChooser) Choose(name string, dir bool, mode fs.FileMode) (bool, bool) {
+// Choose reports a possible match when name ends with the literal file path.
+func (lf *LiteralFileChooser) Choose(name string, _ bool, _ fs.FileMode) (bool, bool) {
 	return false, filepath.Base(name) == filepath.Base(lf.File) && strings.HasSuffix(name, lf.File)
 }
 
@@ -497,12 +511,14 @@ func (lf *LiteralFileChooser) String() string {
 	return fmt.Sprintf("`%s`", lf.File)
 }
 
+// GlobChooser selects files matching a glob pattern.
 type GlobChooser struct {
 	expr string
 	g    *glob.Pattern
 	all  bool
 }
 
+// NewGlobChooser compiles gl into a GlobChooser.
 func NewGlobChooser(gl string) (*GlobChooser, error) {
 	g, err := glob.Compile(gl, '/')
 	return &GlobChooser{
@@ -512,7 +528,8 @@ func NewGlobChooser(gl string) (*GlobChooser, error) {
 	}, err
 }
 
-func (gc *GlobChooser) Choose(name string, dir bool, mode fs.FileMode) (bool, bool) {
+// Choose reports a possible match when name or its base matches the glob.
+func (gc *GlobChooser) Choose(name string, _ bool, _ fs.FileMode) (bool, bool) {
 	if gc.all {
 		return true, true
 	}

@@ -1,3 +1,4 @@
+// Package installed tracks packages installed by xget.
 package installed
 
 import (
@@ -13,6 +14,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// Options records the install options used for a package.
 type Options struct {
 	Tag            string   `yaml:"tag,omitempty"`
 	Prerelease     bool     `yaml:"pre_release,omitempty"`
@@ -28,6 +30,7 @@ type Options struct {
 	Verify         string   `yaml:"verify,omitempty"`
 }
 
+// Package is a tracked install record.
 type Package struct {
 	Name            string    `yaml:"name"`
 	Repo            string    `yaml:"repo,omitempty"`
@@ -49,6 +52,7 @@ type Store struct {
 	Packages map[string][]Package `yaml:"packages"`
 }
 
+// DefaultPath returns the default installed store path.
 func DefaultPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -57,6 +61,7 @@ func DefaultPath() (string, error) {
 	return filepath.Join(home, ".config", "xget", ".xget.installed.yml"), nil
 }
 
+// Load reads the store at path, returning an empty store if it does not exist.
 func Load(path string) (*Store, error) {
 	store := &Store{Packages: map[string][]Package{}}
 	// #nosec G304 -- path is xget's installed metadata store path or a caller-provided test path.
@@ -145,6 +150,7 @@ func sortRecords(records []Package) {
 	})
 }
 
+// Save writes store to path.
 func Save(path string, store *Store) error {
 	if store == nil {
 		return fmt.Errorf("installed store cannot be nil")
@@ -162,6 +168,7 @@ func Save(path string, store *Store) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
+// MarshalYAML emits packages sorted by key.
 func (s *Store) MarshalYAML() (interface{}, error) {
 	packages := &yaml.Node{Kind: yaml.MappingNode}
 	keys := make([]string, 0, len(s.Packages))
@@ -188,6 +195,7 @@ func (s *Store) MarshalYAML() (interface{}, error) {
 	}, nil
 }
 
+// Upsert loads the store at path, sets pkg, and saves it.
 func Upsert(path string, pkg Package) error {
 	store, err := Load(path)
 	if err != nil {
@@ -247,6 +255,7 @@ func (s *Store) Find(key, location string) (Package, bool) {
 	return Package{}, false
 }
 
+// Key returns the store key in the form "source:name".
 func (p Package) Key() string {
 	source := strings.ToLower(p.Source)
 	if source == "" {

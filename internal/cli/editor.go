@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"github.com/camalot/xget/internal/lib/constants"
 )
 
 // editorEnvVars lists the environment variables consulted, in order, when
@@ -16,7 +18,7 @@ var editorEnvVars = []string{"XGET_EDITOR", "VISUAL", "EDITOR"}
 var lookPath = exec.LookPath
 
 func fallbackEditors() []string {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == constants.RuntimeWindows {
 		return []string{"nano", "notepad"}
 	}
 	return []string{"nano"}
@@ -40,7 +42,7 @@ func resolveEditor() (string, []string, error) {
 			return candidate, nil, nil
 		}
 	}
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == constants.RuntimeWindows {
 		// notepad is always present; use it even if LookPath failed.
 		return "notepad", nil, nil
 	}

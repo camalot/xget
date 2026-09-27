@@ -1,3 +1,4 @@
+// Package config loads and resolves xget configuration files.
 package config
 
 import (
@@ -9,9 +10,11 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/camalot/xget/internal/lib/constants"
 	"github.com/spf13/viper"
 )
 
+// Global holds settings applied to every target unless overridden.
 type Global struct {
 	All                 bool     `mapstructure:"all" toml:"all" yaml:"all"`
 	Ignore              []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
@@ -29,6 +32,7 @@ type Global struct {
 	DisableTokenWarning bool     `mapstructure:"disable_token_warning" toml:"disable_token_warning" yaml:"disable_token_warning"`
 }
 
+// Repository holds per-repository overrides.
 type Repository struct {
 	All          bool     `mapstructure:"all" toml:"all" yaml:"all"`
 	AssetFilters []string `mapstructure:"asset_filters" toml:"asset_filters" yaml:"asset_filters"`
@@ -49,6 +53,7 @@ type Repository struct {
 	SourceType   string   `mapstructure:"source" toml:"source" yaml:"source"`
 }
 
+// Source describes a release provider (GitHub or GitLab) profile.
 type Source struct {
 	Name                string   `mapstructure:"-" toml:"-" yaml:"-"`
 	Type                string   `mapstructure:"type" toml:"type" yaml:"type"`
@@ -59,6 +64,7 @@ type Source struct {
 	DisableTokenWarning bool     `mapstructure:"disable_token_warning" toml:"disable_token_warning" yaml:"disable_token_warning"`
 }
 
+// Config is the fully loaded xget configuration.
 type Config struct {
 	Path         string
 	Global       Global
@@ -66,6 +72,7 @@ type Config struct {
 	Sources      map[string]Source
 }
 
+// Default returns a Config populated with built-in defaults.
 func Default() *Config {
 	return &Config{
 		Global: Global{
@@ -81,8 +88,8 @@ func Default() *Config {
 		},
 		Repositories: map[string]Repository{},
 		Sources: map[string]Source{
-			"github": defaultSource("github", "github"),
-			"gitlab": defaultSource("gitlab", "gitlab"),
+			constants.ProviderGithub: defaultSource(constants.ProviderGithub, constants.ProviderGithub),
+			constants.ProviderGitlab: defaultSource(constants.ProviderGitlab, constants.ProviderGitlab),
 		},
 	}
 }
@@ -90,11 +97,11 @@ func Default() *Config {
 func defaultSource(name, sourceType string) Source {
 	source := Source{Name: name, Type: strings.ToLower(sourceType)}
 	switch source.Type {
-	case "github":
+	case constants.ProviderGithub:
 		source.Host = "github.com"
 		source.APIURL = "https://api.github.com"
 		source.TokenEnv = []string{"XGET_GITHUB_TOKEN", "GITHUB_TOKEN", "EGET_GITHUB_TOKEN"}
-	case "gitlab":
+	case constants.ProviderGitlab:
 		source.Host = "gitlab.com"
 		source.APIURL = "https://gitlab.com/api/v4"
 		source.TokenEnv = []string{"XGET_GITLAB_TOKEN", "GITLAB_TOKEN"}
@@ -107,7 +114,7 @@ func normalizeSource(name string, configured Source) (Source, error) {
 	if sourceType == "" && (strings.EqualFold(name, "github") || strings.EqualFold(name, "gitlab")) {
 		sourceType = strings.ToLower(name)
 	}
-	if sourceType != "github" && sourceType != "gitlab" {
+	if sourceType != constants.ProviderGithub && sourceType != constants.ProviderGitlab {
 		return Source{}, fmt.Errorf("source %q has unsupported type %q (expected github or gitlab)", name, configured.Type)
 	}
 
@@ -115,7 +122,7 @@ func normalizeSource(name string, configured Source) (Source, error) {
 	if configured.Host != "" {
 		resolved.Host = configured.Host
 		if configured.APIURL == "" {
-			if sourceType == "github" {
+			if sourceType == constants.ProviderGithub {
 				resolved.APIURL = "https://" + configured.Host + "/api/v3"
 			} else {
 				resolved.APIURL = "https://" + configured.Host + "/api/v4"
@@ -133,13 +140,14 @@ func normalizeSource(name string, configured Source) (Source, error) {
 	return resolved, nil
 }
 
+// ResolveSource returns the named source profile, defaulting to github.
 func (c *Config) ResolveSource(name string) (Source, error) {
 	if name == "" {
-		name = "github"
+		name = constants.ProviderGithub
 	}
 	name = strings.ToLower(name)
 	source, ok := c.Sources[name]
-	if !ok && (name == "github" || name == "gitlab") {
+	if !ok && (name == constants.ProviderGithub || name == constants.ProviderGitlab) {
 		return defaultSource(name, name), nil
 	}
 	if !ok {
@@ -148,11 +156,12 @@ func (c *Config) ResolveSource(name string) (Source, error) {
 	return source, nil
 }
 
+// GetOSConfigPath returns the OS-specific default config file path.
 func GetOSConfigPath(homePath string, ext string) string {
 	var configDir string
 
 	switch runtime.GOOS {
-	case "windows":
+	case constants.RuntimeWindows:
 		configDir = os.Getenv("LOCALAPPDATA")
 		if configDir == "" {
 			configDir = filepath.Join(homePath, "AppData", "Local")
@@ -187,7 +196,7 @@ func candidatePaths(homePath string) []string {
 				filepath.Join(homePath, base+"."+ext),
 				filepath.Join(homePath, ".config", "xget", base+"."+ext),
 			)
-			if runtime.GOOS == "windows" {
+			if runtime.GOOS == constants.RuntimeWindows {
 				localAppData := os.Getenv("LOCALAPPDATA")
 				if localAppData == "" {
 					localAppData = filepath.Join(homePath, "AppData", "Local")
@@ -313,6 +322,7 @@ func isPlaintextToken(token string) bool {
 	return token != "" && !strings.HasPrefix(token, "@")
 }
 
+// Load reads the config from explicitPath or the first discovered candidate path.
 func Load(explicitPath ...string) (*Config, error) {
 	homePath, _ := os.UserHomeDir()
 

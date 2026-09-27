@@ -20,6 +20,7 @@ import (
 
 	"github.com/camalot/xget/internal/config"
 	"github.com/camalot/xget/internal/installed"
+	"github.com/camalot/xget/internal/lib/constants"
 	"github.com/camalot/xget/internal/options"
 	pb "github.com/schollz/progressbar/v3"
 )
@@ -49,8 +50,8 @@ func safeBaseName(name string) (string, error) {
 	return base, nil
 }
 
-// IsUrl returns true if s is a valid URL.
-func IsUrl(s string) bool {
+// IsURL returns true if s is a valid URL.
+func IsURL(s string) bool {
 	u, err := url.Parse(s)
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
@@ -65,11 +66,12 @@ func Cut(s, sep string) (before, after string, found bool) {
 
 var ghrgx = regexp.MustCompile(`^(http(s)?://)?github\.com/[\w,\-,_]+/[\w,\-,_]+(.git)?(/)?$`)
 
-// IsGithubUrl returns true if s is a URL with github.com as the host.
-func IsGithubUrl(s string) bool {
+// IsGithubURL returns true if s is a URL with github.com as the host.
+func IsGithubURL(s string) bool {
 	return ghrgx.MatchString(s)
 }
 
+// IsLocalFile returns true if s exists on the local filesystem.
 func IsLocalFile(s string) bool {
 	_, err := os.Stat(s)
 	return err == nil
@@ -143,18 +145,18 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 	if IsLocalFile(project) {
 		finder = &DirectAssetFinder{URL: project}
 		tool = filepath.Base(project)
-		opts.SourceType = "URL"
-		opts.System = "all"
+		opts.SourceType = constants.ProviderURL
+		opts.System = constants.SystemAll
 		return finder, tool, nil
 	}
 
-	if IsUrl(project) {
+	if IsURL(project) {
 		parsed, parseErr := url.Parse(project)
 		if parseErr != nil || !strings.EqualFold(parsed.Hostname(), source.Host) || !isProviderRepoRootPath(source, parsed.Path) {
 			finder = &DirectAssetFinder{URL: project}
 			tool = path.Base(parsed.Path)
-			opts.SourceType = "URL"
-			opts.System = "all"
+			opts.SourceType = constants.ProviderURL
+			opts.System = constants.SystemAll
 			return finder, tool, nil
 		}
 		project = strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git")
@@ -162,7 +164,7 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 
 	repo := project
 	parts := strings.Split(repo, "/")
-	if len(parts) < 2 || (source.Type == "github" && len(parts) != 2) {
+	if len(parts) < 2 || (source.Type == constants.ProviderGithub && len(parts) != 2) {
 		return nil, "", fmt.Errorf("invalid %s repository %q", source.Type, repo)
 	}
 	for _, part := range parts {
@@ -173,11 +175,11 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 	tool = parts[len(parts)-1]
 
 	if opts.Source {
-		tag := "master"
+		tag := constants.TagHead
 		if opts.Tag != "" {
 			tag = opts.Tag
 		}
-		if source.Type == "gitlab" {
+		if source.Type == constants.ProviderGitlab {
 			finder = &GitlabSourceFinder{Repo: repo, Tag: tag, Tool: tool, Source: source}
 		} else {
 			finder = &GithubSourceFinder{Repo: repo, Tag: tag, Tool: tool, Source: source}
@@ -185,8 +187,8 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 		return finder, tool, nil
 	}
 
-	tag := "latest"
-	if opts.Tag != "" && opts.Tag != "latest" {
+	tag := constants.TagLatest
+	if opts.Tag != "" && opts.Tag != constants.TagLatest {
 		tag = fmt.Sprintf("tags/%s", opts.Tag)
 	}
 
@@ -196,7 +198,7 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 		mint = bintime(last, opts.Output)
 	}
 
-	if source.Type == "gitlab" {
+	if source.Type == constants.ProviderGitlab {
 		finder = &GitlabAssetFinder{Repo: repo, Tag: opts.Tag, Prerelease: opts.Prerelease, MinTime: mint, Source: source}
 	} else {
 		finder = &GithubAssetFinder{
@@ -211,7 +213,8 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 }
 
 func getVerifier(sumAsset, githubDigest string, opts *options.Flags) (verifier Verifier, err error) {
-	if opts.Verify != "" {
+	switch {
+	case opts.Verify != "":
 		if opts.Verify == "auto" {
 			if githubDigest == "" {
 				// return nil, fmt.Errorf("no SHA256 digest available for this asset")
@@ -222,13 +225,13 @@ func getVerifier(sumAsset, githubDigest string, opts *options.Flags) (verifier V
 		} else {
 			verifier, err = NewSha256Verifier(opts.Verify)
 		}
-	} else if sumAsset != "" {
+	case sumAsset != "":
 		verifier = &Sha256AssetVerifier{AssetURL: sumAsset, Source: opts.SourceConfig}
-	} else if githubDigest != "" {
+	case githubDigest != "":
 		verifier, err = NewSha256Verifier(githubDigest)
-	} else if opts.Hash {
+	case opts.Hash:
 		verifier = &Sha256Printer{}
-	} else {
+	default:
 		verifier = &NoVerifier{}
 	}
 	return verifier, err
@@ -237,15 +240,16 @@ func getVerifier(sumAsset, githubDigest string, opts *options.Flags) (verifier V
 // Determine the appropriate detector.
 func getDetector(opts *options.Flags) (detector Detector, err error) {
 	var system Detector
-	if opts.System == "all" {
+	switch {
+	case opts.System == "all":
 		system = &AllDetector{}
-	} else if opts.System != "" {
+	case opts.System != "":
 		split := strings.Split(opts.System, "/")
 		if len(split) < 2 {
 			return nil, fmt.Errorf("system descriptor must be os/arch")
 		}
 		system, err = NewSystemDetector(split[0], split[1])
-	} else {
+	default:
 		system, err = NewSystemDetector(runtime.GOOS, runtime.GOARCH)
 	}
 	if err != nil {
@@ -281,12 +285,13 @@ func getDetector(opts *options.Flags) (detector Detector, err error) {
 func parseAssetMatcher(raw string) (asset string, anti bool, rx *regexp.Regexp, err error) {
 	asset = raw
 
-	if strings.HasPrefix(asset, "^^") {
+	switch {
+	case strings.HasPrefix(asset, "^^"):
 		asset = asset[1:]
-	} else if strings.HasPrefix(asset, "not:") {
+	case strings.HasPrefix(asset, "not:"):
 		anti = true
 		asset = strings.TrimPrefix(asset, "not:")
-	} else if strings.HasPrefix(asset, "^") {
+	case strings.HasPrefix(asset, "^"):
 		anti = true
 		asset = asset[1:]
 	}
@@ -333,7 +338,8 @@ func parseAssetMatcher(raw string) (asset string, anti bool, rx *regexp.Regexp, 
 // Determine which extractor to use.
 func getExtractor(url, tool string, opts *options.Flags) (extractor Extractor, err error) {
 	filename := extractorFilename(url)
-	if opts.DLOnly {
+	switch {
+	case opts.DLOnly:
 		extractor = &SingleFileExtractor{
 			Name:   filename,
 			Rename: filename,
@@ -341,13 +347,13 @@ func getExtractor(url, tool string, opts *options.Flags) (extractor Extractor, e
 				return r, nil
 			},
 		}
-	} else if opts.ExtractFile != "" {
+	case opts.ExtractFile != "":
 		gc, err := NewGlobChooser(opts.ExtractFile)
 		if err != nil {
 			return nil, err
 		}
 		extractor = NewExtractor(filename, tool, gc)
-	} else {
+	default:
 		extractor = NewExtractor(filename, tool, &BinaryChooser{Tool: tool})
 	}
 	return extractor, nil
@@ -474,6 +480,7 @@ func bintime(bin string, to string) (t time.Time) {
 	return fi.ModTime()
 }
 
+// DownloadConfigRepositories installs every repository in cfg by re-invoking this binary.
 func DownloadConfigRepositories(cfg *config.Config) error {
 	hasError := false
 	errorList := []error{}
@@ -501,6 +508,7 @@ func DownloadConfigRepositories(cfg *config.Config) error {
 	return nil
 }
 
+// ListAvailable returns the asset URLs available for target.
 func ListAvailable(target string, opts options.Flags) ([]string, error) {
 	SetDisableSSL(opts.DisableSSL)
 	finder, _, err := getFinder(target, &opts)
@@ -609,6 +617,9 @@ func RefreshInstalledPackage(pkg installed.Package, opts options.Flags) (install
 	return pkg, nil
 }
 
+// Run installs (or removes) target according to opts.
+//
+//nolint:gocyclo // TODO: split into smaller helpers.
 func Run(target string, opts options.Flags) error {
 	SetDisableSSL(opts.DisableSSL)
 
@@ -769,17 +780,18 @@ func Run(target string, opts options.Flags) error {
 	extract := func(bin ExtractedFile) error {
 		mode := bin.Mode()
 		out := filepath.Base(bin.Name)
-		if opts.Output == "-" {
+		switch {
+		case opts.Output == "-":
 			out = "-"
-		} else if opts.Output != "" && isDirectoryDestination(opts.Output) {
+		case opts.Output != "" && isDirectoryDestination(opts.Output):
 			out = filepath.Join(opts.Output, out)
-		} else if opts.Output != "" && opts.All {
+		case opts.Output != "" && opts.All:
 			err := os.MkdirAll(opts.Output, 0750)
 			if err != nil {
 				return err
 			}
 			out = filepath.Join(opts.Output, out)
-		} else {
+		default:
 			if opts.Output != "" {
 				out = opts.Output
 			}
@@ -792,7 +804,7 @@ func Run(target string, opts options.Flags) error {
 		}
 
 		executable, executableErr := os.Executable()
-		selfUpdate := executableErr == nil && isRunningExecutableDestination(out, executable, runtime.GOOS == "windows")
+		selfUpdate := executableErr == nil && isRunningExecutableDestination(out, executable, runtime.GOOS == constants.RuntimeWindows)
 		extractionTarget := out
 		if selfUpdate {
 			extractionTarget += ".new"

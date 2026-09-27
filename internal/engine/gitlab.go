@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/camalot/xget/internal/config"
+	"github.com/camalot/xget/internal/lib/constants"
 )
 
+// GitlabRelease matches the relevant portion of GitLab's release API json.
 type GitlabRelease struct {
 	Name            string    `json:"name"`
 	Tag             string    `json:"tag_name"`
@@ -26,6 +28,7 @@ type GitlabRelease struct {
 	} `json:"assets"`
 }
 
+// GitlabAssetFinder finds release assets for a GitLab project.
 type GitlabAssetFinder struct {
 	Repo       string
 	Tag        string
@@ -35,10 +38,11 @@ type GitlabAssetFinder struct {
 	Source     config.Source
 }
 
+// Find returns the asset URLs for the configured release.
 func (f *GitlabAssetFinder) Find() ([]string, error) {
 	project := url.PathEscape(f.Repo)
 	endpoint := fmt.Sprintf("%s/projects/%s/releases", f.Source.APIURL, project)
-	if f.Tag != "" && f.Tag != "latest" {
+	if f.Tag != "" && f.Tag != constants.TagLatest {
 		endpoint += "/" + url.PathEscape(f.Tag)
 	}
 
@@ -60,7 +64,7 @@ func (f *GitlabAssetFinder) Find() ([]string, error) {
 	}
 
 	var release GitlabRelease
-	if f.Tag != "" && f.Tag != "latest" {
+	if f.Tag != "" && f.Tag != constants.TagLatest {
 		if err := json.Unmarshal(body, &release); err != nil {
 			return nil, err
 		}
@@ -103,6 +107,7 @@ func (f *GitlabAssetFinder) Find() ([]string, error) {
 	return assets, nil
 }
 
+// GitlabSourceFinder returns the source archive URL for a GitLab project tag.
 type GitlabSourceFinder struct {
 	Tool   string
 	Repo   string
@@ -110,6 +115,7 @@ type GitlabSourceFinder struct {
 	Source config.Source
 }
 
+// Find returns the source archive URL.
 func (f *GitlabSourceFinder) Find() ([]string, error) {
 	return []string{fmt.Sprintf("%s/projects/%s/repository/archive.tar.gz?sha=%s", f.Source.APIURL, url.PathEscape(f.Repo), url.QueryEscape(f.Tag))}, nil
 }
