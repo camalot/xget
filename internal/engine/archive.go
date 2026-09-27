@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path"
 	"strings"
 )
 
@@ -56,6 +57,22 @@ type Archive interface {
 	ReadAll() ([]byte, error)
 }
 
+func validateArchiveEntryName(name string) error {
+	normalized := strings.ReplaceAll(name, "\\", "/")
+	cleaned := path.Clean(normalized)
+	if normalized == "" || strings.HasPrefix(normalized, "/") ||
+		cleaned == ".." || strings.HasPrefix(cleaned, "../") ||
+		isWindowsDrivePath(normalized) {
+		return fmt.Errorf("unsafe archive path %q", name)
+	}
+	return nil
+}
+
+func isWindowsDrivePath(name string) bool {
+	return len(name) >= 2 && name[1] == ':' &&
+		((name[0] >= 'a' && name[0] <= 'z') || (name[0] >= 'A' && name[0] <= 'Z'))
+}
+
 // TarArchive is an Archive backed by a tar stream.
 type TarArchive struct {
 	r *tar.Reader
@@ -78,6 +95,9 @@ func (t *TarArchive) Next() (File, error) {
 	for {
 		hdr, err := t.r.Next()
 		if err != nil {
+			return File{}, err
+		}
+		if err := validateArchiveEntryName(hdr.Name); err != nil {
 			return File{}, err
 		}
 		ft := tarft(hdr.Typeflag)
@@ -123,6 +143,9 @@ func (z *ZipArchive) Next() (File, error) {
 	}
 
 	f := z.r.File[z.idx]
+	if err := validateArchiveEntryName(f.Name); err != nil {
+		return File{}, err
+	}
 
 	typ := TypeNormal
 	if strings.HasSuffix(f.Name, "/") {
