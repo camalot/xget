@@ -145,7 +145,7 @@ func TestSelfCheckRunsOncePerDay(t *testing.T) {
 	}
 }
 
-func TestUpgradeAndListInstalledAlwaysCheckWithoutRecording(t *testing.T) {
+func TestUpgradeAndCheckedListInstalledAlwaysCheckWithoutRecording(t *testing.T) {
 	storePath := useTempInstalledStore(t)
 	useVersion(t, "v1.0.0")
 	seen := stubRefresh(t, map[string]string{xgetRepo: "v1.1.0"})
@@ -163,7 +163,7 @@ func TestUpgradeAndListInstalledAlwaysCheckWithoutRecording(t *testing.T) {
 		}
 		*seen = nil
 
-		commands := [][]string{{"upgrade"}, {"update"}, {"upgrade", "--all"}, {"list", "--installed"}}
+		commands := [][]string{{"upgrade"}, {"update"}, {"upgrade", "--all"}, {"list", "--installed", "--check"}}
 		for _, args := range commands {
 			out, err := runCLI(t, args...)
 			if err != nil {
@@ -179,6 +179,19 @@ func TestUpgradeAndListInstalledAlwaysCheckWithoutRecording(t *testing.T) {
 		if got := lastSelfCheck(t, storePath); !got.Equal(stored) {
 			t.Fatalf("last_checked = %v, want unchanged %v", got, stored)
 		}
+	}
+}
+
+func TestListInstalledWithoutCheckSkipsSelfUpdateLookup(t *testing.T) {
+	useTempInstalledStore(t)
+	useVersion(t, "v1.0.0")
+	seen := stubRefresh(t, map[string]string{xgetRepo: "v1.1.0"})
+
+	if _, err := runCLI(t, "list", "--installed"); err != nil {
+		t.Fatal(err)
+	}
+	if len(*seen) != 0 {
+		t.Fatalf("lookups = %d, want 0", len(*seen))
 	}
 }
 

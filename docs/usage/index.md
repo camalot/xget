@@ -18,9 +18,9 @@ If a GitHub or GitLab repository is provided, xget will search the latest releas
 
 Use `@latest` or `--tag latest` to explicitly select the latest stable release. With `--pre-release`, `latest` selects the newest release regardless of whether it is stable or a prerelease.
 
-Use `xget list owner/repo` to show up to ten recent releases with their name, tag, and publication date. Add `--pre-release` to include prereleases. `xget list --installed` also shows when each package was last installed or upgraded.
+Use `xget list owner/repo` to show up to ten recent releases with their name, tag, and publication date. Add `--pre-release` to include prereleases. `xget list --installed` shows stored package metadata without making update requests; add `--check` to refresh the latest versions first.
 
-Rows with a newer available version are yellow in `xget list --installed` and `xget upgrade`. Pass `--no-color` to either command for plain output.
+Rows with a newer available version are yellow in `xget list --installed --check` and `xget upgrade`. Pass `--no-color` to either command for plain output.
 
 ## Examples
 
@@ -44,6 +44,7 @@ xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
 xget --all --file '*' ActivityWatch/activitywatch
 xget list camalot/xget
 xget list --installed
+xget list --installed --check
 xget list camalot/xget --installed
 xget upgrade
 xget upgrade camalot/xget
@@ -89,7 +90,7 @@ Flags:
   -f, --file string              glob to select files for extraction
   -h, --help                     help for xget
       --ignore strings           exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times; quote patterns starting with ~ so your shell doesn't expand it to a home directory path
-      --non-interactive          fail instead of prompting when user input is required
+      --non-interactive          fail instead of prompting when user input is required (implied when stdin is not a terminal)
       --pre-release              include pre-releases when fetching the latest version
       --provider string          release source profile to use (default github)
   -q, --quiet                    only print essential output

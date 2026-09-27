@@ -110,11 +110,11 @@ func TestInstalledLocationUsesDirectoryForLegacyFileRecord(t *testing.T) {
 	}
 }
 
-func TestListInstalledRefreshesAndPersistsLatestTag(t *testing.T) {
+func TestListInstalledCheckRefreshesAndPersistsLatestTag(t *testing.T) {
 	storePath := useTempInstalledStore(t, samplePackage("bschaatsbergen/cidr", "v2.2.0"))
 	stubRefresh(t, map[string]string{"bschaatsbergen/cidr": "v2.3.0"})
 
-	out, err := runCLI(t, "list", "--installed")
+	out, err := runCLI(t, "list", "--installed", "--check")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,6 +124,37 @@ func TestListInstalledRefreshesAndPersistsLatestTag(t *testing.T) {
 
 	if got := storedPackage(t, storePath, "github:bschaatsbergen/cidr").CurrentTag; got != "v2.3.0" {
 		t.Fatalf("current_tag = %q, want v2.3.0", got)
+	}
+}
+
+func TestListInstalledWithoutCheckDoesNotRefreshAndPrintsHint(t *testing.T) {
+	storePath := useTempInstalledStore(t, samplePackage("bschaatsbergen/cidr", "v2.2.0"))
+	seen := stubRefresh(t, map[string]string{"bschaatsbergen/cidr": "v2.3.0"})
+
+	cmd := newRootCommand()
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+	cmd.SetArgs([]string{"list", "--installed"})
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(*seen) != 0 {
+		t.Fatalf("refresh called %d times, want 0", len(*seen))
+	}
+	if !strings.Contains(collapseSpaces(stdout.String()), "github:bschaatsbergen/cidr v2.2.0 v2.2.0") {
+		t.Fatalf("expected stored package metadata in stdout:\n%s", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "xget list --installed --check") {
+		t.Fatalf("unexpected update-check hint in stdout:\n%s", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "xget list --installed --check") || !strings.Contains(stderr.String(), "xget update") {
+		t.Fatalf("expected update-check hint in stderr:\n%s", stderr.String())
+	}
+	if got := storedPackage(t, storePath, "github:bschaatsbergen/cidr").CurrentTag; got != "v2.2.0" {
+		t.Fatalf("current_tag = %q, want v2.2.0", got)
 	}
 }
 
@@ -169,7 +200,7 @@ func TestListInstalledColorsAvailableUpgradeUnlessNoColor(t *testing.T) {
 	useTempInstalledStore(t, samplePackage("a/one", "v1.0.0"))
 	stubRefresh(t, map[string]string{"a/one": "v1.1.0"})
 
-	colored, err := runCLI(t, "list", "--installed")
+	colored, err := runCLI(t, "list", "--installed", "--check")
 	if err != nil {
 		t.Fatal(err)
 	}

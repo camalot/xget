@@ -98,7 +98,7 @@ header: xget Manual
 
   `xget list [TARGET]`
 
-:    Show up to ten recent releases for `TARGET`, including their name, tag, and publication date. Add `--pre-release` to include prereleases. With no `TARGET`, list the repositories defined in the configuration file. With `--installed`, show installed package metadata instead, including the last install or upgrade date; rows with a newer available version are yellow unless `--no-color` is set. A package tracked in more than one install location is shown once per location.
+:    Show up to ten recent releases for `TARGET`, including their name, tag, and publication date. Add `--pre-release` to include prereleases. With no `TARGET`, list the repositories defined in the configuration file. With `--installed`, show stored package metadata without checking for updates, including the last install or upgrade date. Add `--check` to refresh the latest available versions first; rows with a newer available version are yellow unless `--no-color` is set. A package tracked in more than one install location is shown once per location.
 
   `xget config <SUBCOMMAND>`
 
@@ -208,7 +208,7 @@ header: xget Manual
 
   `--non-interactive`
 
-:    Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes `Interactive user request while execution is in non-interactive mode` to stderr and exits with code 16.
+:    Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes `Interactive user request while execution is in non-interactive mode` to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).
 
   `-c, --config=`
 
@@ -370,7 +370,7 @@ header: xget Manual
 
   `xget_update_check`
 
-:    Whether to check for a newer xget release and print a notice to stderr when one is available. Checks at most once every 24 hours, and on every `xget upgrade` and `xget list --installed`. Global section only. Defaults to `true`. Does not affect `xget self-update`.
+:    Whether to check for a newer xget release and print a notice to stderr when one is available. Checks at most once every 24 hours, and on every `xget upgrade` and `xget list --installed --check`. Global section only. Defaults to `true`. Does not affect `xget self-update`.
 
   `ignore`
 

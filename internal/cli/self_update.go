@@ -177,7 +177,11 @@ func selfCheckMode(cmd *cobra.Command) (run, force bool) {
 		return true, true
 	case "list":
 		listInstalled, _ := cmd.Flags().GetBool("installed")
-		return true, listInstalled
+		if listInstalled {
+			check, _ := cmd.Flags().GetBool("check")
+			return check, check
+		}
+		return true, false
 	}
 	return true, false
 }

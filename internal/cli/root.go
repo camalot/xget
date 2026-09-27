@@ -11,6 +11,7 @@ import (
 	"github.com/camalot/xget/internal/engine"
 	"github.com/camalot/xget/internal/home"
 	"github.com/camalot/xget/internal/options"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +43,12 @@ type rootFlags struct {
 }
 
 var getRateLimit = engine.GetRateLimit
+
+// stdinIsTerminal reports whether stdin can be used to prompt the user.
+var stdinIsTerminal = func() bool {
+	fd := os.Stdin.Fd()
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+}
 
 // Execute runs the root xget command.
 func Execute() error {
@@ -141,9 +148,9 @@ func newRootCommand() *cobra.Command {
 	}
 	cmd.SetVersionTemplate("{{.Version}}\n")
 
-	cmd.PersistentFlags().BoolVar(&f.nonInteractive, "non-interactive", false, "fail instead of prompting when user input is required")
+	cmd.PersistentFlags().BoolVar(&f.nonInteractive, "non-interactive", false, "fail instead of prompting when user input is required (implied when stdin is not a terminal)")
 	cmd.PersistentPreRun = func(*cobra.Command, []string) {
-		engine.SetNonInteractive(f.nonInteractive)
+		engine.SetNonInteractive(f.nonInteractive || !stdinIsTerminal())
 	}
 	cmd.PersistentPostRun = func(cmd *cobra.Command, _ []string) {
 		if run, force := selfCheckMode(cmd); run {

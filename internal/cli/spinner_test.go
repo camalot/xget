@@ -55,7 +55,7 @@ func TestRefreshInstalledStoreReportsProgressPerPackage(t *testing.T) {
 		"nektos/act":          "v0.2.89",
 	})
 
-	if _, err := runCLI(t, "list", "--installed"); err != nil {
+	if _, err := runCLI(t, "list", "--installed", "--check"); err != nil {
 		t.Fatal(err)
 	}
 

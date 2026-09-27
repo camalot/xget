@@ -39,7 +39,8 @@ configuration files keep working, so switching is usually a matter of replacing
 - Successful installs are recorded in `~/.config/xget/.xget.installed.yml` with the
   asset, download URL, extracted files, options, checksum, and tag.
 - The same package can be tracked in multiple locations and managed independently.
-- `xget list --installed` shows installed packages, versions, locations, and dates.
+- `xget list --installed` shows stored package versions, locations, and dates;
+  `--check` refreshes the latest available versions first.
 - `xget upgrade` reports and applies available upgrades, including `--all`, pinned
   tags, and per-location upgrades.
 - `xget self-update` updates xget itself.
@@ -63,7 +64,7 @@ configuration files keep working, so switching is usually a matter of replacing
   checks against a value you provide; `--sha256` prints the hash.
 - Warnings for plaintext tokens in configuration, with `@/path/to/token` file
   references and `disable_token_warning` opt-out.
-- `--non-interactive` fails (exit code `16`) instead of prompting, for CI use.
+- `--non-interactive` fails (exit code `16`) instead of prompting, for CI use. Enabled automatically when stdin is not a terminal.
 
 ### Configuration
 

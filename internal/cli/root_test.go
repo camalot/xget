@@ -82,8 +82,10 @@ func TestRootCommandIncludesListSubcommand(t *testing.T) {
 	cmd := newRootCommand()
 	for _, sub := range cmd.Commands() {
 		if sub.Name() == "list" {
-			if sub.Flags().Lookup("installed") == nil {
-				t.Fatal("expected list command to include an --installed flag")
+			for _, name := range []string{"installed", "check"} {
+				if sub.Flags().Lookup(name) == nil {
+					t.Fatalf("expected list command to include an --%s flag", name)
+				}
 			}
 			return
 		}

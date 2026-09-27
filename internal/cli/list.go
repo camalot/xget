@@ -18,6 +18,7 @@ import (
 
 type listFlags struct {
 	installed  bool
+	check      bool
 	prerelease bool
 	noColor    bool
 	config     string
@@ -42,7 +43,7 @@ func newListCommand() *cobra.Command {
 				}
 			}
 			if f.installed {
-				return listInstalled(cmd, cfg, args, f.noColor)
+				return listInstalled(cmd, cfg, args, f.check, f.noColor)
 			}
 			if len(args) == 0 {
 				return listConfigured(cmd, cfg)
@@ -65,6 +66,7 @@ func newListCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&f.installed, "installed", false, "show installed package metadata")
+	cmd.Flags().BoolVar(&f.check, "check", false, "check installed packages for updates")
 	cmd.Flags().BoolVar(&f.prerelease, "pre-release", false, "include pre-releases")
 	cmd.Flags().BoolVar(&f.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().StringVarP(&f.config, "config", "c", "", "path to the config file to use")
@@ -92,7 +94,7 @@ func listConfigured(cmd *cobra.Command, cfg *config.Config) error {
 	return nil
 }
 
-func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string, noColor bool) error {
+func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string, check, noColor bool) error {
 	storePath, err := installed.DefaultPath()
 	if err != nil {
 		return err
@@ -101,8 +103,10 @@ func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string, noColo
 	if err != nil {
 		return err
 	}
-	if err := refreshInstalledStore(storePath, store, cfg); err != nil {
-		return err
+	if check {
+		if err := refreshInstalledStore(storePath, store, cfg); err != nil {
+			return err
+		}
 	}
 	packages := installed.SortedPackages(store)
 	if len(args) > 0 {
@@ -110,14 +114,16 @@ func listInstalled(cmd *cobra.Command, cfg *config.Config, args []string, noColo
 		if len(matches) == 0 {
 			return fmt.Errorf("%s is not installed", args[0])
 		}
-		printInstalledPackagesWithColor(cmd, matches, !noColor)
-		return nil
+		packages = matches
 	}
 	if len(packages) == 0 {
 		cmd.Println("no installed packages")
-		return nil
+	} else {
+		printInstalledPackagesWithColor(cmd, packages, !noColor)
 	}
-	printInstalledPackagesWithColor(cmd, packages, !noColor)
+	if !check {
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "Run `xget list --installed --check` or `xget update` to check for updates.")
+	}
 	return nil
 }
 

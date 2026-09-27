@@ -14,7 +14,7 @@ import (
 var spinnerCharSet = []string{"◐", "◓", "◑", "◒"}
 
 // progress reports what a long-running refresh loop is currently checking, so
-// network-bound commands like `list --installed` and `upgrade` don't look hung.
+// network-bound commands like `list --installed --check` and `upgrade` don't look hung.
 type progress interface {
 	Update(message string)
 	Stop()

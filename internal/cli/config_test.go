@@ -8,10 +8,15 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/camalot/xget/internal/engine"
 )
 
 func runCLI(t *testing.T, args ...string) (string, error) {
 	t.Helper()
+	original := stdinIsTerminal
+	defer func() { stdinIsTerminal = original }()
+	stdinIsTerminal = func() bool { return true }
 	cmd := newRootCommand()
 	buf := &bytes.Buffer{}
 	cmd.SetOut(buf)
@@ -264,6 +269,22 @@ func TestConfigEditCreatesFileAndRunsEditor(t *testing.T) {
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("expected config file to be created: %v", err)
+	}
+}
+
+func TestConfigEditWithoutTTYIsNonInteractive(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".xget.yml")
+	original := stdinIsTerminal
+	defer func() { stdinIsTerminal = original }()
+	stdinIsTerminal = func() bool { return false }
+	defer engine.SetNonInteractive(false)
+
+	cmd := newRootCommand()
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"config", "edit", "--config", path})
+	if err := cmd.Execute(); !errors.Is(err, engine.ErrNonInteractive) {
+		t.Fatalf("err = %v, want ErrNonInteractive", err)
 	}
 }
 
