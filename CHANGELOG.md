@@ -1,4 +1,69 @@
 
+## [v2.4.0](https://github.com/camalot/xget/releases/tag/v2.4.0) - 2026-09-28
+
+### 🚀 FEATURES
+
+#### _GENERAL_
+
+- Non-interactive is now automatic as well as behind the --non-interactive flag -[@camalot](https://github.com/camalot)
+
+- Xget list --installed command now no longer automatically goes and checks for updates. -[@camalot](https://github.com/camalot)
+
+- Xget list --installed --check command now checks for updates. -[@camalot](https://github.com/camalot)
+
+
+### 🐛 BUG FIXES
+
+#### _GENERAL_
+
+- Solve the possible race condition that deletes the windows syso files causing failure -[@camalot](https://github.com/camalot)
+
+
+### 💼 OTHER
+
+#### _GENERAL_
+
+- Merge branch 'main' of github.com:camalot/xget -[@camalot](https://github.com/camalot)
+
+- Main' of github.com:camalot/xget: -[@camalot](https://github.com/camalot)
+
+
+### 📚 DOCUMENTATION
+
+#### _GENERAL_
+
+- Fix configuration navigation -[@camalot](https://github.com/camalot)
+
+- docs: update changelog for v2.3.0 -[@camalot](https://github.com/camalot)
+
+- Fix link in faq to asset-filtering -[@camalot](https://github.com/camalot)
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot)
+## 📈 Commit Statistics
+
+
+- `9` commits contributed to the release.
+- `1` day has passed between the first and last commit.
+- `6` commits parsed as conventional.
+- `0` linked issues detected in commits.
+- `1` day  has passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[9,1,1,6,0,1]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.3.0...v2.4.0
+
 ## [v2.3.0](https://github.com/camalot/xget/releases/tag/v2.3.0) - 2026-09-27
 
 ### 🚀 FEATURES
