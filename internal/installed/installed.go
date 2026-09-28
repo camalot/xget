@@ -20,6 +20,7 @@ type Options struct {
 	Prerelease     bool     `yaml:"pre_release,omitempty"`
 	DownloadSource bool     `yaml:"download_source,omitempty"`
 	Output         string   `yaml:"output,omitempty"`
+	Binary         string   `yaml:"binary,omitempty"`
 	System         string   `yaml:"system,omitempty"`
 	ExtractFile    string   `yaml:"file,omitempty"`
 	All            bool     `yaml:"all,omitempty"`

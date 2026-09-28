@@ -138,6 +138,10 @@ header: xget Manual
 
 :    Move the executable to the given name after extraction. If the name is `-`, it the data will be written to stdout. Example: **`xget zyedidia/micro --to /usr/local/bin`**. Example: **`xget --asset nvim.appimage --to nvim neovim/neovim`**.
 
+  `--binary=`, `--name=`
+
+:    Rename a single extracted file to the given name, keeping the original extension if it has one. Ignored when multiple files are extracted or when `--to` names a file. Example: **`xget antonmedv/fx --binary fx --to ~/.local/bin`** installs `fx_windows_amd64.exe` as `fx.exe`.
+
   `-s, --system=`
 
 :    Use the given system as the target instead of the host. Systems follow the notation 'OS/Arch', where OS is a valid OS (darwin, windows, linux, netbsd, openbsd, freebsd, android, illumos, solaris, plan9), and Arch is a valid architecture (amd64, 386, arm, arm64, riscv64). If the special value **all** is used, all possibilities are given and the user must select manually. Example: **`xget -s darwin/amd64 zyedidia/micro`**.
@@ -280,7 +284,7 @@ header: xget Manual
   format is quoted).
 
   A repository section inherits any setting it does not define from the `global`
-  section. The only exceptions are `asset_filters`, `pre_release`, `tag`, and
+  section. The only exceptions are `asset_filters`, `binary`, `pre_release`, `tag`, and
   `verify_sha256`, which are repository-only and are never inherited.
 
   Values are resolved in this order, with each layer overriding the one before it:
@@ -347,6 +351,10 @@ header: xget Manual
   `disable_ssl`
 
 :    Whether to disable SSL certificate verification for download requests.
+
+  `binary`
+
+:    Output file name for a single extracted file; the original extension is kept. Repository sections only.
 
   `download_only`
 

@@ -86,6 +86,48 @@ func IsDirectory(path string) bool {
 	return fileInfo.IsDir()
 }
 
+func validateBinaryName(name string) error {
+	if name == "" {
+		return nil
+	}
+	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("invalid binary name %q: must be a file name without directories", name)
+	}
+	return nil
+}
+
+// binaryFileName returns name with the extension of original appended, if any.
+func binaryFileName(name, original string) string {
+	ext := fileExtension(original)
+	if ext == "" || strings.EqualFold(filepath.Ext(name), ext) {
+		return name
+	}
+	return name + ext
+}
+
+// fileExtension returns the extension of name, ignoring version- or platform-like
+// suffixes such as ".3-linux" or ".2" that are not real extensions.
+func fileExtension(name string) string {
+	ext := filepath.Ext(name)
+	if len(ext) < 2 || len(ext) > 10 {
+		return ""
+	}
+	hasLetter := false
+	for _, c := range ext[1:] {
+		switch {
+		case (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+			hasLetter = true
+		case c >= '0' && c <= '9':
+		default:
+			return ""
+		}
+	}
+	if !hasLetter {
+		return ""
+	}
+	return ext
+}
+
 func isDirectoryDestination(path string) bool {
 	return strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\") || IsDirectory(path)
 }
@@ -195,6 +237,9 @@ func getFinder(project string, opts *options.Flags) (finder Finder, tool string,
 	var mint time.Time
 	if opts.UpgradeOnly {
 		last := parts[len(parts)-1]
+		if opts.Binary != "" {
+			last = opts.Binary
+		}
 		mint = bintime(last, opts.Output)
 	}
 
@@ -531,6 +576,7 @@ func installedOptions(opts options.Flags) installed.Options {
 		Prerelease:     opts.Prerelease,
 		DownloadSource: opts.Source,
 		Output:         opts.Output,
+		Binary:         opts.Binary,
 		System:         opts.System,
 		ExtractFile:    opts.ExtractFile,
 		All:            opts.All,
@@ -648,6 +694,10 @@ func Run(target string, opts options.Flags) error {
 		}
 		fmt.Printf("Removed `%s`\n", removePath)
 		return nil
+	}
+
+	if err := validateBinaryName(opts.Binary); err != nil {
+		return err
 	}
 
 	var output io.Writer = os.Stderr
@@ -776,10 +826,14 @@ func Run(target string, opts options.Flags) error {
 		bins = []ExtractedFile{bin}
 	}
 	extractedFiles := []string{}
+	singleFile := !opts.All || len(bins) == 1
 
 	extract := func(bin ExtractedFile) error {
 		mode := bin.Mode()
 		out := filepath.Base(bin.Name)
+		if opts.Binary != "" && singleFile && !bin.Dir {
+			out = binaryFileName(opts.Binary, out)
+		}
 		switch {
 		case opts.Output == "-":
 			out = "-"

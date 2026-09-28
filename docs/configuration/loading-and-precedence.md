@@ -89,7 +89,7 @@ parent shell are not replaced and therefore have the highest priority.
 
 A repository section inherits any setting it does not define from the `global` section, so `global` acts as the default for every repository.
 
-The exceptions are `asset_filters`, `pre_release`, `tag`, and `verify_sha256`, which are repository-only settings and are never inherited. `github_token` and `config_merge` are global-only. `xget_update_check` is global-only and defaults to `true`. `source` selects a named profile from the `sources` section and defaults to the built-in `github` profile.
+The exceptions are `asset_filters`, `binary`, `pre_release`, `tag`, and `verify_sha256`, which are repository-only settings and are never inherited. `github_token` and `config_merge` are global-only. `xget_update_check` is global-only and defaults to `true`. `source` selects a named profile from the `sources` section and defaults to the built-in `github` profile.
 
 Within a source profile, token environment variables are checked in the order
 listed by `token_env`, followed by the profile's `token`. GitHub profiles use

@@ -38,6 +38,7 @@ type Global struct {
 type Repository struct {
 	All          bool     `mapstructure:"all" toml:"all" yaml:"all"`
 	AssetFilters []string `mapstructure:"asset_filters" toml:"asset_filters" yaml:"asset_filters"`
+	Binary       string   `mapstructure:"binary" toml:"binary" yaml:"binary"`
 	Ignore       []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
 	DownloadOnly bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
 	File         string   `mapstructure:"file" toml:"file" yaml:"file"`

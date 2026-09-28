@@ -56,6 +56,8 @@ configuration files keep working, so switching is usually a matter of replacing
   variables in configured `asset_filters` and `ignore` values.
 - Tag selection with `owner/repo@TAG`, `--tag`, `@latest`, and monorepo tag
   fragment matching.
+- `--binary` (alias `--name`) renames a single extracted file while keeping its
+  extension, e.g. `fx_windows_amd64.exe` becomes `fx.exe`.
 
 ### Verification and safety
 

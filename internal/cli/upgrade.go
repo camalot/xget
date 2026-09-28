@@ -367,6 +367,9 @@ func resolveInstalledOptions(cfg *config.Config, pkg installed.Package) (options
 	if stored.Output != "" {
 		opts.Output = stored.Output
 	}
+	if stored.Binary != "" {
+		opts.Binary = stored.Binary
+	}
 	if stored.System != "" {
 		opts.System = stored.System
 	}

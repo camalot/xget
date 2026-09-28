@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"archive/zip"
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -208,6 +210,77 @@ func TestIsDirectoryDestination(t *testing.T) {
 				t.Fatalf("isDirectoryDestination(%q) = %t, want %t", test.path, got, test.want)
 			}
 		})
+	}
+}
+
+func TestBinaryFileName(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		original string
+		want     string
+	}{
+		{name: "fx", original: "fx_windows_amd64.exe", want: "fx.exe"},
+		{name: "fx", original: "fx_linux_amd64", want: "fx"},
+		{name: "fx.exe", original: "fx_windows_amd64.exe", want: "fx.exe"},
+		{name: "fx", original: "fx-1.2.3-linux", want: "fx"},
+		{name: "fx", original: "fx_v1.2", want: "fx"},
+		{name: "tool", original: "tool-darwin.pkg", want: "tool.pkg"},
+	} {
+		if got := binaryFileName(test.name, test.original); got != test.want {
+			t.Errorf("binaryFileName(%q, %q) = %q, want %q", test.name, test.original, got, test.want)
+		}
+	}
+}
+
+func TestRunBinaryRenamesSingleFileSelectedByGlob(t *testing.T) {
+	archive := filepath.Join(t.TempDir(), "fx_linux_amd64.zip")
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, name := range []string{"fx_linux_amd64/fx_linux_amd64", "fx_linux_amd64/README.md", "fx_linux_amd64/LICENSE"} {
+		w, err := zw.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte(name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(archive, buf.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, all := range []bool{false, true} {
+		out := t.TempDir()
+		err := Run(archive, options.Flags{
+			ExtractFile: "fx_*",
+			All:         all,
+			Binary:      "fx",
+			Output:      out + string(os.PathSeparator),
+			Quiet:       true,
+			Untracked:   true,
+		})
+		if err != nil {
+			t.Fatalf("all=%t: Run() error = %v", all, err)
+		}
+		if _, err := os.Stat(filepath.Join(out, "fx")); err != nil {
+			t.Fatalf("all=%t: expected renamed binary: %v", all, err)
+		}
+	}
+}
+
+func TestValidateBinaryName(t *testing.T) {
+	for _, name := range []string{"", "fx", "fx.exe"} {
+		if err := validateBinaryName(name); err != nil {
+			t.Errorf("validateBinaryName(%q) = %v, want nil", name, err)
+		}
+	}
+	for _, name := range []string{".", "..", "bin/fx", `bin\fx`, "../fx"} {
+		if err := validateBinaryName(name); err == nil {
+			t.Errorf("validateBinaryName(%q) = nil, want error", name)
+		}
 	}
 }
 

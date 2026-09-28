@@ -83,6 +83,7 @@ Available Commands:
 Flags:
       --all                      extract all candidate files
   -a, --asset strings            filter assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not:, escapes: ~~ and ^^, explicit literal: text: (for example ^musl, not:~.*\.sbom\.json$, text:~literal); quote patterns starting with ~ so your shell doesn't expand it to a home directory path
+      --binary string            rename a single extracted file to this name, keeping its extension (ignored when multiple files are extracted)
   -c, --config string            path to the config file to use
   -k, --disable-ssl              disable SSL verification for download requests
   -D, --download-all             download all projects defined in the config file
@@ -92,6 +93,7 @@ Flags:
       --ignore strings           exclude assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not: (inverts ignore), escapes: ~~ and ^^, explicit literal: text:; can be specified multiple times; quote patterns starting with ~ so your shell doesn't expand it to a home directory path
       --non-interactive          fail instead of prompting when user input is required (implied when stdin is not a terminal)
       --pre-release              include pre-releases when fetching the latest version
+      --name string              alias for --binary
       --provider string          release source profile to use (default github)
   -q, --quiet                    only print essential output
       --rate                     show GitHub API rate limiting information
@@ -122,6 +124,12 @@ Use "xget [command] --help" for more information about a command.
 ## Extract behavior
 
 When installing an executable, xget will place it in the current directory by default. If the environment variable `XGET_BIN` is non-empty, xget will place the executable there instead.
+
+When a single file is extracted, `--binary NAME` (or `--name NAME`) sets its output file name. The original extension, if any, is kept, so `--binary fx` turns `fx_windows_amd64.exe` into `fx.exe`. The flag is ignored when multiple files are extracted (for example with `--all`) or when `--to` names a file rather than a directory.
+
+```bash
+xget install antonmedv/fx --binary fx --to ~/.local/bin
+```
 
 Directories may also be specified as files to extract. When that happens, xget extracts everything inside the directory. For example:
 

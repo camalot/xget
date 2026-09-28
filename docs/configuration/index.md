@@ -115,6 +115,7 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | --- | --- | --- | --- |
 | `all` | `--all` | Extract all candidate files. | `false` |
 | `asset_filters` | `--asset` | Array of asset matchers. | `[]` |
+| `binary` | `--binary` / `--name` | Output file name for a single extracted file; the extension is kept. | `""` |
 | `download_only` | `--download-only` | Stop after downloading the asset without extraction. | `false` |
 | `download_source` | `--source` | Download the source code for the repo instead of a release. | `false` |
 | `file` | `--file` | Glob to select files for extraction. | `*` |

@@ -20,6 +20,7 @@ type rootFlags struct {
 	prerelease  bool
 	source      bool
 	output      string
+	binary      string
 	system      string
 	extractFile string
 	all         bool
@@ -199,6 +200,8 @@ func addInstallFlags(cmd *cobra.Command, f *rootFlags) {
 	cmd.Flags().BoolVar(&f.source, "source", false, "download the source code for the target repo instead of a release")
 	cmd.Flags().StringVar(&f.provider, "provider", "", "release source profile to use (default github)")
 	cmd.Flags().StringVar(&f.output, "to", "", "move to given location after extracting")
+	cmd.Flags().StringVar(&f.binary, "binary", "", "rename a single extracted file to this name, keeping its extension (ignored when multiple files are extracted)")
+	cmd.Flags().StringVar(&f.binary, "name", "", "alias for --binary")
 	cmd.Flags().StringVarP(&f.system, "system", "s", "", "target system to download for (use all for all choices)")
 	cmd.Flags().StringVarP(&f.extractFile, "file", "f", "", "glob to select files for extraction")
 	cmd.Flags().BoolVar(&f.all, "all", false, "extract all candidate files")
@@ -336,6 +339,7 @@ func configOptionsForTarget(cfg *config.Config, target string) (options.Flags, e
 	if repo, ok := cfg.Repositories[target]; ok {
 		opts.All = repo.All
 		opts.Asset = repo.AssetFilters
+		opts.Binary = repo.Binary
 		opts.Ignore = repo.Ignore
 		opts.DLOnly = repo.DownloadOnly
 		opts.ExtractFile = repo.File
@@ -394,6 +398,9 @@ func optionsForTargetProvider(cfg *config.Config, cmd *cobra.Command, f *rootFla
 			return options.Flags{}, err
 		}
 		opts.Output = expanded
+	}
+	if cmd.Flags().Changed("binary") || cmd.Flags().Changed("name") {
+		opts.Binary = f.binary
 	}
 	if cmd.Flags().Changed("system") {
 		opts.System = f.system
