@@ -36,7 +36,10 @@ builds:
         - go tool go-winres make --in winres/winres.json --arch={{ .Arch }} --product-version={{ .Version }} --file-version={{ .Version }} --out ./cmd/xget/rsrc
 
       post:
-        - rm -f cmd/xget/rsrc_*.syso
+        # Per-arch, NOT a 'rsrc_*.syso' glob: goreleaser builds the amd64 and
+        # arm64 targets concurrently, so a glob delete from whichever finishes
+        # first removes the other target's still-needed .syso mid-compile.
+        - rm -f cmd/xget/rsrc_windows_{{ .Arch }}.syso
   - id: xget-unix
     main: ./cmd/xget
     binary: xget
