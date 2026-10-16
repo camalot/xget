@@ -26,6 +26,10 @@ inputs:
     description: "Whether to only test-build the PKGBUILD without publishing/uploading anything"
     required: false
     default: "true"
+  artifact:
+    description: "Optional workflow artifact holding checksums.txt and the linux archives, used instead of the GitHub release"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -37,7 +41,7 @@ runs:
         version: ${{ inputs.version }}
         token: ${{ inputs.token }}
         path: ${{ runner.temp }}/aur-release
-        archives: "false"
+        artifact: ${{ inputs.artifact }}
 
     - name: Render PKGBUILD
       id: render
@@ -51,6 +55,11 @@ runs:
           -e "s/__SHA256_X86_64__/$AMD64_SHA/g" \
           -e "s/__SHA256_AARCH64__/$ARM64_SHA/g" \
           .packages/aur/PKGBUILD > "$outdir/PKGBUILD"
+        # seed makepkg's sources with the verified archives (named per the PKGBUILD's
+        # source_* entries) so the test build doesn't re-download them - in a dry run
+        # there's no published release to download from
+        cp "$AMD64_ARCHIVE" "$outdir/xget-bin-${VERSION}-x86_64.tar.gz"
+        cp "$ARM64_ARCHIVE" "$outdir/xget-bin-${VERSION}-aarch64.tar.gz"
         {
           echo "pkgbuild_dir=$outdir"
           echo "pkgbuild_path=$outdir/PKGBUILD"
@@ -59,6 +68,8 @@ runs:
         VERSION: ${{ inputs.version }}
         AMD64_SHA: ${{ steps.checksums.outputs.amd64-sha256 }}
         ARM64_SHA: ${{ steps.checksums.outputs.arm64-sha256 }}
+        AMD64_ARCHIVE: ${{ steps.checksums.outputs.amd64-archive }}
+        ARM64_ARCHIVE: ${{ steps.checksums.outputs.arm64-archive }}
 
     # Also doubles as the "test build" for KSXGitHub/github-actions-deploy-aur:
     # its own `test` input builds the package as part of the same run that

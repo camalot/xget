@@ -3,7 +3,9 @@ name: "Release Archives"
 description: >-
   Download the Linux release archives for a tag (along with checksums.txt),
   verify their sha256 checksums, and expose the archive paths and hashes to the
-  packaging actions that repack them.
+  packaging actions that repack them. When `artifact` is set, the files are
+  taken from that workflow artifact instead of the GitHub release (used by
+  release dry runs, where no GitHub release is published).
 inputs:
   version:
     description: "The plain (no 'v' prefix) version of the xget project, e.g. 2.2.0"
@@ -23,6 +25,12 @@ inputs:
     description: "Set to 'false' to only download checksums.txt (when just the hashes are needed)"
     required: false
     default: "true"
+  artifact:
+    description: >-
+      Name of a workflow artifact (from the current run) holding checksums.txt and the
+      linux archives; when set, it is used instead of downloading from the GitHub release
+    required: false
+    default: ""
 outputs:
   path:
     description: "Directory containing the verified archives and checksums.txt"
@@ -46,22 +54,37 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Download and verify the release archives
-      id: download
+    - name: Prepare the download directory
       shell: bash
       run: |
         set -euo pipefail
         rm -rf "$DEST"
         mkdir -p "$DEST"
+      env:
+        DEST: ${{ inputs.path }}
 
-        patterns=(--pattern checksums.txt)
-        if [ "$ARCHIVES" = "true" ]; then
-          patterns+=(
-            --pattern "xget_${VERSION}_linux_amd64.tar.gz"
-            --pattern "xget_${VERSION}_linux_arm64.tar.gz"
-          )
+    - name: Download the release archives from the workflow artifact
+      if: inputs.artifact != ''
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.artifact }}
+        path: ${{ inputs.path }}
+
+    - name: Download and verify the release archives
+      id: download
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -z "$ARTIFACT" ]; then
+          patterns=(--pattern checksums.txt)
+          if [ "$ARCHIVES" = "true" ]; then
+            patterns+=(
+              --pattern "xget_${VERSION}_linux_amd64.tar.gz"
+              --pattern "xget_${VERSION}_linux_arm64.tar.gz"
+            )
+          fi
+          gh release download "v${VERSION}" --repo "$REPO" "${patterns[@]}" --dir "$DEST" --clobber
         fi
-        gh release download "v${VERSION}" --repo "$REPO" "${patterns[@]}" --dir "$DEST" --clobber
 
         cd "$DEST"
         # only consider the two archives the packages are built from - the anchored
@@ -89,3 +112,4 @@ runs:
         VERSION: ${{ inputs.version }}
         DEST: ${{ inputs.path }}
         ARCHIVES: ${{ inputs.archives }}
+        ARTIFACT: ${{ inputs.artifact }}

@@ -210,6 +210,19 @@ jobs:
             dist/checksums.txt
           if-no-files-found: error
 
+      # no GitHub release is published in a dry run, so hand the linux archives to the
+      # aur/debian/alpine/rpm jobs as an artifact instead
+      - name: Upload release archives
+        if: ${{ inputs.dry-run == true }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-archives
+          path: |
+            dist/xget_*_linux_amd64.tar.gz
+            dist/xget_*_linux_arm64.tar.gz
+            dist/checksums.txt
+          if-no-files-found: error
+
       - uses: actions/attest-build-provenance@v4
         if: ${{ inputs.dry-run != true }}
         with:
@@ -296,6 +309,7 @@ jobs:
           # AUR pkgver can't have a "v" prefix, unlike the git tag
           version: ${{ needs.version.outputs.ver_major_minor_patch }}
           dry-run: ${{ inputs.dry-run }}
+          artifact: ${{ inputs.dry-run && 'release-archives' || '' }}
           aur-username: ${{ secrets.AUR_USERNAME }}
           aur-email: ${{ secrets.AUR_EMAIL }}
           aur-ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
@@ -323,6 +337,7 @@ jobs:
           # deb versions can't have a "v" prefix, unlike the git tag
           version: ${{ needs.version.outputs.ver_major_minor_patch }}
           dry-run: ${{ inputs.dry-run }}
+          artifact: ${{ inputs.dry-run && 'release-archives' || '' }}
 
       - name: Upload Debian packages
         if: ${{ inputs.dry-run == true }}
@@ -357,6 +372,7 @@ jobs:
           # apk pkgver can't have a "v" prefix, unlike the git tag
           version: ${{ needs.version.outputs.ver_major_minor_patch }}
           dry-run: ${{ inputs.dry-run }}
+          artifact: ${{ inputs.dry-run && 'release-archives' || '' }}
           signing-private-key: ${{ secrets.RSA_PRIVATE_KEY }}
           signing-public-key: ${{ vars.RSA_PUBLIC_KEY }}
 
@@ -368,6 +384,41 @@ jobs:
           path: |
             ${{ steps.alpine.outputs.outdir }}/*.apk
             ${{ steps.alpine.outputs.outdir }}/alpine-checksums.txt
+          if-no-files-found: error
+
+  rpm:
+    permissions:
+      # attach the built packages/checksums/SBOMs to the release
+      contents: write
+      # sign and publish the build provenance and SBOM attestations
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    needs:
+      - version
+      - release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
+
+      - name: Build, verify, attest, and publish the RPM packages
+        id: rpm
+        uses: ./.github/actions/rpm
+        with:
+          # rpm versions can't have a "v" prefix, unlike the git tag
+          version: ${{ needs.version.outputs.ver_major_minor_patch }}
+          dry-run: ${{ inputs.dry-run }}
+          artifact: ${{ inputs.dry-run && 'release-archives' || '' }}
+
+      - name: Upload RPM packages
+        if: ${{ inputs.dry-run == true }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpm-packages
+          path: |
+            ${{ steps.rpm.outputs.outdir }}/*.rpm
+            ${{ steps.rpm.outputs.outdir }}/rpm-checksums.txt
           if-no-files-found: error
 
   publish-documentation:

@@ -15,6 +15,10 @@ inputs:
     description: "Whether to only build and verify the packages without attesting/uploading anything"
     required: false
     default: "true"
+  artifact:
+    description: "Optional workflow artifact holding checksums.txt and the linux archives, used instead of the GitHub release"
+    required: false
+    default: ""
 outputs:
   outdir:
     description: "Directory containing the built RPMs, checksums, and SBOMs"
@@ -36,6 +40,7 @@ runs:
         version: ${{ inputs.version }}
         token: ${{ inputs.token }}
         path: ${{ runner.temp }}/rpm/download
+        artifact: ${{ inputs.artifact }}
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3

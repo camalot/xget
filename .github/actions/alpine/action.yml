@@ -32,6 +32,10 @@ inputs:
     description: "Whether to only build/verify the packages without attesting or uploading anything"
     required: false
     default: "true"
+  artifact:
+    description: "Optional workflow artifact holding checksums.txt and the linux archives, used instead of the GitHub release"
+    required: false
+    default: ""
 outputs:
   outdir:
     description: "Directory containing the built apk packages, checksums, and SBOMs"
@@ -55,6 +59,7 @@ runs:
         version: ${{ inputs.version }}
         token: ${{ inputs.token }}
         path: ${{ runner.temp }}/alpine/dl
+        artifact: ${{ inputs.artifact }}
 
     - name: Render the APKBUILD
       id: render
