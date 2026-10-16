@@ -4,27 +4,76 @@ version: '3'
 vars: {}
 
 tasks:
-  build:
-    desc: Build the project
-    deps:
-      - lint
+  
+  tools:
+    internal: true
+    desc: Install the CI-only Go tools (golangci-lint, govulncheck) into GOBIN
+    if: '! command -v golangci-lint >/dev/null 2>&1 || ! command -v govulncheck >/dev/null 2>&1'
+    cmds:
+      - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+      - go install golang.org/x/vuln/cmd/govulncheck@latest
+
+  sha256:
+    desc: Regenerate install/*.sha256 for the install scripts
     cmds:
       - chmod +x ./scripts/generate-install-sha256.sh
       - chmod +x ./install/xget.sh
       - chmod +x ./install/xget.ps1
       - bash ./scripts/generate-install-sha256.sh
+
+  verify:sha256:
+    desc: 'CI job "verify": check install/*.sha256 matches the scripts'
+    cmds:
+      - bash ./scripts/verify-install-sha256.sh
+
+  tidy:
+    desc: go mod tidy
+    cmds:
+      - go mod tidy
+
+  tidy:check:
+    internal: true
+    desc: 'CI job "lint": fail if go mod tidy would change any module''s go.mod/go.sum'
+    cmds:
+      - bash ./scripts/check-tidy.sh
+
+  
+  build-snapshot:
+    internal: true
+    desc: 'CI job "build-snapshot": goreleaser snapshot of every target'
+    env:
+      # cgo cross-compilation for android needs the NDK, which is only present in CI.
+      XGET_SKIP_ANDROID: '{{.SKIP_ANDROID | default "true"}}'
+    cmds:
+      - goreleaser build --snapshot --clean
+
+  ci:
+    desc: Run every check the ci.yml workflow runs, in the same order
+    cmds:
+      - task: verify:sha256
+      - task: tidy:check
+      - task: lint
+      - task: vet
+      - task: fmt:check
+      - task: vuln
+      - task: codeql
+      - task: test
+      - task: build-snapshot
+
+  build:
+    desc: Build the project (local dev loop - full CI parity is 'task ci')
+    cmds:
+      - task: sha256
       - echo "Building the project..."
       - mkdir -p bin
-      - go mod tidy
+      - task: tidy
+      - task: lint
+      - task: vet
+      - task: fmt:check
+      - task: vuln
+      - task: codeql
+      - task: test
       - goreleaser build --snapshot --clean --id xget-windows --id xget-unix
-      - go vet ./...
-      - gofmt -l .
-      - go test ./...
-
-  lint:
-    desc: Run the same golangci-lint version as CI
-    cmds:
-      - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0 run ./...
 
   manpage:
     desc: Generate xget.1 (falls back to a stub when pandoc is unavailable)
@@ -35,6 +84,74 @@ tasks:
         ignore_error: true
       - cmd: test -f xget.1 || printf '.TH XGET 1\n.SH NAME\nxget \\- placeholder man page\n' > xget.1
 
+  lint:
+    desc: Run the same golangci-lint version as CI
+    cmds:
+      - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0 run ./...
+
+  vet:
+    internal: true
+    desc: 'CI job "vet-and-vuln": go vet'
+    cmds:
+      - go vet ./...
+
+  vuln:
+    internal: true
+    desc: 'CI job "vet-and-vuln": govulncheck'
+    cmds:
+      - govulncheck ./...
+
+  codeql:
+    internal: true
+    desc: 'codeql.yml workflow: CodeQL Go analysis with the same code-scanning suite; fails on any alert'
+    cmds:
+      # Uses a codeql CLI on PATH, else the official gh extension; skips loudly
+      # like 'race' does without a C compiler.
+      - |
+        if command -v codeql >/dev/null 2>&1; then
+          cq="codeql"
+        elif gh codeql version >/dev/null 2>&1; then
+          cq="gh codeql"
+        else
+          echo "⚠ skipping CodeQL: no CLI found (install with: gh extension install github/gh-codeql) - CI still runs codeql.yml."
+          exit 0
+        fi
+        mkdir -p .codeql
+        if ! $cq database create .codeql/db --language=go --source-root=. --overwrite >.codeql/create.log 2>&1; then
+          cat .codeql/create.log
+          exit 1
+        fi
+        if ! $cq database analyze .codeql/db codeql/go-queries:codeql-suites/go-code-scanning.qls --download --format=sarif-latest --output=.codeql/results.sarif >.codeql/analyze.log 2>&1; then
+          cat .codeql/analyze.log
+          exit 1
+        fi
+        # -j: no trailing newline (Windows jq writes CRLF).
+        count="$(jq -j '[.runs[].results[]] | length' .codeql/results.sarif)"
+        if [ "$count" != "0" ]; then
+          jq -r '.runs[].results[] | "\(.ruleId) \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine): \(.message.text)"' .codeql/results.sarif
+          echo "CodeQL found $count alert(s); full report: .codeql/results.sarif"
+          exit 1
+        fi
+        echo "CodeQL: no alerts"
+
+  fmt:check:
+    internal: true
+    desc: Fail if any file is not gofmt-clean
+    cmds:
+      # gofmt -l exits 0 even when it lists files, so turn any output into a failure.
+      - |
+        unformatted="$(gofmt -l .)"
+        if [ -n "$unformatted" ]; then
+          echo "not gofmt-clean:"
+          echo "$unformatted"
+          exit 1
+        fi
+
+  test:
+    desc: 'CI job "test": build + full test suite with coverage'
+    cmds:
+      - go build ./...
+      - go test ./... -coverprofile=coverage.out
   release:dry-run:
     desc: Build the release and render the winget/scoop/homebrew manifests into dist/ without publishing anything
     deps:
@@ -49,8 +166,6 @@ tasks:
       - cat dist/scoop/xget.json
       - echo "--- dist/homebrew/Casks/xget.rb ---"
       - cat dist/homebrew/Casks/xget.rb
-
-
 
   ironstate:
     cmds:

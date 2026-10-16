@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -57,15 +58,16 @@ type Archive interface {
 	ReadAll() ([]byte, error)
 }
 
-func validateArchiveEntryName(name string) error {
+func validateArchiveEntryName(name string) (string, error) {
 	normalized := strings.ReplaceAll(name, "\\", "/")
 	cleaned := path.Clean(normalized)
-	if normalized == "" || strings.HasPrefix(normalized, "/") ||
+	if !filepath.IsLocal(name) || strings.ContainsRune(name, '\x00') ||
+		strings.HasPrefix(normalized, "/") ||
 		cleaned == ".." || strings.HasPrefix(cleaned, "../") ||
 		isWindowsDrivePath(normalized) {
-		return fmt.Errorf("unsafe archive path %q", name)
+		return "", fmt.Errorf("unsafe archive path %q", name)
 	}
-	return nil
+	return name, nil
 }
 
 func isWindowsDrivePath(name string) bool {
@@ -97,13 +99,14 @@ func (t *TarArchive) Next() (File, error) {
 		if err != nil {
 			return File{}, err
 		}
-		if err := validateArchiveEntryName(hdr.Name); err != nil {
+		name, err := validateArchiveEntryName(hdr.Name)
+		if err != nil {
 			return File{}, err
 		}
 		ft := tarft(hdr.Typeflag)
 		if ft != TypeOther {
 			return File{
-				Name:     hdr.Name,
+				Name:     name,
 				LinkName: hdr.Linkname,
 				Mode:     hdr.FileInfo().Mode(),
 				Type:     ft,
@@ -143,7 +146,8 @@ func (z *ZipArchive) Next() (File, error) {
 	}
 
 	f := z.r.File[z.idx]
-	if err := validateArchiveEntryName(f.Name); err != nil {
+	name, err := validateArchiveEntryName(f.Name)
+	if err != nil {
 		return File{}, err
 	}
 
@@ -153,7 +157,7 @@ func (z *ZipArchive) Next() (File, error) {
 	}
 
 	return File{
-		Name: f.Name,
+		Name: name,
 		Mode: f.Mode(),
 		Type: typ,
 	}, nil
