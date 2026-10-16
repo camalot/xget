@@ -1,4 +1,65 @@
 
+## [v2.5.1](https://github.com/camalot/xget/releases/tag/v2.5.1) - 2026-10-16
+
+### 🐛 BUG FIXES
+
+
+#### _SECURITY_
+- Resolve codeql findings for archives -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+
+### ⚙️ MISCELLANEOUS TASKS
+
+
+#### _ACTION_
+- Move typos check to verify job, instead of test job -[@camalot](https://github.com/camalot)
+
+- Ensure actions run correctly when dry-run -[@camalot](https://github.com/camalot)
+
+- Enable creation of rpm package for release -[@camalot](https://github.com/camalot)
+
+
+#### _PACKAGES_
+- Remove flatpack as not applicable for cli tool -[@camalot](https://github.com/camalot)
+
+
+#### _REPO_
+- Run typos check -[@camalot](https://github.com/camalot)
+
+- Fix typos found -[@camalot](https://github.com/camalot)
+
+- Update taskfile -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot)
+## 📈 Commit Statistics
+
+
+- `8` commits contributed to the release.
+- `0` days have passed between the first and last commit.
+- `8` commits parsed as conventional.
+- `0` linked issues detected in commits.
+- `18` days  have passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[8,1,0,8,0,18]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.5.0...v2.5.1
+
 ## [v2.5.0](https://github.com/camalot/xget/releases/tag/v2.5.0) - 2026-09-28
 
 ### 🚀 FEATURES
