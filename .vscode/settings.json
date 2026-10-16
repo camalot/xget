@@ -5,6 +5,8 @@
     "eget",
     "goamd",
     "goarch",
+    "goarchmap",
+    "goosmap",
     "goreleaser",
     "ldflags",
     "LOCALAPPDATA",

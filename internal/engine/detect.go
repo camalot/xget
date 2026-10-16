@@ -231,14 +231,14 @@ type SystemDetector struct {
 
 // NewSystemDetector returns a new detector for the given OS/Arch as given by
 // Go OS/Arch names.
-func NewSystemDetector(sos, sarch string) (*SystemDetector, error) {
-	os, ok := goosmap[sos]
+func NewSystemDetector(systemOS, systemArch string) (*SystemDetector, error) {
+	os, ok := goosmap[systemOS]
 	if !ok {
-		return nil, fmt.Errorf("unsupported target OS: %s", sos)
+		return nil, fmt.Errorf("unsupported target OS: %s", systemOS)
 	}
-	arch, ok := goarchmap[sarch]
+	arch, ok := goarchmap[systemArch]
 	if !ok {
-		return nil, fmt.Errorf("unsupported target arch: %s", sarch)
+		return nil, fmt.Errorf("unsupported target arch: %s", systemArch)
 	}
 	return &SystemDetector{
 		Os:   os,

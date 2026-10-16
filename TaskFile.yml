@@ -4,14 +4,68 @@ version: '3'
 vars: {}
 
 tasks:
+
+  require-xget:
+    silent: true
+    internal: true
+    desc: Ensure xget is installed in the system PATH
+    cmds:
+      - command -v xget >/dev/null 2>&1 || { echo "xget is required but not installed"; exit 1; }
   
   tools:
     internal: true
+    deps:
+      - require-xget
     desc: Install the CI-only Go tools (golangci-lint, govulncheck) into GOBIN
-    if: '! command -v golangci-lint >/dev/null 2>&1 || ! command -v govulncheck >/dev/null 2>&1'
+    cmds:
+      - task: tools:typos
+      - task: tools:golangci
+      - task: tools:govulncheck
+      - task: tools:pandoc
+
+  tools:golangci:
+    internal: true
+    deps:
+      - require-xget
+    desc: Install golangci-lint into GOBIN
+    if: '! command -v golangci-lint >/dev/null 2>&1'
+    status:
+      - '! command -v golangci-lint >/dev/null 2>&1'
     cmds:
       - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+  tools:govulncheck:
+    internal: true
+    deps:
+      - require-xget
+    desc: Install govulncheck into GOBIN
+    if: '! command -v govulncheck >/dev/null 2>&1'
+    status:
+      - '! command -v govulncheck >/dev/null 2>&1'
+    cmds:
       - go install golang.org/x/vuln/cmd/govulncheck@latest
+
+  tools:typos:
+    internal: true
+    deps:
+      - require-xget
+    desc: Install typos-action into GOBIN
+    if: '! command -v typos >/dev/null 2>&1'
+    status:
+      - '! command -v typos >/dev/null 2>&1'
+    cmds:
+      - xget install crate-ci/typos --to ~/.local/bin/ --non-interactive
+
+  tools:pandoc:
+    internal: true
+    deps:
+      - require-xget
+    desc: Install pandoc into GOBIN
+    if: '! command -v pandoc >/dev/null 2>&1'
+    status:
+      - '! command -v pandoc >/dev/null 2>&1'
+    cmds:
+      - xget install jgm/pandoc --to ~/.local/bin/ --non-interactive --ignore .msi
 
   sha256:
     desc: Regenerate install/*.sha256 for the install scripts
@@ -22,9 +76,16 @@ tasks:
       - bash ./scripts/generate-install-sha256.sh
 
   verify:sha256:
+    internal: true
     desc: 'CI job "verify": check install/*.sha256 matches the scripts'
     cmds:
       - bash ./scripts/verify-install-sha256.sh
+
+  typos:check:
+    internal: true
+    desc: 'CI job "typos": check for typos'
+    cmds:
+      - typos
 
   tidy:
     desc: go mod tidy
@@ -37,7 +98,6 @@ tasks:
     cmds:
       - bash ./scripts/check-tidy.sh
 
-  
   build-snapshot:
     internal: true
     desc: 'CI job "build-snapshot": goreleaser snapshot of every target'
@@ -48,9 +108,12 @@ tasks:
       - goreleaser build --snapshot --clean
 
   ci:
+    deps:
+      - tools
     desc: Run every check the ci.yml workflow runs, in the same order
     cmds:
       - task: verify:sha256
+      - task: typos:check
       - task: tidy:check
       - task: lint
       - task: vet
@@ -61,28 +124,39 @@ tasks:
       - task: build-snapshot
 
   build:
+    deps:
+      - tools
     desc: Build the project (local dev loop - full CI parity is 'task ci')
     cmds:
       - task: sha256
-      - echo "Building the project..."
-      - mkdir -p bin
+      - task: verify:sha256
+      - task: typos:check
       - task: tidy
+      - task: tidy:check
       - task: lint
       - task: vet
       - task: fmt:check
       - task: vuln
       - task: codeql
       - task: test
-      - goreleaser build --snapshot --clean --id xget-windows --id xget-unix
+      - task: manpage:clean
+      - task: build-snapshot
+
+  manpage:clean:
+    internal: true
+    desc: Clean generated manpage
+    cmds:
+      - rm -f dist/xget.1
+      - task: manpage
 
   manpage:
-    desc: Generate xget.1 (falls back to a stub when pandoc is unavailable)
+    deps:
+      - tools
+    desc: Generate xget.1
     status:
-      - test -f xget.1
+      - test -f dist/xget.1
     cmds:
-      - cmd: pandoc docs/_man/xget.md -s -t man -o xget.1
-        ignore_error: true
-      - cmd: test -f xget.1 || printf '.TH XGET 1\n.SH NAME\nxget \\- placeholder man page\n' > xget.1
+      - cmd: pandoc docs/_man/xget.md -s -t man -o dist/xget.1
 
   lint:
     desc: Run the same golangci-lint version as CI
@@ -135,6 +209,7 @@ tasks:
         echo "CodeQL: no alerts"
 
   fmt:check:
+    silent: true
     internal: true
     desc: Fail if any file is not gofmt-clean
     cmds:

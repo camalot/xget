@@ -644,7 +644,7 @@
 
 - Dog does not have sha256 so need to skip verify -[@camalot](https://github.com/camalot)
 
-- Do not fail if no sha256 missing from github. skip verifiy -[@camalot](https://github.com/camalot)
+- Do not fail if no sha256 missing from github. skip verify -[@camalot](https://github.com/camalot)
 
 - Use different tool to test -[@camalot](https://github.com/camalot)
 
@@ -1099,7 +1099,7 @@
 
 - Prefer --to with --upgrade-only ()[#35](https://github.com/camalot/xget/issues/35)  -[@dufferzafar](https://github.com/dufferzafar)
 
-- Impove --to interaction with --upgrade-only -[@zyedidia](https://github.com/zyedidia)
+- Improve --to interaction with --upgrade-only -[@zyedidia](https://github.com/zyedidia)
 
 - Handle archives with .tbz, .txz extensions ()[#37](https://github.com/camalot/xget/issues/37)  -[@dufferzafar](https://github.com/dufferzafar)
 
