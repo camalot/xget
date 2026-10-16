@@ -28,6 +28,10 @@ jobs:
 
       - uses: ./.github/actions/verify-sha256
 
+      - uses: crate-ci/typos@v1
+        with:
+          config: .typos.toml
+
   lint:
     permissions:
       contents: read
@@ -85,11 +89,6 @@ jobs:
         with:
           fetch-depth: 0 # needed for coverage's changelog generation
           persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
-
-
-      - uses: crate-ci/typos@v1
-        with:
-          config: .typos.toml
 
       - uses: actions/setup-go@v7
         with:
