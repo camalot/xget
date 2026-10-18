@@ -28,7 +28,7 @@ jobs:
 
       - uses: ./.github/actions/verify-sha256
 
-      - uses: crate-ci/typos@v1
+      - uses: crate-ci/typos@v1.51.1
         with:
           config: .typos.toml
 
