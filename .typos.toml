@@ -2,8 +2,7 @@
 extend-exclude = [
   "go.mod",
   "go.sum",
-  "CHANGELOG.md",
-  ""
+  "CHANGELOG.md"
 ]
 ignore-hidden = true
 ignore-files = true
