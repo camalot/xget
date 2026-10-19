@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"archive/zip"
 	"bytes"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -306,6 +308,8 @@ func TestOptionsForTarget_SubstitutesTemplateVarsInConfigAssetAndIgnore(t *testi
 				System:       "linux/arm64",
 				AssetFilters: []string{"{{.OS}}_{{.Arch}}.tar.gz"},
 				Ignore:       []string{"{{.OS}}_{{.Arch}}.sbom.json"},
+				File:         "{{.Arch}}/*.exe",
+				Binary:       "tool-{{.OS}}-{{.Arch}}",
 			},
 		},
 	}
@@ -320,9 +324,12 @@ func TestOptionsForTarget_SubstitutesTemplateVarsInConfigAssetAndIgnore(t *testi
 	if !reflect.DeepEqual(opts.Ignore, []string{"linux_arm64.sbom.json"}) {
 		t.Fatalf("expected substituted ignore filters, got %#v", opts.Ignore)
 	}
+	if opts.ExtractFile != "arm64/*.exe" || opts.Binary != "tool-linux-arm64" {
+		t.Fatalf("expected substituted file and binary, got file=%q binary=%q", opts.ExtractFile, opts.Binary)
+	}
 }
 
-func TestOptionsForTarget_DoesNotSubstituteCliAssetAndIgnore(t *testing.T) {
+func TestOptionsForTarget_SubstitutesCliAssetButNotIgnore(t *testing.T) {
 	cmd := newRootCommand()
 	flags := &rootFlags{}
 
@@ -347,10 +354,112 @@ func TestOptionsForTarget_DoesNotSubstituteCliAssetAndIgnore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("optionsForTarget returned error: %v", err)
 	}
-	if !reflect.DeepEqual(opts.Asset, []string{"{{.OS}}_{{.Arch}}.tar.gz"}) {
-		t.Fatalf("expected cli asset filters unsubstituted, got %#v", opts.Asset)
+	if !reflect.DeepEqual(opts.Asset, []string{"linux_arm64.tar.gz"}) {
+		t.Fatalf("expected substituted cli asset filters, got %#v", opts.Asset)
 	}
 	if !reflect.DeepEqual(opts.Ignore, []string{"{{.OS}}_{{.Arch}}.sbom.json"}) {
 		t.Fatalf("expected cli ignore filters unsubstituted, got %#v", opts.Ignore)
+	}
+}
+
+func TestOptionsForTargetSubstitutesCLIFileAssetAndBinary(t *testing.T) {
+	for _, binaryFlag := range []string{"binary", "name"} {
+		for _, system := range []string{"", "all", "windows/amd64", "linux/arm64"} {
+			t.Run(binaryFlag+"/"+system, func(t *testing.T) {
+				cmd := newRootCommand()
+				flags := &rootFlags{
+					system: system, extractFile: "{{.Arch}}/*.exe",
+					binary: "tool-{{.OS}}-{{.Arch}}",
+					asset:  []string{"{{.OS}}_{{.Arch}}.zip", "not:{{.Arch}}-debug"},
+				}
+				for name, value := range map[string]string{
+					"system": system, "file": flags.extractFile,
+					binaryFlag: flags.binary, "asset": strings.Join(flags.asset, ","),
+				} {
+					if err := cmd.Flags().Set(name, value); err != nil {
+						t.Fatal(err)
+					}
+				}
+				cfg := config.Default()
+				cfg.Repositories["owner/repo"] = config.Repository{
+					System: "darwin/arm64", File: "config-file", Binary: "config-binary",
+					AssetFilters: []string{"config-asset"},
+				}
+				opts, err := optionsForTarget(cfg, cmd, flags, "owner/repo")
+				if err != nil {
+					t.Fatal(err)
+				}
+				goos, arch := runtime.GOOS, runtime.GOARCH
+				if system != "" && system != "all" {
+					parts := strings.Split(system, "/")
+					goos, arch = parts[0], parts[1]
+				}
+				if opts.ExtractFile != arch+"/*.exe" || opts.Binary != "tool-"+goos+"-"+arch {
+					t.Fatalf("file=%q binary=%q", opts.ExtractFile, opts.Binary)
+				}
+				wantAssets := []string{goos + "_" + arch + ".zip", "not:" + arch + "-debug"}
+				if !reflect.DeepEqual(opts.Asset, wantAssets) {
+					t.Fatalf("assets=%#v, want %#v", opts.Asset, wantAssets)
+				}
+			})
+		}
+	}
+}
+
+func TestInstallTemplatesSelectArchitectureFiles(t *testing.T) {
+	useTempInstalledStore(t)
+	archive := filepath.Join(t.TempDir(), "tool_windows_amd64.zip")
+	var buf bytes.Buffer
+	writer := zip.NewWriter(&buf)
+	for _, name := range []string{"amd64/tool.exe", "amd64/helper.exe", "arm64/tool.exe", "386/tool.exe", "amd64/README.md"} {
+		entry, err := writer.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write([]byte(name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(archive, buf.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := writeUpgradeConfig(t, "global:\n  xget_update_check: false\n")
+	for _, all := range []bool{false, true} {
+		out := t.TempDir()
+		args := []string{
+			"install", archive, "--config", cfg, "--system", "windows/amd64",
+			"--asset", "{{.OS}}_{{.Arch}}.zip", "--to", out, "--untracked", "--quiet",
+		}
+		wantNames := []string{"tool-windows-amd64.exe"}
+		if all {
+			args = append(args, "--file", "{{.Arch}}/*.exe", "--all")
+			wantNames = []string{"helper.exe", "tool.exe"}
+		} else {
+			args = append(args, "--file", "{{.Arch}}/tool.exe", "--binary", "tool-{{.OS}}-{{.Arch}}")
+		}
+		if _, err := runCLI(t, args...); err != nil {
+			t.Fatal(err)
+		}
+		entries, err := os.ReadDir(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		names := make([]string, 0, len(entries))
+		for _, entry := range entries {
+			names = append(names, entry.Name())
+			original := "amd64/tool.exe"
+			if entry.Name() == "helper.exe" {
+				original = "amd64/helper.exe"
+			}
+			if got := readFileString(t, filepath.Join(out, entry.Name())); got != original {
+				t.Fatalf("%s content=%q, want %q", entry.Name(), got, original)
+			}
+		}
+		if !reflect.DeepEqual(names, wantNames) {
+			t.Fatalf("all=%t: extracted names=%#v, want %#v", all, names, wantNames)
+		}
 	}
 }

@@ -130,6 +130,13 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | `verify_sha256` | `--verify-sha256` / `--verify` | Verify the asset hash against a provided hash. | `""` |
 | `disable_ssl` | `--disable-ssl` | Disable SSL certificate verification for downloads. | `false` |
 
+The `file`, `asset_filters`, and `binary` settings support
+`{% raw %}{{.OS}}{% endraw %}` and `{% raw %}{{.Arch}}{% endraw %}`, just like
+`--file`, `--asset`, and `--binary` / `--name`. Configured `ignore` lists also
+support these variables. Values use the effective target `system`, falling back
+to the runtime OS and Go architecture when unset or `all`. See
+[template variables](../usage/asset-filtering#template-variables).
+
 ## Repository and global precedence
 
 The precedence order is:

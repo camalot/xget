@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/camalot/xget/internal/config"
+	"github.com/camalot/xget/internal/home"
 	"github.com/camalot/xget/internal/installed"
 	"github.com/camalot/xget/internal/lib/constants"
 	"github.com/camalot/xget/internal/options"
@@ -699,6 +700,11 @@ func Run(target string, opts options.Flags) error {
 	if err := validateBinaryName(opts.Binary); err != nil {
 		return err
 	}
+	expandedOutput, err := home.Expand(opts.Output)
+	if err != nil {
+		return err
+	}
+	opts.Output = expandedOutput
 
 	var output io.Writer = os.Stderr
 	if opts.Quiet {
@@ -850,10 +856,18 @@ func Run(target string, opts options.Flags) error {
 				out = opts.Output
 			}
 			if os.Getenv("EGET_BIN") != "" && !strings.ContainsRune(out, os.PathSeparator) && mode&0111 != 0 && !bin.Dir {
-				out = filepath.Join(os.Getenv("EGET_BIN"), out)
+				directory, err := home.Expand(os.Getenv("EGET_BIN"))
+				if err != nil {
+					return err
+				}
+				out = filepath.Join(directory, out)
 			}
 			if os.Getenv("XGET_BIN") != "" && !strings.ContainsRune(out, os.PathSeparator) && mode&0111 != 0 && !bin.Dir {
-				out = filepath.Join(os.Getenv("XGET_BIN"), out)
+				directory, err := home.Expand(os.Getenv("XGET_BIN"))
+				if err != nil {
+					return err
+				}
+				out = filepath.Join(directory, out)
 			}
 		}
 

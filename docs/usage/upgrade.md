@@ -76,6 +76,10 @@ prints `No available upgrades.`
 A package installed to several locations is listed once per location, and each
 location is counted and upgraded on its own.
 
+Legacy records that used the extracted executable as the install location are
+normalized to its containing directory. Duplicate records for the same package
+and location are merged when the store is loaded, keeping the newest install.
+
 An upgrade is available when the newest release is *newer* than the installed
 one. Tags are compared as semantic versions, including prerelease ordering, so
 `v2.0.0-beta` → `v2.0.0` is an upgrade but `v2.0.0` → `v2.0.0-beta` is not. Tags
@@ -179,6 +183,9 @@ Both remain untouched in the installed metadata store after the upgrade.
 
 If neither the config nor the stored options set an output location, the
 package's recorded `install_location` is used.
+
+Stored output paths beginning with `~` are expanded before upgrading, just as
+they are for a new install.
 
 Use `--config <file>` to resolve the config layers from a specific file.
 

@@ -53,7 +53,8 @@ configuration files keep working, so switching is usually a matter of replacing
   (`^`, `not:`) forms, plus escapes (`~~`, `^^`) and explicit literals (`text:`).
 - `--ignore` exclusion matchers using the same syntax, including inverted ignores.
 - `{% raw %}{{.OS}}{% endraw %}` and `{% raw %}{{.Arch}}{% endraw %}` template
-  variables in configured `asset_filters` and `ignore` values.
+  variables in `--file`, `--asset`, and `--binary` / `--name`, their configuration
+  equivalents, and configured `ignore` values.
 - Tag selection with `owner/repo@TAG`, `--tag`, `@latest`, and monorepo tag
   fragment matching.
 - `--binary` (alias `--name`) renames a single extracted file while keeping its
@@ -109,7 +110,7 @@ configuration files keep working, so switching is usually a matter of replacing
 | Regex asset filters | ✅ | ❌ |
 | Negative / anti-match filters | ✅ | ⚠️ literal `^` prefix |
 | `--ignore` exclusion list | ✅ | ❌ |
-| OS/Arch templates in configured filters | ✅ | ❌ |
+| OS/Arch templates in file, asset, and binary options | ✅ | ❌ |
 | Tag selection (`--tag`, tag fragments, monorepos) | ✅ | ✅ |
 | `owner/repo@TAG` shorthand | ✅ | ❌ |
 | Pre-release selection | ✅ | ✅ |

@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/camalot/xget/internal/config"
+	"github.com/camalot/xget/internal/home"
+	"github.com/camalot/xget/internal/installed"
 	"github.com/camalot/xget/internal/options"
 )
 
@@ -241,6 +243,7 @@ func TestRunBinaryRenamesSingleFileSelectedByGlob(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if _, err := w.Write([]byte(name)); err != nil {
 			t.Fatal(err)
 		}
@@ -268,6 +271,86 @@ func TestRunBinaryRenamesSingleFileSelectedByGlob(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(out, "fx")); err != nil {
 			t.Fatalf("all=%t: expected renamed binary: %v", all, err)
 		}
+	}
+}
+
+func TestRunExpandsTildeDestinations(t *testing.T) {
+	for _, destination := range []string{"output directory", "output file", "XGET_BIN", "EGET_BIN"} {
+		t.Run(destination, func(t *testing.T) {
+			work := t.TempDir()
+			t.Chdir(work)
+			t.Setenv("HOME", work)
+			t.Setenv("USERPROFILE", work)
+			t.Setenv("XGET_BIN", "")
+			t.Setenv("EGET_BIN", "")
+			userHome, err := home.Home()
+			if err != nil {
+				t.Fatal(err)
+			}
+			dir := filepath.Join(work, "bin")
+			if err := os.Mkdir(dir, 0750); err != nil {
+				t.Fatal(err)
+			}
+			relative, err := filepath.Rel(userHome, dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tildeDir := "~" + string(os.PathSeparator) + relative
+			archive := filepath.Join(work, "tool.zip")
+			var buf bytes.Buffer
+			writer := zip.NewWriter(&buf)
+			header := &zip.FileHeader{Name: "tool.exe", Method: zip.Deflate}
+			header.SetMode(0755)
+			entry, err := writer.CreateHeader(header)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := entry.Write([]byte("binary contents")); err != nil {
+				t.Fatal(err)
+			}
+			if err := writer.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(archive, buf.Bytes(), 0600); err != nil {
+				t.Fatal(err)
+			}
+			opts := options.Flags{Quiet: true, ExtractFile: "tool.exe"}
+			switch destination {
+			case "output directory":
+				opts.Output = tildeDir + string(os.PathSeparator)
+			case "output file":
+				opts.Output = tildeDir + string(os.PathSeparator) + "tool.exe"
+			default:
+				t.Setenv(destination, tildeDir)
+			}
+			for range 2 {
+				if err := Run(archive, opts); err != nil {
+					t.Fatal(err)
+				}
+			}
+			wantFile := filepath.Join(dir, "tool.exe")
+			// #nosec G304 -- wantFile is inside the test's temporary directory.
+			data, err := os.ReadFile(wantFile)
+			if err != nil || string(data) != "binary contents" {
+				t.Fatalf("extracted content=%q, err=%v", data, err)
+			}
+			storePath, err := installed.DefaultPath()
+			if err != nil {
+				t.Fatal(err)
+			}
+			store, err := installed.Load(storePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			records := installed.SortedPackages(store)
+			if len(records) != 1 || !installed.SamePath(records[0].InstallLocation, dir) ||
+				len(records[0].ExtractedFiles) != 1 || !installed.SamePath(records[0].ExtractedFiles[0], wantFile) {
+				t.Fatalf("tracked records=%#v, want one install in %q", records, dir)
+			}
+			if _, err := os.Stat(filepath.Join(work, "~")); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("literal tilde directory exists or stat failed: %v", err)
+			}
+		})
 	}
 }
 

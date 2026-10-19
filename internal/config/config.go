@@ -375,7 +375,7 @@ func load(warnings io.Writer, explicitPath ...string) (*Config, error) {
 	return decodeConfig(merged, layers[0].path, warnings)
 }
 
-// SubstituteTemplateVars replaces {{.OS}} and {{.Arch}} in a filter string
+// SubstituteTemplateVars replaces {{.OS}} and {{.Arch}} in a string
 // with the actual OS and architecture values based on the system parameter.
 func SubstituteTemplateVars(filter string, system string) string {
 	goos := runtime.GOOS

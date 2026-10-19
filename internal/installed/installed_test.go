@@ -3,6 +3,7 @@ package installed
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -252,7 +253,80 @@ func TestSortedPackagesReturnsEveryLocation(t *testing.T) {
 	if len(packages) != 2 {
 		t.Fatalf("expected two entries, got %#v", packages)
 	}
+
 	if packages[0].InstallLocation != filepath.FromSlash("/mnt/test/bin") {
 		t.Fatalf("expected locations to be sorted, got %#v", packages)
+	}
+}
+
+func TestLoadMergesLegacyFileAndDirectoryLocations(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "bin")
+	file := filepath.Join(dir, "fx.exe")
+	old := Package{
+		Name: "antonmedv/fx", Source: "GitHub",
+		InstallLocation: file, ExtractedFiles: []string{filepath.ToSlash(file)},
+		InstalledTag: "39.2.0", InstalledAt: time.Unix(1, 0),
+	}
+	latest := old
+	latest.Source = "github"
+	latest.InstallLocation = dir
+	latest.InstalledTag = "40.0.0"
+	latest.InstalledAt = time.Unix(2, 0)
+	other := latest
+	other.InstallLocation = filepath.Join(t.TempDir(), "other-bin")
+	other.ExtractedFiles = []string{filepath.Join(other.InstallLocation, "fx.exe")}
+
+	for _, records := range [][]Package{{old, latest, other}, {latest, other, old}} {
+		path := filepath.Join(t.TempDir(), "installed.yml")
+		store := &Store{Packages: map[string][]Package{"github:antonmedv/fx": records}}
+		if err := Save(path, store); err != nil {
+			t.Fatal(err)
+		}
+		loaded, err := Load(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := len(loaded.Packages[old.Key()]); got != 2 {
+			t.Fatalf("record count = %d, want two distinct locations", got)
+		}
+		got, ok := loaded.Find(old.Key(), dir)
+		if !ok || got.InstalledTag != latest.InstalledTag {
+			t.Fatalf("merged record = %#v, found = %t", got, ok)
+		}
+		if err := Save(path, loaded); err != nil {
+			t.Fatal(err)
+		}
+		reloaded, err := Load(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(loaded, reloaded) {
+			t.Fatal("migration did not survive save and reload")
+		}
+	}
+}
+
+func TestSetAndRemoveNormalizeLegacyFileLocation(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "bin")
+	file := filepath.Join(dir, "fx.exe")
+	pkg := Package{
+		Name: "antonmedv/fx", Source: "GitHub",
+		InstallLocation: file, ExtractedFiles: []string{file},
+	}
+	store := &Store{}
+	store.Set(pkg)
+	if _, ok := store.Find(pkg.Key(), dir); !ok {
+		t.Fatalf("expected directory location, got %#v", store.Packages)
+	}
+	updated := pkg
+	updated.InstallLocation = dir
+	updated.InstalledTag = "40.0.0"
+	store.Set(updated)
+	if len(store.Packages[pkg.Key()]) != 1 {
+		t.Fatal("reinstall added a duplicate location")
+	}
+	store.Remove(pkg)
+	if len(store.Packages) != 0 {
+		t.Fatalf("legacy location was not removed: %#v", store.Packages)
 	}
 }

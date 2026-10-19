@@ -61,9 +61,13 @@ xget --asset 'text:~literal-starts-with-tilde'
 
 This gives you a flexible way to choose assets like `.zip` variants, skip provenance files, or prefer only architecture-specific binaries.
 
-## Template Variables in Asset Filters / Ignore Lists
+## Template Variables
 
-The `asset_filters` and `ignore` settings support template variables that are automatically replaced with the appropriate values based on your target system:
+{% raw %}
+
+The `--file`, `--asset`, and `--binary` (alias `--name`) arguments support
+template variables, as do their `file`, `asset_filters`, and `binary`
+configuration settings and configured `ignore` lists:
 
 - `{{.OS}}` - Replaced with the target operating system (e.g., `linux`, `darwin`, `windows`)
 - `{{.Arch}}` - Replaced with the target architecture (e.g., `amd64`, `arm64`, `386`)
@@ -71,8 +75,25 @@ The `asset_filters` and `ignore` settings support template variables that are au
 The values are determined by:
 
 1. The `--system` flag if provided (e.g., `--system linux/amd64`)
-2. The `system` setting in the repository configuration
+2. The effective `system` setting from configuration
 3. The runtime system (detected automatically from your current OS/architecture)
+
+With `--system all`, templates use the runtime OS and architecture. Architecture
+names are Go architecture names (`amd64`, not `x64`; `386`, not `x86`), so archive
+paths must use those names for a template to match.
+
+Select files inside the archive for the target architecture:
+
+```shell
+xget install gerardog/gsudo --file="{{.Arch}}/*.exe"
+```
+
+Use `--all` to extract every matching file without prompting if the glob matches
+more than one file. To filter the release asset and rename a single extracted file:
+
+```shell
+xget install owner/tool --system windows/amd64 --asset="{{.OS}}_{{.Arch}}.zip" --file="{{.Arch}}/tool.exe" --binary="tool-{{.OS}}-{{.Arch}}"
+```
 
 Example:
 
@@ -90,6 +111,11 @@ asset_filters = ["{{.OS}}_{{.Arch}}.tar.gz"]
 When running `xget junegunn/fzf` on a Linux AMD64 system, this will match assets containing `linux_amd64.tar.gz`.
 When running `xget junegunn/fzf --system darwin/arm64`, it will match assets containing `darwin_arm64.tar.gz`.
 
-> Template substitution only applies to `asset_filters`/`ignore` values read from the config file. Passing `--asset` or `--ignore` on the command line uses those values verbatim (no `{{.OS}}`/`{{.Arch}}` substitution).
+Substitution happens after CLI/config precedence is resolved and before asset
+matching, archive glob matching, and binary-name validation. Upgrades also expand
+these variables in stored options. `--ignore` values passed on the command line
+remain literal with respect to templates; configured `ignore` values are expanded.
+
+{% endraw %}
 
 For more examples, see [Usage](index) and [Configuration](../configuration).

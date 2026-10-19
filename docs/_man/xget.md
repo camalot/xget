@@ -41,6 +41,9 @@ header: xget Manual
   place the executable in that directory. The `--to` flag may also be used to
   customize the install location.
 
+  Leading `~` is expanded in output paths, including **`XGET_BIN`**,
+  **`EGET_BIN`**, and stored output paths used for upgrades.
+
   Directories can also be specified as files to extract, and all files within
   them will be extracted. For example:
 
@@ -72,6 +75,10 @@ header: xget Manual
   replacing the existing one, while reinstalling to an already tracked directory
   updates that record in place. `xget upgrade` and `xget uninstall` act on every
   tracked location unless one is selected with `--to` or `--from`.
+
+  Legacy executable-path install locations are normalized to their containing
+  directory. Duplicate records for the same package and directory are merged
+  when loading the store, retaining the newest install record.
 
   The behavior of xget is configurable in a number of ways via options.
   Documentation for these options is provided below.
@@ -446,10 +453,18 @@ header: xget Manual
 
 ## Template variables
 
-  `asset_filters` and `ignore` entries sourced from the configuration file
-  support the template variables `{{.OS}}` and `{{.Arch}}`, which are replaced
-  with the effective target OS and architecture. Values passed on the command
-  line with `--asset` or `--ignore` are used verbatim.
+  `--file`, `--asset`, and `--binary` (alias `--name`), their configuration
+  equivalents (`file`, `asset_filters`, `binary`), and configured `ignore`
+  entries support `{{.OS}}` and `{{.Arch}}`. These are replaced with the
+  effective target OS and Go architecture from `--system` or configuration,
+  falling back to the runtime system when unset or `all`. Substitution is
+  applied before matching or binary-name validation, including during upgrades.
+  Command-line `--ignore` values do not expand templates.
+
+  Example: **`xget install gerardog/gsudo --file="{{.Arch}}/*.exe"`**.
+  Add `--all` to extract every match without prompting when multiple files match.
+  Architecture names must match the archive paths (`amd64`, `arm64`, `386`;
+  not `x64` or `x86`).
 
 ## The config command
 

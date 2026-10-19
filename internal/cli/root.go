@@ -442,17 +442,11 @@ func optionsForTargetProvider(cfg *config.Config, cmd *cobra.Command, f *rootFla
 		opts.Untracked = f.untracked
 	}
 
-	// Template substitution only applies to asset/ignore matchers sourced from the
-	// config file; explicit --asset/--ignore flags are used verbatim.
-	systemForTemplate := opts.System
-	if systemForTemplate == "" {
-		systemForTemplate = fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
-	}
-	if !cmd.Flags().Changed("asset") {
-		opts.Asset = config.SubstituteTemplateVarsSlice(opts.Asset, systemForTemplate)
-	}
+	opts.Asset = config.SubstituteTemplateVarsSlice(opts.Asset, opts.System)
+	opts.ExtractFile = config.SubstituteTemplateVars(opts.ExtractFile, opts.System)
+	opts.Binary = config.SubstituteTemplateVars(opts.Binary, opts.System)
 	if !cmd.Flags().Changed("ignore") {
-		opts.Ignore = config.SubstituteTemplateVarsSlice(opts.Ignore, systemForTemplate)
+		opts.Ignore = config.SubstituteTemplateVarsSlice(opts.Ignore, opts.System)
 	}
 	resolvedSource, err := cfg.ResolveSource(opts.SourceType)
 	if err != nil {

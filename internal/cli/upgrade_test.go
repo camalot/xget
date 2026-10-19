@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/camalot/xget/internal/config"
+	"github.com/camalot/xget/internal/home"
 	"github.com/camalot/xget/internal/installed"
 	"github.com/camalot/xget/internal/options"
 )
@@ -674,8 +677,90 @@ func TestUpgradeAllUsesInstallLocationWhenOutputIsUnset(t *testing.T) {
 	if _, err := runCLI(t, "upgrade", "--all"); err != nil {
 		t.Fatal(err)
 	}
+
 	if (*calls)[0].Opts.Output != "/opt/bin" {
 		t.Fatalf("output = %q", (*calls)[0].Opts.Output)
+	}
+}
+
+func TestUpdateAllReplacesLegacyFileLocationAndRestoresOptions(t *testing.T) {
+	for _, pinned := range []bool{false, true} {
+		t.Run(fmt.Sprintf("pinned=%t", pinned), func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, "fx.exe")
+			pkg := samplePackageAt("antonmedv/fx", "39.2.0", file)
+			pkg.ExtractedFiles = []string{filepath.ToSlash(file)}
+			if pinned {
+				pkg.Options.Tag = "39.2.0"
+			}
+			storePath := useTempInstalledStore(t)
+			if err := installed.Save(storePath, &installed.Store{
+				Packages: map[string][]installed.Package{pkg.Key(): {pkg}},
+			}); err != nil {
+				t.Fatal(err)
+			}
+			stubRefresh(t, map[string]string{pkg.Name: "40.0.0"})
+			original := runEngine
+			t.Cleanup(func() { runEngine = original })
+			calls := 0
+			runEngine = func(target string, opts options.Flags) error {
+				calls++
+				if target != pkg.Name || opts.Output != file {
+					t.Fatalf("unexpected install: target=%q output=%q", target, opts.Output)
+				}
+				updated := pkg
+				updated.InstallLocation = dir
+				updated.InstalledTag = opts.Tag
+				updated.CurrentTag = opts.Tag
+				updated.Options.Tag = opts.Tag
+				return installed.Upsert(storePath, updated)
+			}
+			args := []string{"update", "--all"}
+			if pinned {
+				args = []string{"update", pkg.Name}
+			}
+			if _, err := runCLI(t, args...); err != nil {
+				t.Fatal(err)
+			}
+			got := storedPackage(t, storePath, pkg.Key())
+			if calls != 1 || got.InstallLocation != dir || got.InstalledTag != "40.0.0" {
+				t.Fatalf("calls=%d, record=%#v", calls, got)
+			}
+			wantOptions := pkg.Options
+			if pinned {
+				wantOptions.Tag = "40.0.0"
+			}
+			if !reflect.DeepEqual(got.Options, wantOptions) {
+				t.Fatalf("options=%#v, want %#v", got.Options, wantOptions)
+			}
+		})
+	}
+}
+
+func TestResolveInstalledOptionsExpandsStoredOutput(t *testing.T) {
+	for _, source := range []string{"GitHub", "URL"} {
+		for _, storedOutput := range []string{"", "~/.local/bin/fx.exe"} {
+			pkg := installed.Package{
+				Name: "antonmedv/fx", Source: source,
+				InstallLocation: "~/.local/bin",
+				Options:         installed.Options{Output: storedOutput},
+			}
+			opts, err := resolveInstalledOptions(config.Default(), pkg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			output := storedOutput
+			if output == "" {
+				output = pkg.InstallLocation
+			}
+			want, err := home.Expand(output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if opts.Output != want {
+				t.Fatalf("source=%s, output=%q, want %q", source, opts.Output, want)
+			}
+		}
 	}
 }
 
@@ -995,6 +1080,7 @@ func TestUpgradeLayersGlobalRepoAndStoredOptions(t *testing.T) {
 		"  target: /repo/bin",
 		"  asset_filters:",
 		"    - \"{{.OS}}_{{.Arch}}\"",
+		"  binary: \"tool-{{.OS}}-{{.Arch}}\"",
 		"  pre_release: true",
 	}, "\n")+"\n")
 
@@ -1028,6 +1114,38 @@ func TestUpgradeLayersGlobalRepoAndStoredOptions(t *testing.T) {
 	// Config asset filters get template substitution.
 	if len(opts.Asset) != 1 || opts.Asset[0] != "linux_amd64" {
 		t.Fatalf("asset = %v, want [linux_amd64]", opts.Asset)
+	}
+	if opts.Binary != "tool-linux-amd64" {
+		t.Fatalf("binary = %q, want tool-linux-amd64", opts.Binary)
+	}
+}
+
+func TestUpgradeSubstitutesStoredTemplates(t *testing.T) {
+	for _, source := range []string{"GitHub", "URL"} {
+		t.Run(source, func(t *testing.T) {
+			pkg := samplePackage("owner/tool", "v1.0.0")
+			pkg.Source = source
+			pkg.Options.System = "windows/arm64"
+			pkg.Options.ExtractFile = "{{.Arch}}/*.exe"
+			pkg.Options.Binary = "tool-{{.OS}}-{{.Arch}}"
+			pkg.Options.Asset = []string{"{{.OS}}_{{.Arch}}.zip"}
+			storePath := useTempInstalledStore(t, pkg)
+			calls := stubEngine(t, storePath, nil)
+			if err := applyUpgrade(config.Default(), storePath, pkg, "v1.1.0"); err != nil {
+				t.Fatal(err)
+			}
+			if len(*calls) != 1 {
+				t.Fatalf("engine calls=%d", len(*calls))
+			}
+			opts := (*calls)[0].Opts
+			if opts.ExtractFile != "arm64/*.exe" || opts.Binary != "tool-windows-arm64" ||
+				!reflect.DeepEqual(opts.Asset, []string{"windows_arm64.zip"}) {
+				t.Fatalf("upgrade options=%#v", opts)
+			}
+			if got := storedPackage(t, storePath, pkg.Key()); !reflect.DeepEqual(got.Options, pkg.Options) {
+				t.Fatalf("stored options=%#v, want original templates %#v", got.Options, pkg.Options)
+			}
+		})
 	}
 }
 

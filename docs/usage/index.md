@@ -125,11 +125,30 @@ Use "xget [command] --help" for more information about a command.
 
 When installing an executable, xget will place it in the current directory by default. If the environment variable `XGET_BIN` is non-empty, xget will place the executable there instead.
 
+Leading `~` is expanded in output paths, including `XGET_BIN`, the compatible
+`EGET_BIN` variable, and output paths restored from installed metadata during upgrades.
+
 When a single file is extracted, `--binary NAME` (or `--name NAME`) sets its output file name. The original extension, if any, is kept, so `--binary fx` turns `fx_windows_amd64.exe` into `fx.exe`. The flag is ignored when multiple files are extracted (for example with `--all`) or when `--to` names a file rather than a directory.
 
 ```bash
 xget install antonmedv/fx --binary fx --to ~/.local/bin
 ```
+
+`--file`, `--asset`, and `--binary` (including `--name`) accept
+`{% raw %}{{.OS}}{% endraw %}` and `{% raw %}{{.Arch}}{% endraw %}` templates.
+They use the effective `--system` / configured `system`, or the runtime OS and
+architecture when unset or `all`. For example:
+
+{% raw %}
+
+```shell
+xget install gerardog/gsudo --file="{{.Arch}}/*.exe"
+```
+
+{% endraw %}
+
+Add `--all` to extract every matching file without prompting when several files
+match. See [template variables](asset-filtering#template-variables) for details.
 
 Directories may also be specified as files to extract. When that happens, xget extracts everything inside the directory. For example:
 

@@ -139,10 +139,17 @@ func (s *Store) migrate() {
 			migrated[newKey] = append(migrated[newKey], pkg)
 		}
 	}
-	for key := range migrated {
-		sortRecords(migrated[key])
+	s.Packages = map[string][]Package{}
+	for key, records := range migrated {
+		for _, pkg := range records {
+			existing, ok := s.Find(key, pkg.InstallLocation)
+			if ok && (existing.InstalledAt.After(pkg.InstalledAt) ||
+				(existing.InstalledAt.Equal(pkg.InstalledAt) && existing.RefreshedAt.After(pkg.RefreshedAt))) {
+				continue
+			}
+			s.set(key, pkg)
+		}
 	}
-	s.Packages = migrated
 }
 
 func normalize(pkg Package) Package {
@@ -150,6 +157,12 @@ func normalize(pkg Package) Package {
 		pkg.Name = pkg.Repo
 	}
 	pkg.Repo = ""
+	for _, file := range pkg.ExtractedFiles {
+		if pkg.InstallLocation != "" && SamePath(pkg.InstallLocation, file) {
+			pkg.InstallLocation = filepath.Dir(expandPath(pkg.InstallLocation))
+			break
+		}
+	}
 	return pkg
 }
 
@@ -229,7 +242,10 @@ func (s *Store) Set(pkg Package) {
 		s.Packages = map[string][]Package{}
 	}
 	pkg = normalize(pkg)
-	key := pkg.Key()
+	s.set(pkg.Key(), pkg)
+}
+
+func (s *Store) set(key string, pkg Package) {
 	for i, existing := range s.Packages[key] {
 		if SamePath(existing.InstallLocation, pkg.InstallLocation) {
 			s.Packages[key][i] = pkg
@@ -243,6 +259,7 @@ func (s *Store) Set(pkg Package) {
 // Remove drops the record for the package's install location, and drops the key
 // entirely once its last location is gone.
 func (s *Store) Remove(pkg Package) {
+	pkg = normalize(pkg)
 	key := pkg.Key()
 	records, ok := s.Packages[key]
 	if !ok {

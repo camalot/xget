@@ -367,6 +367,13 @@ func resolveInstalledOptions(cfg *config.Config, pkg installed.Package) (options
 	if stored.Output != "" {
 		opts.Output = stored.Output
 	}
+	if opts.Output == "" {
+		opts.Output = pkg.InstallLocation
+	}
+	opts.Output, err = home.Expand(opts.Output)
+	if err != nil {
+		return options.Flags{}, err
+	}
 	if stored.Binary != "" {
 		opts.Binary = stored.Binary
 	}
@@ -394,6 +401,10 @@ func resolveInstalledOptions(cfg *config.Config, pkg installed.Package) (options
 	if opts.SourceType == "" {
 		opts.SourceType = pkg.Source
 	}
+	opts.Asset = config.SubstituteTemplateVarsSlice(opts.Asset, opts.System)
+	opts.Ignore = config.SubstituteTemplateVarsSlice(opts.Ignore, opts.System)
+	opts.ExtractFile = config.SubstituteTemplateVars(opts.ExtractFile, opts.System)
+	opts.Binary = config.SubstituteTemplateVars(opts.Binary, opts.System)
 	if strings.EqualFold(opts.SourceType, "URL") {
 		return opts, nil
 	}
@@ -406,12 +417,6 @@ func resolveInstalledOptions(cfg *config.Config, pkg installed.Package) (options
 	}
 	opts.SourceType = resolvedSource.Name
 	opts.SourceConfig = resolvedSource
-	if opts.Output == "" {
-		opts.Output = pkg.InstallLocation
-	}
-
-	opts.Asset = config.SubstituteTemplateVarsSlice(opts.Asset, opts.System)
-	opts.Ignore = config.SubstituteTemplateVarsSlice(opts.Ignore, opts.System)
 	return opts, nil
 }
 
@@ -435,7 +440,7 @@ func restoreStoredOptions(storePath string, pkg installed.Package) error {
 	if err != nil {
 		return err
 	}
-	current, ok := store.Find(pkg.Key(), pkg.InstallLocation)
+	current, ok := store.Find(pkg.Key(), installedLocation(pkg))
 	if !ok {
 		return nil
 	}
