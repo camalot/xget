@@ -7,10 +7,10 @@ dotenv:
 
 vars:
   GITHUB_TOKEN_NAME: GITHUB_TOKEN
-
+  CAMALOT_ACTIONS_VERSION: v1
 includes:
   codeql:
-    taskfile: 'https://github.com/camalot/actions.git//smells/codeql/Taskfile.yml?ref=v1'
+    taskfile: 'https://raw.githubusercontent.com/camalot/actions/refs/tags/{{.CAMALOT_ACTIONS_VERSION}}/smells/codeql/Taskfile.yml'
     flatten: true
     internal: true
 
