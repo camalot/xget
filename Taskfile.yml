@@ -12,8 +12,10 @@ vars:
 includes:
   codeql:
     # as git over ssh
-    taskfile: 'git@github.com:camalot/actions.git//smells/codeql/TaskFile.yml?ref=v1'
+    taskfile: 'git@github.com:camalot/actions.git//smells/codeql/Taskfile.yml?ref=v1'
     flatten: true
+    internal: true
+
 
 tasks:
 
