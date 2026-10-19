@@ -18,6 +18,14 @@ jobs:
       security-events: write
 
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: go
+            build-mode: none
     steps:
       - uses: actions/checkout@v7
         with:
@@ -25,12 +33,7 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - uses: camalot/actions/codeql@v1
+      - uses: camalot/actions/smells/codeql@v1
         with:
-          languages: go
-
-      # - uses: github/codeql-action/init@v4
-      #   with:
-      #     languages: go
-      # - uses: github/codeql-action/autobuild@v4
-      # - uses: github/codeql-action/analyze@v4
+          language: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
