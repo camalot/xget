@@ -1,7 +1,19 @@
 ---
 
 version: '3'
-vars: {}
+
+dotenv:
+  - .secrets
+  - .env
+
+vars:
+  GITHUB_TOKEN_NAME: GITHUB_TOKEN
+
+includes:
+  codeql:
+    # as git over ssh
+    taskfile: 'git@github.com:camalot/actions.git//smells/codeql/TaskFile.yml?ref=v1'
+    flatten: true
 
 tasks:
 
@@ -27,7 +39,7 @@ tasks:
     internal: true
     deps:
       - require-xget
-    desc: Install golangci-lint into GOBIN
+    desc: Install golangci-lint
     if: '! command -v golangci-lint >/dev/null 2>&1'
     status:
       - '! command -v golangci-lint >/dev/null 2>&1'
@@ -38,7 +50,7 @@ tasks:
     internal: true
     deps:
       - require-xget
-    desc: Install govulncheck into GOBIN
+    desc: Install govulncheck
     if: '! command -v govulncheck >/dev/null 2>&1'
     status:
       - '! command -v govulncheck >/dev/null 2>&1'
@@ -49,7 +61,7 @@ tasks:
     internal: true
     deps:
       - require-xget
-    desc: Install typos-action into GOBIN
+    desc: Install typos-action
     if: '! command -v typos >/dev/null 2>&1'
     status:
       - '! command -v typos >/dev/null 2>&1'
@@ -60,7 +72,7 @@ tasks:
     internal: true
     deps:
       - require-xget
-    desc: Install pandoc into GOBIN
+    desc: Install pandoc
     if: '! command -v pandoc >/dev/null 2>&1'
     status:
       - '! command -v pandoc >/dev/null 2>&1'
@@ -83,7 +95,7 @@ tasks:
 
   typos:check:
     internal: true
-    desc: 'CI job "typos": check for typos'
+    desc: 'check for typos'
     cmds:
       - typos
 
@@ -94,13 +106,13 @@ tasks:
 
   tidy:check:
     internal: true
-    desc: 'CI job "lint": fail if go mod tidy would change any module''s go.mod/go.sum'
+    desc: 'fail if go mod tidy would change any module''s go.mod/go.sum'
     cmds:
       - bash ./scripts/check-tidy.sh
 
   build-snapshot:
     internal: true
-    desc: 'CI job "build-snapshot": goreleaser snapshot of every target'
+    desc: 'goreleaser snapshot of every target'
     env:
       # cgo cross-compilation for android needs the NDK, which is only present in CI.
       XGET_SKIP_ANDROID: '{{.SKIP_ANDROID | default "true"}}'
@@ -165,48 +177,20 @@ tasks:
 
   vet:
     internal: true
-    desc: 'CI job "vet-and-vuln": go vet'
+    desc: 'go vet'
     cmds:
       - go vet ./...
 
   vuln:
     internal: true
-    desc: 'CI job "vet-and-vuln": govulncheck'
+    desc: 'govulncheck'
     cmds:
       - govulncheck ./...
 
   codeql:
-    internal: true
-    desc: 'codeql.yml workflow: CodeQL Go analysis with the same code-scanning suite; fails on any alert'
     cmds:
-      # Uses a codeql CLI on PATH, else the official gh extension; skips loudly
-      # like 'race' does without a C compiler.
-      - |
-        if command -v codeql >/dev/null 2>&1; then
-          cq="codeql"
-        elif gh codeql version >/dev/null 2>&1; then
-          cq="gh codeql"
-        else
-          echo "⚠ skipping CodeQL: no CLI found (install with: gh extension install github/gh-codeql) - CI still runs codeql.yml."
-          exit 0
-        fi
-        mkdir -p .codeql
-        if ! $cq database create .codeql/db --language=go --source-root=. --overwrite >.codeql/create.log 2>&1; then
-          cat .codeql/create.log
-          exit 1
-        fi
-        if ! $cq database analyze .codeql/db codeql/go-queries:codeql-suites/go-code-scanning.qls --download --format=sarif-latest --output=.codeql/results.sarif >.codeql/analyze.log 2>&1; then
-          cat .codeql/analyze.log
-          exit 1
-        fi
-        # -j: no trailing newline (Windows jq writes CRLF).
-        count="$(jq -j '[.runs[].results[]] | length' .codeql/results.sarif)"
-        if [ "$count" != "0" ]; then
-          jq -r '.runs[].results[] | "\(.ruleId) \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine): \(.message.text)"' .codeql/results.sarif
-          echo "CodeQL found $count alert(s); full report: .codeql/results.sarif"
-          exit 1
-        fi
-        echo "CodeQL: no alerts"
+      - task: codeql:actions:.
+      - task: codeql:go:.
 
   fmt:check:
     silent: true
@@ -223,7 +207,7 @@ tasks:
         fi
 
   test:
-    desc: 'CI job "test": build + full test suite with coverage'
+    desc: 'build + full test suite with coverage'
     cmds:
       - go build ./...
       - go test ./... -coverprofile=coverage.out

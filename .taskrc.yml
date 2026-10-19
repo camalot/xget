@@ -1,0 +1,10 @@
+---
+remote:
+  headers:
+    - host: github.com
+      headers:
+        Authorization: Bearer {{ env "GITHUB_TOKEN"}}
+  trusted-hosts:
+    - github.com
+  cache-dir: .task
+temp-dir: .task
