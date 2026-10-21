@@ -1,4 +1,74 @@
 
+## [v2.6.0](https://github.com/camalot/xget/releases/tag/v2.6.0) - 2026-10-19
+
+### 🚀 FEATURES
+
+#### _GENERAL_
+
+- Added support for {{ .OS }} and {{ .Arch }} template variables in --file, --asset, --binary/--name -[@camalot](https://github.com/camalot)
+
+
+### 🐛 BUG FIXES
+
+
+#### _TASKFILE_
+- Trust the raw url -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+- Updates to use the shared codeql -[@camalot](https://github.com/camalot)
+
+- Update reference -[@camalot](https://github.com/camalot)
+
+
+### ⚙️ MISCELLANEOUS TASKS
+
+
+#### _ACTION_
+- Update codeql action call -[@camalot](https://github.com/camalot)
+
+- Fix only run on main branch PR -[@camalot](https://github.com/camalot)
+
+
+#### _CODEQL_
+- Set build-mode to autobuild for go -[@camalot](https://github.com/camalot)
+
+
+#### _LINT_
+- Fix missing yaml doc start -[@camalot](https://github.com/camalot)
+
+
+#### _REPO_
+- Update typos config -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot)
+## 📈 Commit Statistics
+
+
+- `9` commits contributed to the release.
+- `1` day has passed between the first and last commit.
+- `9` commits parsed as conventional.
+- `0` linked issues detected in commits.
+- `3` days  have passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[9,1,1,9,0,3]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.5.1...v2.6.0
+
 ## [v2.5.1](https://github.com/camalot/xget/releases/tag/v2.5.1) - 2026-10-16
 
 ### 🐛 BUG FIXES
