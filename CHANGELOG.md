@@ -1,4 +1,54 @@
 
+## [v2.7.0](https://github.com/camalot/xget/releases/tag/v2.7.0) - 2026-10-21
+
+### 🚀 FEATURES
+
+#### _GENERAL_
+
+- Added flag/setting to not clobber global list values -[@camalot](https://github.com/camalot)
+
+
+### 💼 OTHER
+
+#### _GENERAL_
+
+- Merge branch 'main' of github.com:camalot/xget -[@camalot](https://github.com/camalot)
+
+- Main' of github.com:camalot/xget: -[@camalot](https://github.com/camalot)
+
+
+### 📚 DOCUMENTATION
+
+#### _GENERAL_
+
+- docs: update changelog for v2.6.0 -[@camalot](https://github.com/camalot)
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot)
+## 📈 Commit Statistics
+
+
+- `4` commits contributed to the release.
+- `0` days have passed between the first and last commit.
+- `1` commits parsed as conventional.
+- `0` linked issues detected in commits.
+- `2` days  have passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[4,1,0,1,0,2]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.6.0...v2.7.0
+
 ## [v2.6.0](https://github.com/camalot/xget/releases/tag/v2.6.0) - 2026-10-19
 
 ### 🚀 FEATURES
