@@ -35,7 +35,7 @@ jobs:
     # choco pack requires the Chocolatey CLI, which is only preinstalled on windows runners
     runs-on: windows-latest
     steps:
-      - uses: actions/create-github-app-token@v3.2.0
+      - uses: actions/create-github-app-token@v3.3.0
         id: xget-bot-token
         with:
           client-id: ${{ vars.XGET_APP_CLIENT_ID }}
