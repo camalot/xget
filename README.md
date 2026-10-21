@@ -299,21 +299,6 @@ eget camalot/xget --asset "^.sbom.json"
 Already have `xget`? Upgrade in place with `xget self-update`.
 Full instructions: <https://camalot.github.io/xget/installation.html>
 
-### Platform-aware file selection
-
-Use `{{.OS}}` and `{{.Arch}}` in `--file`, `--asset`, and `--binary` (or `--name`)
-to select and name binaries for the target platform:
-
-```shell
-xget install gerardog/gsudo --file="{{.Arch}}/*.exe"
-```
-
-Values follow `--system` or the configured system, defaulting to the runtime OS
-and Go architecture (such as `windows` and `amd64`). Add `--all` to extract every
-matching file without prompting when multiple files match. See
-[template variables](https://camalot.github.io/xget/usage/asset-filtering.html#template-variables)
-for more examples.
-
 <!-- markdownlint-enable MD033 -->
 <!--- END INSTALL SECTION --->
 

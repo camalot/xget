@@ -256,6 +256,118 @@ func TestOptionsForTarget_UsesConfigIgnoreAndOverrides(t *testing.T) {
 	}
 }
 
+func TestOptionsForTargetMergesGlobalArrays(t *testing.T) {
+	cfg := config.Default()
+	cfg.Global.Ignore = []string{".sbom.json"}
+	cfg.Repositories["foo/bar"] = config.Repository{Ignore: []string{"debug"}}
+	flags := &rootFlags{}
+	cmd := newInstallCommand(flags)
+	if err := cmd.ParseFlags([]string{"--ignore", "musl", "--clobber_global.ignore=false"}); err != nil {
+		t.Fatal(err)
+	}
+	opts, err := optionsForTarget(cfg, cmd, flags, "foo/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(opts.Ignore, []string{"musl", "debug", ".sbom.json"}) {
+		t.Fatalf("merged ignore = %#v", opts.Ignore)
+	}
+}
+
+func TestOptionsForTargetClobberPrecedence(t *testing.T) {
+	tests := []struct {
+		name    string
+		global  string
+		repo    string
+		args    []string
+		want    []string
+		wantCLI []string
+	}{
+		{name: "default replacement", want: []string{"repo", "shared"}, wantCLI: []string{"cli", "shared"}},
+		{name: "global merge", global: "false", want: []string{"repo", "shared", "global"}, wantCLI: []string{"cli", "shared", "repo", "global"}},
+		{name: "repository merge", global: "true", repo: "false", want: []string{"repo", "shared", "global"}, wantCLI: []string{"cli", "shared", "repo", "global"}},
+		{name: "repository replacement", global: "false", repo: "true", want: []string{"repo", "shared"}, wantCLI: []string{"cli", "shared"}},
+		{name: "CLI merge", repo: "true", args: []string{"--clobber_global.ignore=false", "--clobber_global.asset_filters=false"}, want: []string{"repo", "shared", "global"}, wantCLI: []string{"cli", "shared", "repo", "global"}},
+		{name: "CLI replacement", global: "false", repo: "false", args: []string{"--clobber_global.ignore=true", "--clobber_global.asset_filters=true"}, want: []string{"repo", "shared"}, wantCLI: []string{"cli", "shared"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			content := "global:\n  config_merge: false\n  ignore: [global, shared]\n  asset_filters: [global, shared]\n  target: global-bin\n"
+			if test.global != "" {
+				content += "  clobber_global:\n    ignore: " + test.global + "\n    asset_filters: " + test.global + "\n"
+			}
+			content += "foo/bar:\n  ignore: [repo, shared]\n  asset_filters: [repo, shared]\n  target: repo-bin\n"
+			if test.repo != "" {
+				content += "  clobber_global:\n    ignore: " + test.repo + "\n    asset_filters: " + test.repo + "\n"
+			}
+			path := filepath.Join(t.TempDir(), ".xget.yml")
+			if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.LoadQuiet(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			flags := &rootFlags{}
+			cmd := newInstallCommand(flags)
+			if err := cmd.ParseFlags(test.args); err != nil {
+				t.Fatal(err)
+			}
+			opts, err := optionsForTarget(cfg, cmd, flags, "foo/bar")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(opts.Ignore, test.want) || !reflect.DeepEqual(opts.Asset, test.want) || opts.Output != "repo-bin" {
+				t.Fatalf("config resolution = %#v; want arrays %v and repository scalar", opts, test.want)
+			}
+			if err := cmd.ParseFlags([]string{"--ignore", "cli,shared", "--asset", "cli,shared", "--to", "cli-bin"}); err != nil {
+				t.Fatal(err)
+			}
+			opts, err = optionsForTarget(cfg, cmd, flags, "foo/bar")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(opts.Ignore, test.wantCLI) || !reflect.DeepEqual(opts.Asset, test.wantCLI) || opts.Output != "cli-bin" {
+				t.Fatalf("CLI resolution = %#v; want arrays %v and CLI scalar", opts, test.wantCLI)
+			}
+			if !reflect.DeepEqual(cfg.Global.Ignore, []string{"global", "shared"}) || !reflect.DeepEqual(cfg.Repositories["foo/bar"].Ignore, []string{"repo", "shared"}) {
+				t.Fatal("resolution mutated the loaded configuration")
+			}
+		})
+	}
+}
+
+func TestOptionsForTargetClobberArraysIndependent(t *testing.T) {
+	cfg := config.Default()
+	cfg.Global.Ignore = []string{"global-ignore"}
+	cfg.Global.AssetFilters = []string{"global-asset"}
+	cfg.Global.ClobberGlobal = map[string]bool{"ignore": false, "asset_filters": false}
+	cfg.Repositories["foo/bar"] = config.Repository{
+		Ignore:        []string{},
+		AssetFilters:  []string{},
+		ClobberGlobal: map[string]bool{"ignore": true},
+	}
+	opts, err := configOptionsForTarget(cfg, "foo/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(opts.Ignore) != 0 || !reflect.DeepEqual(opts.Asset, cfg.Global.AssetFilters) {
+		t.Fatalf("independent controls with empty arrays = %#v", opts)
+	}
+	flags := &rootFlags{}
+	cmd := newInstallCommand(flags)
+	if err := cmd.ParseFlags([]string{"--ignore", "cli", "--asset", "cli"}); err != nil {
+		t.Fatal(err)
+	}
+	opts, err = optionsForTarget(cfg, cmd, flags, "unknown/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(opts.Ignore, []string{"cli", "global-ignore"}) || !reflect.DeepEqual(opts.Asset, []string{"cli", "global-asset"}) {
+		t.Fatalf("merge without repository section = %#v", opts)
+	}
+}
+
 func TestOptionsForTarget_UntrackedFlag(t *testing.T) {
 	cfg := &config.Config{}
 

@@ -89,8 +89,8 @@ func TestSectionKeysCoverGlobalAndRepository(t *testing.T) {
 	if globals["disable_token_warning"] != KindBool {
 		t.Fatalf("global disable_token_warning kind = %v", globals["disable_token_warning"])
 	}
-	if _, ok := globals["asset_filters"]; ok {
-		t.Fatal("asset_filters must not be a global key")
+	if globals["asset_filters"] != KindStringSlice {
+		t.Fatal("asset_filters must be a global list key")
 	}
 
 	repos := SectionKeys("owner/repo")
@@ -345,8 +345,51 @@ func TestSetRejectsUnknownKeyAndBadBool(t *testing.T) {
 	if err := doc.Set("bad-section", "quiet", "true"); err == nil {
 		t.Fatal("expected section error")
 	}
-	if err := doc.Set(GlobalSection, "asset_filters", "x"); err == nil {
-		t.Fatal("asset_filters is not a global key")
+	if err := doc.Set(GlobalSection, "clobber_global.ignore", "invalid"); err == nil {
+		t.Fatal("expected nested bool parse error")
+	}
+}
+
+func TestDocumentClobberGlobal(t *testing.T) {
+	for _, ext := range []string{"yml", "toml"} {
+		t.Run(ext, func(t *testing.T) {
+			doc, err := LoadDocument(filepath.Join(t.TempDir(), ".xget."+ext))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, section := range []string{GlobalSection, "foo/bar"} {
+				for _, key := range []string{"clobber_global.ignore", "clobber_global.asset_filters"} {
+					if err := doc.Set(section, key, "false"); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			if err := doc.Save(); err != nil {
+				t.Fatal(err)
+			}
+			doc, err = LoadDocument(doc.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if entries := doc.Entries(); len(entries) != 4 || entries[0].Key != "clobber_global.asset_filters" || entries[0].Value != "false" {
+				t.Fatalf("entries = %#v", entries)
+			}
+			for _, section := range []string{GlobalSection, "foo/bar"} {
+				values, err := doc.Get(section, "clobber_global.ignore")
+				if err != nil || !reflect.DeepEqual(values, []string{"false"}) {
+					t.Fatalf("get = %v, %v", values, err)
+				}
+				if err := doc.Pop(section, "clobber_global.ignore", "false"); err != nil {
+					t.Fatal(err)
+				}
+				if err := doc.Clear(section, "clobber_global.asset_filters"); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := doc.Get(section, "clobber_global.ignore"); !errors.Is(err, ErrKeyNotSet) {
+					t.Fatalf("get after pop = %v", err)
+				}
+			}
+		})
 	}
 }
 

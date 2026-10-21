@@ -87,6 +87,19 @@ xget config set zyedidia/micro asset_filters=static
 xget config set zyedidia/micro asset_filters=.tar.gz
 ```
 
+To merge arrays during installation instead of replacing inherited values:
+
+```bash
+xget config set global clobber_global.ignore=false
+xget config set global clobber_global.asset_filters=false
+xget config set zyedidia/micro clobber_global.ignore=true
+```
+
+Each control defaults to `true`. Repository controls override global controls;
+install flags such as `--clobber_global.ignore=false` override both. These
+controls affect array inheritance at installation time, not the append behavior
+of `config set`. See [array merging](index#merging-arrays-with-clobber_global).
+
 > [!IMPORTANT]
 > **Shell quoting caveat:** always quote matchers that start with `~` (for example
 > `--ignore '~\.sha512$'`). Unquoted, most shells — including PowerShell, bash, and

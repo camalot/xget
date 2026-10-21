@@ -69,6 +69,11 @@ func buildKeys(v any) map[string]ValueKind {
 			if field.Type.Elem().Kind() == reflect.String {
 				keys[tag] = KindStringSlice
 			}
+		case reflect.Map:
+			if tag == "clobber_global" {
+				keys[tag+".ignore"] = KindBool
+				keys[tag+".asset_filters"] = KindBool
+			}
 		}
 	}
 	return keys
@@ -343,6 +348,26 @@ func (d *Document) ensureSection(name string) map[string]any {
 	return created
 }
 
+func (d *Document) keySection(section, key string, create bool) (map[string]any, string, bool) {
+	sec, ok := d.section(section)
+	if create {
+		sec, ok = d.ensureSection(section), true
+	}
+	if !ok {
+		return nil, key, false
+	}
+	if nested, found := strings.CutPrefix(key, "clobber_global."); found {
+		values, exists := mapValue(sec, "clobber_global")
+		if !exists && create {
+			values = map[string]any{}
+			sec["clobber_global"] = values
+			exists = true
+		}
+		return values, nested, exists
+	}
+	return sec, key, true
+}
+
 func toStringSlice(value any) []string {
 	switch typed := value.(type) {
 	case nil:
@@ -397,7 +422,7 @@ func (d *Document) Set(section, key, value string) error {
 	if err != nil {
 		return err
 	}
-	sec := d.ensureSection(section)
+	sec, key, _ := d.keySection(section, key, true)
 
 	if kind == KindStringSlice {
 		items := toStringSlice(sec[key])
@@ -426,7 +451,7 @@ func (d *Document) Get(section, key string) ([]string, error) {
 	if _, err := lookupKey(section, key); err != nil {
 		return nil, err
 	}
-	sec, ok := d.section(section)
+	sec, key, ok := d.keySection(section, key, false)
 	if !ok {
 		return nil, ErrKeyNotSet
 	}
@@ -449,7 +474,7 @@ func (d *Document) Clear(section, key string) error {
 	if _, err := lookupKey(section, key); err != nil {
 		return err
 	}
-	sec, ok := d.section(section)
+	sec, key, ok := d.keySection(section, key, false)
 	if !ok {
 		return ErrKeyNotSet
 	}
@@ -470,7 +495,7 @@ func (d *Document) Pop(section, key, value string) error {
 	if err != nil {
 		return err
 	}
-	sec, ok := d.section(section)
+	sec, key, ok := d.keySection(section, key, false)
 	if !ok {
 		return ErrKeyNotSet
 	}
@@ -570,6 +595,22 @@ func (d *Document) Entries() []Entry {
 		}
 		sort.Strings(keys)
 		for _, key := range keys {
+			if key == "clobber_global" {
+				values, exists := mapValue(sec, key)
+				if exists {
+					nestedKeys := make([]string, 0, len(values))
+					for nested := range values {
+						nestedKeys = append(nestedKeys, nested)
+					}
+					sort.Strings(nestedKeys)
+					for _, nested := range nestedKeys {
+						for _, value := range FormatValues(values[nested]) {
+							entries = append(entries, Entry{Section: name, Key: key + "." + nested, Value: value})
+						}
+					}
+					continue
+				}
+			}
 			for _, value := range FormatValues(sec[key]) {
 				entries = append(entries, Entry{Section: name, Key: key, Value: value})
 			}

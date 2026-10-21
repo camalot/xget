@@ -84,6 +84,8 @@ Flags:
       --all                      extract all candidate files
   -a, --asset strings            filter assets by matcher; regex prefixes: ~, =~, re:, negative prefixes: ^ or not:, escapes: ~~ and ^^, explicit literal: text: (for example ^musl, not:~.*\.sbom\.json$, text:~literal); quote patterns starting with ~ so your shell doesn't expand it to a home directory path
       --binary string            rename a single extracted file to this name, keeping its extension (ignored when multiple files are extracted)
+      --clobber_global.asset_filters   replace inherited asset_filters values instead of merging (default true)
+      --clobber_global.ignore          replace inherited ignore values instead of merging (default true)
   -c, --config string            path to the config file to use
   -k, --disable-ssl              disable SSL verification for download requests
   -D, --download-all             download all projects defined in the config file
@@ -112,6 +114,11 @@ Flags:
 
 Use "xget [command] --help" for more information about a command.
 ```
+
+Array flags replace inherited values by default. Use
+`--clobber_global.ignore=false` to merge `--ignore` with repository and global
+ignores, or `--clobber_global.asset_filters=false` to merge `--asset` with
+configured asset filters. See [configuration array merging](../configuration/index#merging-arrays-with-clobber_global).
 
 ## Exit codes
 

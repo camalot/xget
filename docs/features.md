@@ -77,6 +77,8 @@ configuration files keep working, so switching is usually a matter of replacing
   fallbacks for compatibility.
 - `xget config get/set/pop/clear/list/path/edit` for command-line management.
 - Global and per-repository sections with defined precedence.
+- Per-array `clobber_global` controls for `ignore` and `asset_filters`, with
+  opt-in merging across global settings, repository settings, and CLI flags.
 - Environment files (`.secrets`, `*.secrets`, `.env`, `*.env`) loaded per run.
 - Tokens from `XGET_GITHUB_TOKEN`, `EGET_GITHUB_TOKEN`, or `GITHUB_TOKEN`.
 

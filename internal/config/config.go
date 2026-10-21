@@ -16,44 +16,47 @@ import (
 
 // Global holds settings applied to every target unless overridden.
 type Global struct {
-	All                 bool     `mapstructure:"all" toml:"all" yaml:"all"`
-	ConfigMerge         bool     `mapstructure:"config_merge" toml:"config_merge" yaml:"config_merge"`
-	Ignore              []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
-	DownloadOnly        bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
-	File                string   `mapstructure:"file" toml:"file" yaml:"file"`
-	GithubToken         string   `mapstructure:"github_token" toml:"github_token" yaml:"github_token"`
-	Quiet               bool     `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
-	ShowHash            bool     `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
-	Source              bool     `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
-	System              string   `mapstructure:"system" toml:"system" yaml:"system"`
-	Target              string   `mapstructure:"target" toml:"target" yaml:"target"`
-	UpgradeOnly         bool     `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
-	DisableSSL          bool     `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
-	SourceType          string   `mapstructure:"source" toml:"source" yaml:"source"`
-	DisableTokenWarning bool     `mapstructure:"disable_token_warning" toml:"disable_token_warning" yaml:"disable_token_warning"`
-	XgetUpdateCheck     bool     `mapstructure:"xget_update_check" toml:"xget_update_check" yaml:"xget_update_check"`
+	AssetFilters        []string        `mapstructure:"asset_filters" toml:"asset_filters" yaml:"asset_filters"`
+	ClobberGlobal       map[string]bool `mapstructure:"clobber_global" toml:"clobber_global" yaml:"clobber_global"`
+	All                 bool            `mapstructure:"all" toml:"all" yaml:"all"`
+	ConfigMerge         bool            `mapstructure:"config_merge" toml:"config_merge" yaml:"config_merge"`
+	Ignore              []string        `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
+	DownloadOnly        bool            `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
+	File                string          `mapstructure:"file" toml:"file" yaml:"file"`
+	GithubToken         string          `mapstructure:"github_token" toml:"github_token" yaml:"github_token"`
+	Quiet               bool            `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
+	ShowHash            bool            `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
+	Source              bool            `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
+	System              string          `mapstructure:"system" toml:"system" yaml:"system"`
+	Target              string          `mapstructure:"target" toml:"target" yaml:"target"`
+	UpgradeOnly         bool            `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
+	DisableSSL          bool            `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
+	SourceType          string          `mapstructure:"source" toml:"source" yaml:"source"`
+	DisableTokenWarning bool            `mapstructure:"disable_token_warning" toml:"disable_token_warning" yaml:"disable_token_warning"`
+	XgetUpdateCheck     bool            `mapstructure:"xget_update_check" toml:"xget_update_check" yaml:"xget_update_check"`
 }
 
 // Repository holds per-repository overrides.
 type Repository struct {
-	All          bool     `mapstructure:"all" toml:"all" yaml:"all"`
-	AssetFilters []string `mapstructure:"asset_filters" toml:"asset_filters" yaml:"asset_filters"`
-	Binary       string   `mapstructure:"binary" toml:"binary" yaml:"binary"`
-	Ignore       []string `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
-	DownloadOnly bool     `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
-	File         string   `mapstructure:"file" toml:"file" yaml:"file"`
-	Name         string   `mapstructure:"name" toml:"name" yaml:"name"`
-	Prerelease   bool     `mapstructure:"pre_release" toml:"pre_release" yaml:"pre_release"`
-	Quiet        bool     `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
-	ShowHash     bool     `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
-	Source       bool     `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
-	System       string   `mapstructure:"system" toml:"system" yaml:"system"`
-	Tag          string   `mapstructure:"tag" toml:"tag" yaml:"tag"`
-	Target       string   `mapstructure:"target" toml:"target" yaml:"target"`
-	UpgradeOnly  bool     `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
-	Verify       string   `mapstructure:"verify_sha256" toml:"verify_sha256" yaml:"verify_sha256"`
-	DisableSSL   bool     `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
-	SourceType   string   `mapstructure:"source" toml:"source" yaml:"source"`
+	ClobberGlobal map[string]bool `mapstructure:"clobber_global" toml:"clobber_global" yaml:"clobber_global"`
+	All           bool            `mapstructure:"all" toml:"all" yaml:"all"`
+	AssetFilters  []string        `mapstructure:"asset_filters" toml:"asset_filters" yaml:"asset_filters"`
+	Binary        string          `mapstructure:"binary" toml:"binary" yaml:"binary"`
+	Ignore        []string        `mapstructure:"ignore" toml:"ignore" yaml:"ignore"`
+	DownloadOnly  bool            `mapstructure:"download_only" toml:"download_only" yaml:"download_only"`
+	File          string          `mapstructure:"file" toml:"file" yaml:"file"`
+	Name          string          `mapstructure:"name" toml:"name" yaml:"name"`
+	Prerelease    bool            `mapstructure:"pre_release" toml:"pre_release" yaml:"pre_release"`
+	Quiet         bool            `mapstructure:"quiet" toml:"quiet" yaml:"quiet"`
+	ShowHash      bool            `mapstructure:"show_hash" toml:"show_hash" yaml:"show_hash"`
+	Source        bool            `mapstructure:"download_source" toml:"download_source" yaml:"download_source"`
+	System        string          `mapstructure:"system" toml:"system" yaml:"system"`
+	Tag           string          `mapstructure:"tag" toml:"tag" yaml:"tag"`
+	Target        string          `mapstructure:"target" toml:"target" yaml:"target"`
+	UpgradeOnly   bool            `mapstructure:"upgrade_only" toml:"upgrade_only" yaml:"upgrade_only"`
+	Verify        string          `mapstructure:"verify_sha256" toml:"verify_sha256" yaml:"verify_sha256"`
+	DisableSSL    bool            `mapstructure:"disable_ssl" toml:"disable_ssl" yaml:"disable_ssl"`
+	SourceType    string          `mapstructure:"source" toml:"source" yaml:"source"`
 }
 
 // Source describes a release provider (GitHub or GitLab) profile.
@@ -258,7 +261,7 @@ func decodeConfig(v *viper.Viper, path string, warnings io.Writer) (*Config, err
 			repo.All = cfg.Global.All
 		}
 		if !section.IsSet("asset_filters") {
-			repo.AssetFilters = []string{}
+			repo.AssetFilters = cfg.Global.AssetFilters
 		}
 		if !section.IsSet("ignore") {
 			repo.Ignore = cfg.Global.Ignore

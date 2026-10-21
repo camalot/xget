@@ -69,7 +69,17 @@ When multiple values are available, xget resolves them in this order:
 3. Global section values (`global`).
 4. Built-in defaults.
 
-This means an explicit command-line flag always wins, followed by repo-specific settings, followed by global defaults.
+Scalar values follow this order by replacement. Arrays (`ignore` and
+`asset_filters`) also replace inherited values by default. Set
+`clobber_global.ignore` or `clobber_global.asset_filters` to `false` to merge
+that array instead, with CLI entries first, then repository entries, then global
+entries, and duplicates removed. Each control can be set in `global`, in a
+repository section, or through `--clobber_global.KEY=false` / `true`, following
+the same precedence. Both controls default to `true` for backward compatibility.
+See [array merging examples](index#merging-arrays-with-clobber_global).
+
+These controls do not change cross-file merging: a higher-priority file still
+replaces arrays in the same section of a lower-priority file.
 
 ## Environment files
 
@@ -89,7 +99,7 @@ parent shell are not replaced and therefore have the highest priority.
 
 A repository section inherits any setting it does not define from the `global` section, so `global` acts as the default for every repository.
 
-The exceptions are `asset_filters`, `binary`, `pre_release`, `tag`, and `verify_sha256`, which are repository-only settings and are never inherited. `github_token` and `config_merge` are global-only. `xget_update_check` is global-only and defaults to `true`. `source` selects a named profile from the `sources` section and defaults to the built-in `github` profile.
+The exceptions are `binary`, `pre_release`, `tag`, and `verify_sha256`, which are repository-only settings and are never inherited. `github_token` and `config_merge` are global-only. `xget_update_check` is global-only and defaults to `true`. `source` selects a named profile from the `sources` section and defaults to the built-in `github` profile.
 
 Within a source profile, token environment variables are checked in the order
 listed by `token_env`, followed by the profile's `token`. GitHub profiles use

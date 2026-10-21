@@ -96,6 +96,9 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | `config_merge` | N/A | Merge lower-priority files when this is the highest-priority config; see [loading and precedence](loading-and-precedence). | `true` |
 | `xget_update_check` | N/A | Check for a newer xget release (at most once per day, and on `xget upgrade` / `xget list --installed --check`) and print a notice when one is available. Does not affect `xget self-update`. | `true` |
 | `all` | `--all` | Whether to extract all candidate files. | `false` |
+| `asset_filters` | `--asset` | Array of asset matchers. | `[]` |
+| `clobber_global.ignore` | `--clobber_global.ignore` | Replace inherited ignore values; set to `false` to merge. | `true` |
+| `clobber_global.asset_filters` | `--clobber_global.asset_filters` | Replace inherited asset filters; set to `false` to merge. | `true` |
 | `download_only` | `--download-only` | Stop after downloading the asset without extraction. | `false` |
 | `download_source` | `--source` | Download the source code for the repo instead of a release. | `false` |
 | `file` | `--file` | Glob to select files for extraction. | `*` |
@@ -116,6 +119,8 @@ xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar
 | `all` | `--all` | Extract all candidate files. | `false` |
 | `asset_filters` | `--asset` | Array of asset matchers. | `[]` |
 | `binary` | `--binary` / `--name` | Output file name for a single extracted file; the extension is kept. | `""` |
+| `clobber_global.ignore` | `--clobber_global.ignore` | Replace inherited ignore values; set to `false` to merge. | global value, otherwise `true` |
+| `clobber_global.asset_filters` | `--clobber_global.asset_filters` | Replace inherited asset filters; set to `false` to merge. | global value, otherwise `true` |
 | `download_only` | `--download-only` | Stop after downloading the asset without extraction. | `false` |
 | `download_source` | `--source` | Download the source code for the repo instead of a release. | `false` |
 | `file` | `--file` | Glob to select files for extraction. | `*` |
@@ -147,6 +152,75 @@ The precedence order is:
 4. Built-in defaults.
 
 This means the same config file can set a default target for all repositories and then override it for a single repo in a more specific section.
+
+### Merging arrays with clobber_global
+
+The array settings `ignore` and `asset_filters` each have a boolean
+`clobber_global` control. Both default to `true`, preserving the existing
+behavior: a supplied array replaces the inherited array. Strings and other
+primitive settings always replace inherited values.
+
+Set a control to `false` to merge that array across global settings, repository
+settings, and CLI flags. Higher-priority entries come first (CLI, repository,
+global), and duplicate entries are included only once. The controls themselves
+follow normal precedence: CLI overrides repository, repository overrides global,
+and an omitted control defaults to `true`.
+
+```yaml
+global:
+  ignore:
+    - .sbom.json
+  asset_filters:
+    - .zip
+  clobber_global:
+    ignore: false
+    asset_filters: false
+
+foo/bar:
+  ignore:
+    - musl
+  clobber_global:
+    asset_filters: true
+```
+
+Here `foo/bar` uses `ignore: [musl, .sbom.json]`. Running
+`xget install foo/bar --ignore debug` uses `[debug, musl, .sbom.json]`.
+To replace all inherited ignores for just that invocation:
+
+```bash
+xget install foo/bar --ignore debug --clobber_global.ignore=true
+```
+
+Without configuration controls, merging can be enabled for one invocation:
+
+```bash
+xget install foo/bar --ignore musl --clobber_global.ignore=false
+xget install foo/bar --asset static --clobber_global.asset_filters=false
+```
+
+TOML uses nested tables:
+
+```toml
+[global]
+ignore = [".sbom.json"]
+
+[global.clobber_global]
+ignore = false
+asset_filters = false
+
+["foo/bar"]
+ignore = ["musl"]
+
+["foo/bar".clobber_global]
+asset_filters = true
+```
+
+With merging enabled, an explicitly empty array retains inherited values. To
+clear an inherited array, use an empty repository array and set its control to
+`true`. An omitted array still inherits the global value in either mode.
+These controls apply to global/repository/CLI inheritance, not to merging the
+same section across config files; that is governed by `config_merge`.
+Source-profile `token_env` arrays have no global counterpart and are unaffected.
 
 ## Source profiles
 

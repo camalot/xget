@@ -189,6 +189,14 @@ header: xget Manual
 
 :    Exclude assets by matcher. Accepts literal contains matching and regex matching via `~`, `=~`, or `re:`. Negative prefixes `^` and `not:` are also supported and invert the ignore behavior. Use `~~` or `text:` when a literal begins with `~`. This option can be specified multiple times. Example: **`xget --asset '~\.zip$' --ignore '~\.zip\.sbom\.json$' tacocontent/ironstate`**.
 
+  `--clobber_global.ignore=true|false`
+
+:    Replace inherited ignore values (default `true`). Set to `false` to merge CLI, repository, and global ignores, in that order, removing duplicates. Overrides repository and global `clobber_global.ignore` settings.
+
+  `--clobber_global.asset_filters=true|false`
+
+:    Replace inherited asset filters (default `true`). Set to `false` to merge `--asset` with repository and global `asset_filters`, in that order, removing duplicates. Overrides repository and global `clobber_global.asset_filters` settings.
+
   Patterns beginning with `~` are parsed as regex, and patterns beginning with `^` are parsed as negative by default. Use `~~`, `^^`, or `text:` for literal prefixes.
 
   Always quote matchers starting with `~` (for example `--ignore '~\.sha512$'`). Unquoted, shells such as PowerShell, bash, and zsh expand a leading `~` to the home directory before xget receives the argument, silently disabling the filter.
@@ -291,7 +299,7 @@ header: xget Manual
   format is quoted).
 
   A repository section inherits any setting it does not define from the `global`
-  section. The only exceptions are `asset_filters`, `binary`, `pre_release`, `tag`, and
+  section. The only exceptions are `binary`, `pre_release`, `tag`, and
   `verify_sha256`, which are repository-only and are never inherited.
 
   Values are resolved in this order, with each layer overriding the one before it:
@@ -300,6 +308,35 @@ header: xget Manual
   2. The `global` section.
   3. The matching `"owner/repo"` section.
   4. Command-line flags.
+
+  Arrays (`ignore` and `asset_filters`) replace inherited arrays by default.
+  Set their individual `clobber_global` controls to `false` to merge instead.
+  Each control follows CLI, repository, global, then built-in precedence, with
+  a built-in default of `true`. Strings and other primitive values always replace.
+
+    global:
+      ignore:
+        - .sbom.json
+      clobber_global:
+        ignore: false
+        asset_filters: false
+    foo/bar:
+      ignore:
+        - musl
+      clobber_global:
+        asset_filters: true
+
+  This gives `foo/bar` the ignores `[musl, .sbom.json]`.
+  `xget install foo/bar --ignore debug` uses `[debug, musl, .sbom.json]`.
+  Add `--clobber_global.ignore=true` to use only `[debug]`.
+  With merging enabled, an empty array retains inherited values; use an empty
+  repository array with its control set to `true` to clear inherited values.
+  Omitted arrays still inherit globals. Higher-priority entries come first and
+  duplicates are removed. Source-profile `token_env` arrays are unaffected.
+  These controls do not change cross-file merging (`global.config_merge`).
+
+  TOML uses `[global.clobber_global]` and `["foo/bar".clobber_global]`
+  tables, each containing `ignore = false` or `asset_filters = false` as needed.
 
   For example, the following configuration file will set the `--to` flag to `~/bin` for 
   all repositories, and will set the `--to` flag to `~/.local/bin` for the `zyedidia/micro` 
@@ -353,7 +390,11 @@ header: xget Manual
 
   `asset_filters`
 
-:    An array of asset matchers. Literal values prefer exact basename match then contains matching. Regex prefixes: `~`, `=~`, and `re:`. Negative prefixes: `^` and `not:`. Use `~~`/`^^` or `text:` to force literal matching. Repository sections only.
+:    An array of asset matchers. Literal values prefer exact basename match then contains matching. Regex prefixes: `~`, `=~`, and `re:`. Negative prefixes: `^` and `not:`. Use `~~`/`^^` or `text:` to force literal matching. Supported in global and repository sections.
+
+  `clobber_global.ignore`, `clobber_global.asset_filters`
+
+:    Boolean controls for replacing inherited arrays (default `true`). Set to `false` to merge the corresponding array across global, repository, and CLI settings. Supported in global and repository sections; CLI controls override both. Use `xget config set global clobber_global.ignore=false` to enable ignore merging globally.
 
   `disable_ssl`
 

@@ -5,8 +5,41 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
+
+	"github.com/spf13/viper"
 )
+
+func TestDecodeClobberGlobal(t *testing.T) {
+	configs := map[string]string{
+		"yaml": "global:\n  asset_filters: [static]\n  ignore: [.sbom.json]\n  clobber_global:\n    ignore: false\n    asset_filters: true\nfoo/bar:\n  clobber_global:\n    asset_filters: false\n",
+		"toml": "[global]\nasset_filters = ['static']\nignore = ['.sbom.json']\n[global.clobber_global]\nignore = false\nasset_filters = true\n['foo/bar'.clobber_global]\nasset_filters = false\n",
+	}
+	for format, content := range configs {
+		t.Run(format, func(t *testing.T) {
+			parser := viper.New()
+			parser.SetConfigType(format)
+			if err := parser.ReadConfig(strings.NewReader(content)); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := decodeConfig(parser, "", &strings.Builder{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(cfg.Global.ClobberGlobal, map[string]bool{"ignore": false, "asset_filters": true}) {
+				t.Fatalf("global controls = %#v", cfg.Global.ClobberGlobal)
+			}
+			repo := cfg.Repositories["foo/bar"]
+			if !reflect.DeepEqual(repo.ClobberGlobal, map[string]bool{"asset_filters": false}) {
+				t.Fatalf("repository controls = %#v", repo.ClobberGlobal)
+			}
+			if !reflect.DeepEqual(repo.AssetFilters, []string{"static"}) || !reflect.DeepEqual(repo.Ignore, []string{".sbom.json"}) {
+				t.Fatalf("inherited arrays = %#v", repo)
+			}
+		})
+	}
+}
 
 func TestCandidatePathsUsesDotPrefixedLocationsInOrder(t *testing.T) {
 	homePath := filepath.Join(t.TempDir(), "home")

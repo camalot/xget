@@ -195,6 +195,9 @@ func newInstallCommand(f *rootFlags) *cobra.Command {
 }
 
 func addInstallFlags(cmd *cobra.Command, f *rootFlags) {
+	for _, key := range []string{"ignore", "asset_filters"} {
+		cmd.Flags().Bool("clobber_global."+key, true, "replace inherited "+key+" values instead of merging")
+	}
 	cmd.Flags().StringVarP(&f.tag, "tag", "t", "", "tagged release to use instead of latest")
 	cmd.Flags().BoolVar(&f.prerelease, "pre-release", false, "include pre-releases when fetching the latest version")
 	cmd.Flags().BoolVar(&f.source, "source", false, "download the source code for the target repo instead of a release")
@@ -312,7 +315,12 @@ func printRateLimit(cmd *cobra.Command) error {
 // configOptionsForTarget resolves the global section followed by the matching
 // repository section, without applying any CLI flags.
 func configOptionsForTarget(cfg *config.Config, target string) (options.Flags, error) {
+	return configOptionsForTargetClobber(cfg, target, nil)
+}
+
+func configOptionsForTargetClobber(cfg *config.Config, target string, overrides map[string]bool) (options.Flags, error) {
 	opts := options.Flags{
+		Asset:       cfg.Global.AssetFilters,
 		Source:      cfg.Global.Source,
 		System:      cfg.Global.System,
 		All:         cfg.Global.All,
@@ -361,7 +369,39 @@ func configOptionsForTarget(cfg *config.Config, target string) (options.Flags, e
 		opts.Output = expanded
 	}
 
+	opts.Ignore = mergeConfigArray(opts.Ignore, cfg.Global.Ignore, clobberGlobal(cfg, target, "ignore", overrides))
+	opts.Asset = mergeConfigArray(opts.Asset, cfg.Global.AssetFilters, clobberGlobal(cfg, target, "asset_filters", overrides))
 	return opts, nil
+}
+
+func clobberGlobal(cfg *config.Config, target, key string, overrides map[string]bool) bool {
+	if value, ok := overrides[key]; ok {
+		return value
+	}
+	if value, ok := cfg.Repositories[target].ClobberGlobal[key]; ok {
+		return value
+	}
+	if value, ok := cfg.Global.ClobberGlobal[key]; ok {
+		return value
+	}
+	return true
+}
+
+func mergeConfigArray(values, inherited []string, clobber bool) []string {
+	if clobber {
+		return values
+	}
+	merged := make([]string, 0, len(values)+len(inherited))
+	seen := make(map[string]bool, len(values)+len(inherited))
+	for _, entries := range [][]string{values, inherited} {
+		for _, value := range entries {
+			if !seen[value] {
+				merged = append(merged, value)
+				seen[value] = true
+			}
+		}
+	}
+	return merged
 }
 
 func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, target string) (options.Flags, error) {
@@ -370,7 +410,18 @@ func optionsForTarget(cfg *config.Config, cmd *cobra.Command, f *rootFlags, targ
 
 //nolint:gocyclo // TODO: split into smaller helpers.
 func optionsForTargetProvider(cfg *config.Config, cmd *cobra.Command, f *rootFlags, target, inlineProvider string) (options.Flags, error) {
-	opts, err := configOptionsForTarget(cfg, target)
+	overrides := map[string]bool{}
+	for _, key := range []string{"ignore", "asset_filters"} {
+		name := "clobber_global." + key
+		if cmd.Flags().Changed(name) {
+			value, err := cmd.Flags().GetBool(name)
+			if err != nil {
+				return options.Flags{}, err
+			}
+			overrides[key] = value
+		}
+	}
+	opts, err := configOptionsForTargetClobber(cfg, target, overrides)
 	if err != nil {
 		return options.Flags{}, err
 	}
@@ -421,10 +472,11 @@ func optionsForTargetProvider(cfg *config.Config, cmd *cobra.Command, f *rootFla
 		opts.UpgradeOnly = f.upgradeOnly
 	}
 	if cmd.Flags().Changed("asset") {
-		opts.Asset = f.asset
+		opts.Asset = mergeConfigArray(f.asset, opts.Asset, clobberGlobal(cfg, target, "asset_filters", overrides))
 	}
 	if cmd.Flags().Changed("ignore") {
-		opts.Ignore = f.ignore
+		inherited := config.SubstituteTemplateVarsSlice(opts.Ignore, opts.System)
+		opts.Ignore = mergeConfigArray(f.ignore, inherited, clobberGlobal(cfg, target, "ignore", overrides))
 	}
 	if cmd.Flags().Changed("sha256") {
 		opts.Hash = f.hash
