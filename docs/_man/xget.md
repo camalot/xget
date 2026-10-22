@@ -4,10 +4,13 @@ section: 1
 header: xget Manual
 ---
 
+<!-- markdownlint-disable MD022 MD025 -->
+
 # NAME
   xget - easily install prebuilt binaries from GitHub or GitLab
 
 # SYNOPSIS
+
   xget `[--help] [OPTIONS] TARGET`
 
   xget `install TARGET [OPTIONS]`
@@ -47,7 +50,9 @@ header: xget Manual
   Directories can also be specified as files to extract, and all files within
   them will be extracted. For example:
 
-      xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
+  ```sh
+  xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5
+  ```
 
   GitHub limits API requests to 60 per hour for unauthenticated users. Use
   `xget rate` or `xget --rate` to inspect the active limit. Set a personal
@@ -150,8 +155,6 @@ header: xget Manual
 :    Rename a single extracted file to the given name, keeping the original extension if it has one. Ignored when multiple files are extracted or when `--to` names a file. Example: **`xget antonmedv/fx --binary fx --to ~/.local/bin`** installs `fx_windows_amd64.exe` as `fx.exe`.
 
   `-s, --system=`
-
-:    Use the given system as the target instead of the host. Systems follow the notation 'OS/Arch', where OS is a valid OS (darwin, windows, linux, netbsd, openbsd, freebsd, android, illumos, solaris, plan9), and Arch is a valid architecture (amd64, 386, arm, arm64, riscv64). If the special value **all** is used, all possibilities are given and the user must select manually. Example: **`xget -s darwin/amd64 zyedidia/micro`**.
 
   `-f, --file=`
 
@@ -295,7 +298,7 @@ header: xget Manual
   Global settings can be configured, as well as settings on a per-repository basis and named source profiles under `sources`.
 
   Sections can be named either `global` or `"owner/repo"`, where `owner` and `repo`
-  are the owner and repository name of the target repository (note that the `owner/repo` 
+  are the owner and repository name of the target repository (note that the `owner/repo`
   format is quoted).
 
   A repository section inherits any setting it does not define from the `global`
@@ -314,6 +317,7 @@ header: xget Manual
   Each control follows CLI, repository, global, then built-in precedence, with
   a built-in default of `true`. Strings and other primitive values always replace.
 
+  ```yaml
     global:
       ignore:
         - .sbom.json
@@ -325,6 +329,7 @@ header: xget Manual
         - musl
       clobber_global:
         asset_filters: true
+  ```
 
   This gives `foo/bar` the ignores `[musl, .sbom.json]`.
   `xget install foo/bar --ignore debug` uses `[debug, musl, .sbom.json]`.
@@ -338,8 +343,8 @@ header: xget Manual
   TOML uses `[global.clobber_global]` and `["foo/bar".clobber_global]`
   tables, each containing `ignore = false` or `asset_filters = false` as needed.
 
-  For example, the following configuration file will set the `--to` flag to `~/bin` for 
-  all repositories, and will set the `--to` flag to `~/.local/bin` for the `zyedidia/micro` 
+  For example, the following configuration file will set the `--to` flag to `~/bin` for
+  all repositories, and will set the `--to` flag to `~/.local/bin` for the `zyedidia/micro`
   repository.
 
 ```toml
@@ -580,5 +585,5 @@ See GitHub Issues: <https://github.com/camalot/xget/issues>
 
 # AUTHOR
 
-Ryan Conrad <camalot@gmail.com> xget fork
-Zachary Yedidia <zyedidia@gmail.com> [eget](https://github.com/zyedidia/eget)
+* Ryan Conrad <camalot@gmail.com> xget
+* Zachary Yedidia <zyedidia@gmail.com> [eget](https://github.com/zyedidia/eget)
