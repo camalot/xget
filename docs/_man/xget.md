@@ -156,7 +156,7 @@ header: xget Manual
 
   `-s, --system=`
 
-:    Select a target OS and architecture, such as `linux/amd64`, `linux/arm64`, or `linux/armv7`. `linux/armv6` selects ARMv6 assets; `linux/arm` matches generic 32-bit ARM assets. Use `all` to consider all assets. Default detection on an ARM build uses its `GOARM` level. xget releases currently include Linux ARMv7, but not ARMv6.
+:    Select a target OS and architecture, such as `linux/amd64`, `linux/arm64`, or `linux/armv7`. `linux/armv6` selects ARMv6 assets; `linux/arm` matches generic 32-bit ARM assets. Use `all` to consider all assets. Default detection on an ARM build uses its `GOARM` level.
 
   `-f, --file=`
 
