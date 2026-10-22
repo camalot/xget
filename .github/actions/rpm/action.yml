@@ -1,225 +1,96 @@
 ---
-name: "RPM Action"
-description: >-
-  Render the RPM spec for a release, repackage its verified Linux binaries for
-  x86_64 and aarch64, then attest/checksum them and attach them to the release.
+name: RPM Action
+description: Build, install-test, attest, and publish one supported RPM platform
 inputs:
   version:
-    description: "The plain (no 'v' prefix) version of the xget project to package, e.g. 2.2.0"
+    description: Plain release version
+    required: true
+  architecture:
+    description: Release architecture from .packages/platforms.json
     required: true
   token:
-    description: "The GitHub token used to read release assets and upload the built packages"
-    required: false
-    default: "${{ github.token }}"
+    description: GitHub token for release assets
+    default: ${{ github.token }}
   dry-run:
-    description: "Whether to only build and verify the packages without attesting/uploading anything"
-    required: false
+    description: Build and verify without publishing
     default: "true"
   artifact:
-    description: "Optional workflow artifact holding checksums.txt and the linux archives, used instead of the GitHub release"
-    required: false
+    description: Optional workflow artifact containing release archives and checksums
     default: ""
 outputs:
   outdir:
-    description: "Directory containing the built RPMs, checksums, and SBOMs"
-    value: ${{ steps.collect.outputs.outdir }}
-  x86_64-rpm:
-    description: "Path to the built x86_64 RPM"
-    value: ${{ steps.collect.outputs.x86_64_rpm }}
-  aarch64-rpm:
-    description: "Path to the built aarch64 RPM"
-    value: ${{ steps.collect.outputs.aarch64_rpm }}
-
+    description: Directory containing the package and its checksum
+    value: ${{ steps.build.outputs.outdir }}
 runs:
-  using: "composite"
+  using: composite
   steps:
-    - name: Download and verify the release archives
+    - name: Download and verify release archive
       id: download
       uses: ./.github/actions/release-archives
       with:
         version: ${{ inputs.version }}
+        architecture: ${{ inputs.architecture }}
         token: ${{ inputs.token }}
-        path: ${{ runner.temp }}/rpm/download
+        path: ${{ runner.temp }}/rpm
         artifact: ${{ inputs.artifact }}
-
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+    - uses: docker/setup-qemu-action@v3
       with:
-        platforms: arm64
-
-    - name: Build RPM packages (x86_64, aarch64)
+        platforms: all
+    - name: Build and verify RPM package
       id: build
       shell: bash
       run: |
         set -euo pipefail
-        for release_arch in amd64 arm64; do
-          case "$release_arch" in
-            amd64) rpm_arch=x86_64 ;;
-            arm64) rpm_arch=aarch64 ;;
-          esac
-
-          topdir="$WORKDIR/build/$release_arch"
-          mkdir -p "$topdir/SOURCES" "$topdir/SPECS" "$PACKAGES/$release_arch"
-          archive="xget_${VERSION}_linux_${release_arch}.tar.gz"
-          sha256=$(awk -v archive="$archive" '$2 == archive { print $1 }' "$CHECKSUMS")
-          test -n "$sha256"
-
-          cp "$DOWNLOAD/$archive" "$topdir/SOURCES/$archive"
-          sed \
-            -e "s/__VERSION__/$VERSION/g" \
-            -e "s/__ARCHITECTURE__/$release_arch/g" \
-            -e "s/__SHA256__/$sha256/g" \
-            .packages/rpm/xget.spec > "$topdir/SPECS/xget.spec"
-
-          docker run --rm --platform "linux/$release_arch" \
-            -v "$WORKDIR:/work" -v "$PACKAGES:/packages" \
-            -e RELEASE_ARCH="$release_arch" -e RPM_ARCH="$rpm_arch" \
-            almalinux:9 bash -euc '
+        platform=$(jq -ce --arg arch "$RELEASE_ARCH" '.[] | select(.release == $arch and .rpm != null)' .packages/platforms.json)
+        rpm_arch=$(jq -r .rpm <<< "$platform")
+        container=$(jq -r .container <<< "$platform")
+        image=$(jq -r .rpm_image <<< "$platform")
+        mkdir -p "$WORKDIR/build/SOURCES" "$WORKDIR/build/SPECS" "$WORKDIR/dist"
+        cp "$ARCHIVE" "$WORKDIR/build/SOURCES/"
+        sed -e "s/__VERSION__/$VERSION/g" -e "s/__ARCHITECTURE__/$RELEASE_ARCH/g" \
+          -e "s/__SHA256__/$SHA256/g" .packages/rpm/xget.spec > "$WORKDIR/build/SPECS/xget.spec"
+        docker run --rm --platform "$container" -e VERSION -e RPM_ARCH="$rpm_arch" \
+          -v "$WORKDIR:/work" "$image" bash -euc '
+            if command -v dnf >/dev/null; then
               dnf install -y rpm-build
-              rpmbuild -bb \
-                --define "_topdir /work/build/${RELEASE_ARCH}" \
-                --define "_rpmdir /packages/${RELEASE_ARCH}" \
-                /work/build/${RELEASE_ARCH}/SPECS/xget.spec
-              test -f "/packages/${RELEASE_ARCH}/${RPM_ARCH}/xget-"*.rpm
-            '
-        done
-      env:
-        WORKDIR: ${{ runner.temp }}/rpm
-        PACKAGES: ${{ runner.temp }}/rpm/packages
-        DOWNLOAD: ${{ steps.download.outputs.path }}
-        CHECKSUMS: ${{ steps.download.outputs.checksums }}
-        VERSION: ${{ inputs.version }}
-
-    - name: Collect and inspect RPM packages
-      id: collect
-      shell: bash
-      run: |
-        set -euo pipefail
-        outdir="$WORKDIR/dist"
-        mkdir -p "$outdir"
-
-        x86_64_built=$(find "$PACKAGES/amd64/x86_64" -type f -name 'xget-*.rpm' -print -quit)
-        aarch64_built=$(find "$PACKAGES/arm64/aarch64" -type f -name 'xget-*.rpm' -print -quit)
-        test -n "$x86_64_built"
-        test -n "$aarch64_built"
-        x86_64_rpm="$outdir/$(basename "$x86_64_built")"
-        aarch64_rpm="$outdir/$(basename "$aarch64_built")"
-        cp "$x86_64_built" "$x86_64_rpm"
-        cp "$aarch64_built" "$aarch64_rpm"
-
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq rpm
-        test "$(rpm -qp --qf '%{ARCH}' "$x86_64_rpm")" = x86_64
-        test "$(rpm -qp --qf '%{ARCH}' "$aarch64_rpm")" = aarch64
-        rpm -qpi "$x86_64_rpm"
-        rpm -qpl "$x86_64_rpm"
-        rpm -qpi "$aarch64_rpm"
-        rpm -qpl "$aarch64_rpm"
-
-        checksums_file="$outdir/rpm-checksums.txt"
-        (cd "$outdir" && sha256sum "$(basename "$x86_64_rpm")" "$(basename "$aarch64_rpm")" > "$checksums_file")
+            else
+              sed -i "s|http://|https://|g" /etc/zypp/repos.d/*.repo
+              zypper --non-interactive refresh
+              zypper --non-interactive install --no-recommends rpm-build gzip tar
+            fi
+            rpmbuild -bb --target "$RPM_ARCH" --define "_topdir /work/build" \
+              --define "_rpmdir /work/packages" /work/build/SPECS/xget.spec
+            package=$(find /work/packages -type f -name "xget-*.rpm")
+            test -f "$package"
+            test "$(rpm -qp --qf "%{ARCH}" "$package")" = "$RPM_ARCH"
+            rpm -qpi "$package"
+            rpm -qpl "$package"
+            if command -v dnf >/dev/null; then
+              dnf install -y "$package"
+            else
+              zypper --non-interactive --no-gpg-checks install --allow-unsigned-rpm "$package"
+            fi
+            xget --version | grep -qF "xget ${VERSION}"
+            rpm -e xget
+            test ! -e /usr/bin/xget
+          '
+        mapfile -t packages < <(find "$WORKDIR/packages" -type f -name 'xget-*.rpm')
+        test "${#packages[@]}" -eq 1
+        package="$WORKDIR/dist/$(basename "${packages[0]}")"
+        cp "${packages[0]}" "$package"
         {
-          echo "outdir=$outdir"
-          echo "x86_64_rpm=$x86_64_rpm"
-          echo "aarch64_rpm=$aarch64_rpm"
-          echo "x86_64_sbom=${x86_64_rpm}.sbom.json"
-          echo "aarch64_sbom=${aarch64_rpm}.sbom.json"
-          echo "x86_64_built=$x86_64_built"
-          echo "aarch64_built=$aarch64_built"
-          echo "checksums_file=$checksums_file"
+          echo "outdir=$WORKDIR/dist"
+          echo "package=$package"
         } >> "$GITHUB_OUTPUT"
       env:
-        WORKDIR: ${{ runner.temp }}/rpm
-        PACKAGES: ${{ runner.temp }}/rpm/packages
-
-    - name: Verify RPM installs and runs (x86_64)
-      shell: bash
-      run: |
-        set -euo pipefail
-        docker run --rm --platform linux/amd64 -e VERSION -v "$RPM_FILE:/tmp/xget.rpm:ro" almalinux:9 bash -euc '
-          dnf install -y /tmp/xget.rpm
-          xget --version | grep -qF "xget ${VERSION}"
-          rpm -e xget
-          test ! -e /usr/bin/xget
-        '
-      env:
-        RPM_FILE: ${{ steps.collect.outputs.x86_64_built }}
         VERSION: ${{ inputs.version }}
-
-    - name: Verify RPM installs and runs (aarch64)
-      shell: bash
-      run: |
-        set -euo pipefail
-        docker run --rm --platform linux/arm64 -e VERSION -v "$RPM_FILE:/tmp/xget.rpm:ro" almalinux:9 bash -euc '
-          dnf install -y /tmp/xget.rpm
-          xget --version | grep -qF "xget ${VERSION}"
-          rpm -e xget
-          test ! -e /usr/bin/xget
-        '
-      env:
-        RPM_FILE: ${{ steps.collect.outputs.aarch64_built }}
-        VERSION: ${{ inputs.version }}
-
-    - name: Generate SPDX SBOM (x86_64 RPM)
-      if: inputs.dry-run == 'false'
-      uses: anchore/sbom-action@v0
+        RELEASE_ARCH: ${{ inputs.architecture }}
+        ARCHIVE: ${{ steps.download.outputs.archive }}
+        SHA256: ${{ steps.download.outputs.sha256 }}
+        WORKDIR: ${{ steps.download.outputs.path }}
+    - uses: ./.github/actions/publish-package
       with:
-        file: ${{ steps.collect.outputs.x86_64_rpm }}
-        format: spdx-json
-        output-file: ${{ steps.collect.outputs.x86_64_sbom }}
-        upload-artifact: false
-        upload-release-assets: false
-
-    - name: Generate SPDX SBOM (aarch64 RPM)
-      if: inputs.dry-run == 'false'
-      uses: anchore/sbom-action@v0
-      with:
-        file: ${{ steps.collect.outputs.aarch64_rpm }}
-        format: spdx-json
-        output-file: ${{ steps.collect.outputs.aarch64_sbom }}
-        upload-artifact: false
-        upload-release-assets: false
-
-    - name: Attest build provenance (x86_64 RPM)
-      if: inputs.dry-run == 'false'
-      uses: actions/attest@v4
-      with:
-        subject-path: ${{ steps.collect.outputs.x86_64_rpm }}
-
-    - name: Attest SBOM (x86_64 RPM)
-      if: inputs.dry-run == 'false'
-      uses: actions/attest@v4
-      with:
-        subject-path: ${{ steps.collect.outputs.x86_64_rpm }}
-        sbom-path: ${{ steps.collect.outputs.x86_64_sbom }}
-
-    - name: Attest build provenance (aarch64 RPM)
-      if: inputs.dry-run == 'false'
-      uses: actions/attest@v4
-      with:
-        subject-path: ${{ steps.collect.outputs.aarch64_rpm }}
-
-    - name: Attest SBOM (aarch64 RPM)
-      if: inputs.dry-run == 'false'
-      uses: actions/attest@v4
-      with:
-        subject-path: ${{ steps.collect.outputs.aarch64_rpm }}
-        sbom-path: ${{ steps.collect.outputs.aarch64_sbom }}
-
-    - name: Upload RPM packages, checksums, and SBOMs to the release
-      if: inputs.dry-run == 'false'
-      shell: bash
-      run: |
-        set -euo pipefail
-        gh release upload "$TAG" \
-          "$X86_64_RPM" "$AARCH64_RPM" "$CHECKSUMS_FILE" \
-          "$X86_64_SBOM" "$AARCH64_SBOM" \
-          --clobber
-      env:
-        GH_TOKEN: ${{ inputs.token }}
-        TAG: v${{ inputs.version }}
-        X86_64_RPM: ${{ steps.collect.outputs.x86_64_rpm }}
-        AARCH64_RPM: ${{ steps.collect.outputs.aarch64_rpm }}
-        X86_64_SBOM: ${{ steps.collect.outputs.x86_64_sbom }}
-        AARCH64_SBOM: ${{ steps.collect.outputs.aarch64_sbom }}
-        CHECKSUMS_FILE: ${{ steps.collect.outputs.checksums_file }}
+        package: ${{ steps.build.outputs.package }}
+        version: ${{ inputs.version }}
+        token: ${{ inputs.token }}
+        dry-run: ${{ inputs.dry-run }}

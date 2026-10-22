@@ -1,12 +1,12 @@
 # Maintainer: Ryan Conrad <camalot@gmail.com>
-# This file is a template: __VERSION__, __SHA512_X86_64__, and __SHA512_AARCH64__
+# This file is a template: __VERSION__, __ARCHITECTURE__, __RELEASE_ARCH__, and __SHA512__
 # are substituted (e.g. via sed) by .github/actions/alpine before abuild is run.
 pkgname=xget
 pkgver=__VERSION__
 pkgrel=0
 pkgdesc="Download pre-built binaries from GitHub and GitLab releases"
 url="https://github.com/camalot/xget"
-arch="x86_64 aarch64"
+arch="__ARCHITECTURE__"
 license="MIT"
 # repack of an upstream static (CGO_ENABLED=0) Go binary: nothing to compile,
 # test, strip, or trace for shared library dependencies
@@ -14,16 +14,8 @@ options="!check !strip !tracedeps"
 # no -doc subpackage on purpose: the release ships a single artifact per arch,
 # so abuild's "Found /usr/share/{doc,man}" warnings are expected
 
-case "$CARCH" in
-x86_64)
-	_relarch="amd64"
-	_sha512="__SHA512_X86_64__"
-	;;
-aarch64)
-	_relarch="arm64"
-	_sha512="__SHA512_AARCH64__"
-	;;
-esac
+_relarch="__RELEASE_ARCH__"
+_sha512="__SHA512__"
 
 source="$pkgname-$pkgver-$CARCH.tar.gz::$url/releases/download/v$pkgver/xget_${pkgver}_linux_${_relarch}.tar.gz"
 sha512sums="$_sha512  $pkgname-$pkgver-$CARCH.tar.gz"

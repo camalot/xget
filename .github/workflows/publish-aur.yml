@@ -25,6 +25,11 @@ on:
         description: Existing release tag to publish the AUR package for (e.g. v2.1.2)
         required: true
         type: string
+      dry-run:
+        description: Build and inspect packages without publishing
+        required: false
+        type: boolean
+        default: true
     secrets:
       AUR_USERNAME:
         required: true
@@ -36,7 +41,27 @@ on:
 permissions: {}
 
 jobs:
+  platforms:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.platforms.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: platforms
+        uses: ./.github/actions/package-platforms
+        with:
+          format: aur
+
   aur:
+    needs: platforms
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.platforms.outputs.matrix) }}
     permissions:
       # attach the built packages/checksums/SBOMs to the release
       contents: write
@@ -58,9 +83,7 @@ jobs:
           token: ${{ github.token }}
           tag: ${{ inputs.tag }}
           platform: linux
-          architecture: |
-            amd64
-            arm64
+          architecture: ${{ matrix.platform.release }}
 
       - name: Determine plain version
         id: plain_version
@@ -75,7 +98,7 @@ jobs:
           set -euo pipefail
           assets_file="$RUNNER_TEMP/assets.txt"
           gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' > "$assets_file"
-          for asset in "xget_${VERSION}_linux_amd64.tar.gz" "xget_${VERSION}_linux_arm64.tar.gz" "checksums.txt"; do
+          for asset in "xget_${VERSION}_linux_${RELEASE_ARCH}.tar.gz" "checksums.txt"; do
             if ! grep -qF "$asset" "$assets_file"; then
               echo "Release $TAG is missing expected asset '$asset'" >&2
               exit 1
@@ -86,12 +109,14 @@ jobs:
           TAG: ${{ inputs.tag }}
           REPO: ${{ github.repository }}
           VERSION: ${{ steps.plain_version.outputs.version }}
+          RELEASE_ARCH: ${{ matrix.platform.release }}
 
       - name: Render, build, attest, and publish the AUR package
         uses: ./.github/actions/aur
         with:
           version: ${{ steps.plain_version.outputs.version }}
-          dry-run: ${{ inputs.dry-run || 'false' }}
+          architecture: ${{ matrix.platform.release }}
+          dry-run: ${{ inputs.dry-run }}
           aur-username: ${{ secrets.AUR_USERNAME }}
           aur-email: ${{ secrets.AUR_EMAIL }}
           aur-ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}

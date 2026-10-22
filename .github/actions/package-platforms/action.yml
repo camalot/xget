@@ -1,0 +1,23 @@
+---
+name: Package platforms
+description: Select supported Linux package platforms from the shared manifest
+inputs:
+  format:
+    description: Package format to select (debian, rpm, alpine, or aur)
+    required: true
+outputs:
+  matrix:
+    description: JSON platform objects for a job matrix
+    value: ${{ steps.platforms.outputs.matrix }}
+runs:
+  using: composite
+  steps:
+    - id: platforms
+      shell: bash
+      run: |
+        set -euo pipefail
+        case "$FORMAT" in debian|rpm|alpine|aur) ;; *) exit 1 ;; esac
+        matrix=$(jq -ce --arg format "$FORMAT" '[.[] | select(.[$format] != null)] | select(length > 0)' .packages/platforms.json)
+        echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+      env:
+        FORMAT: ${{ inputs.format }}

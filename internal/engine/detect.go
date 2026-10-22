@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"runtime"
+	"runtime/debug"
 	"strings"
 
 	"github.com/camalot/xget/internal/lib/constants"
@@ -152,7 +154,15 @@ var (
 	}
 	ArchArm = Arch{
 		name:  "arm",
-		regex: regexp.MustCompile(`(?i)(arm32|armv6|arm\b)`),
+		regex: regexp.MustCompile(`(?i)(arm32|armv[5-7]|armhf|arm\b)`),
+	}
+	ArchArm6 = Arch{
+		name:  "armv6",
+		regex: regexp.MustCompile(`(?i)(armv6|arm32|arm\b)`),
+	}
+	ArchArm7 = Arch{
+		name:  "armv7",
+		regex: regexp.MustCompile(`(?i)(armv7|armhf|arm32|arm\b)`),
 	}
 	ArchArm64 = Arch{
 		name:  "arm64",
@@ -169,8 +179,26 @@ var goarchmap = map[string]Arch{
 	"amd64":   ArchAMD64,
 	"386":     ArchI386,
 	"arm":     ArchArm,
+	"armv6":   ArchArm6,
+	"armv7":   ArchArm7,
 	"arm64":   ArchArm64,
 	"riscv64": ArchRiscv64,
+}
+
+func runtimeSystemArch() string {
+	if runtime.GOARCH == ArchArm.name {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			for _, setting := range info.Settings {
+				if setting.Key == "GOARM" {
+					level, _, _ := strings.Cut(setting.Value, ",")
+					if level == "6" || level == "7" {
+						return "armv" + level
+					}
+				}
+			}
+		}
+	}
+	return runtime.GOARCH
 }
 
 // AllDetector matches every asset. If there is only one asset, it is returned

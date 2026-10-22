@@ -1,0 +1,2480 @@
+<?xml version="1.0" encoding="utf-8"?>
+<helpItems schema="maml" xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10">
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGet</command:name>
+      <maml:description>
+        <maml:para>Install prebuilt binaries from GitHub or GitLab.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget [OPTIONS] TARGET | xget COMMAND [ARGS] [OPTIONS]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>xget is a tool for downloading and extracting prebuilt binaries from releases
+on GitHub or GitLab. To use it, provide a repository and xget will search through the
+assets from the latest release in an attempt to find a suitable prebuilt
+binary for your system. If one is found, the asset will be downloaded and
+xget will extract the binary to the current directory. xget should only be
+used for installing simple, static prebuilt binaries, where the extracted
+binary is all that is needed for installation. For more complex installation,
+you may use the --download-only option, and perform extraction manually.</maml:para>
+      <maml:para>The PROJECT argument passed to xget should either be a GitHub or GitLab
+repository, formatted as user/repo or user/repo@TAG (GitLab may
+also use nested namespaces), in which
+case xget will search the release assets, a direct URL, in which case xget will directly download and
+extract from the given URL, or a local file, in which case xget will extract
+directly from the local file.</maml:para>
+      <maml:para>If xget downloads an asset called xxx and there also exists an asset called
+xxx.sha256 or xxx.sha256sum, xget will automatically verify that the
+SHA-256 checksum of the downloaded asset matches the one contained in that
+file, and abort installation if a mismatch occurs.</maml:para>
+      <maml:para>When installing an executable, xget will place it in the current directory by
+default. If the environment variable XGET_BIN is non-empty, xget will
+place the executable in that directory. The --to flag may also be used to
+customize the install location.</maml:para>
+      <maml:para>Leading ~ is expanded in output paths, including XGET_BIN,
+EGET_BIN, and stored output paths used for upgrades.</maml:para>
+      <maml:para>Directories can also be specified as files to extract, and all files within
+them will be extracted. For example:</maml:para>
+      <maml:para>xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5</maml:para>
+      <maml:para>GitHub limits API requests to 60 per hour for unauthenticated users. Use
+xget rate or xget --rate to inspect the active limit. Set a personal
+access token in GITHUB_TOKEN, EGET_GITHUB_TOKEN, or
+XGET_GITHUB_TOKEN to make more requests; XGET_GITHUB_TOKEN takes
+precedence. xget prints this setup guidance when no token is configured for a
+rate check and after a GitHub API rate-limit response.</maml:para>
+      <maml:para>xget loads environment files from the current directory in descending
+priority: .secrets, alphabetically sorted *.secrets, .env, then
+alphabetically sorted *.env. Earlier file values win; variables already set
+in the parent shell have the highest priority.</maml:para>
+      <maml:para>Successful installs are recorded in ~/.config/xget/.xget.installed.yml. Each
+record includes the repository or URL, source type, install location,
+timestamps, selected asset, download URL, extracted files, effective install
+options, SHA-256, and the installed and latest known tags. Records are keyed as
+&lt;source&gt;:&lt;repo-or-url&gt;, such as github:nektos/act. Reinstalling a package
+refreshes its existing record. This store is what xget list --installed and
+xget upgrade read from. Use --untracked to skip recording a single install
+without disturbing an existing record for that target.</maml:para>
+      <maml:para>A package may be installed to several locations. Each install location is
+tracked separately, so installing to a new directory adds a record instead of
+replacing the existing one, while reinstalling to an already tracked directory
+updates that record in place. xget upgrade and xget uninstall act on every
+tracked location unless one is selected with --to or --from.</maml:para>
+      <maml:para>Legacy executable-path install locations are normalized to their containing
+directory. Duplicate records for the same package and directory are merged
+when loading the store, retaining the newest install record.</maml:para>
+      <maml:para>The behavior of xget is configurable in a number of ways via options.
+Documentation for these options is provided below.</maml:para>
+      <maml:para>COMMANDS
+xget install TARGET</maml:para>
+      <maml:para>Download and install a pre-built binary from GitHub or GitLab releases. This is equivalent to the backwards-compatible xget TARGET form and accepts the same options.</maml:para>
+      <maml:para>xget uninstall PACKAGE, xget remove PACKAGE</maml:para>
+      <maml:para>Remove a tracked package's extracted files and its installed metadata record. When the package is tracked in more than one install location, the tracked locations are listed and one must be selected with --from, or all of them removed with -a/--all. When no installed package matches, remove the target basename from $XGET_BIN, the current directory, or the directory selected with --from. xget TARGET --remove is retained as a backwards-compatible equivalent.</maml:para>
+      <maml:para>xget rate</maml:para>
+      <maml:para>Show GitHub API rate limiting information. This is equivalent to the backwards-compatible xget --rate form. When no token is configured, setup guidance is written to standard error while rate information remains on standard output. xget also provides this guidance after a GitHub API response with status 429.</maml:para>
+      <maml:para>xget update [PACKAGE]
+xget upgrade [PACKAGE]</maml:para>
+      <maml:para>List and apply available upgrades for installed packages. With no arguments, the newest release of every installed package is looked up, the installed metadata store is refreshed, and packages with a newer release are listed in yellow. Pass --no-color for plain output. An upgrade is available only when the newest release is newer than the installed one; tags are compared as semantic versions, including prerelease ordering, falling back to a plain difference check for tags that are not semver-shaped. Packages installed from a direct URL or local file are skipped, since there is no release list to query. Pass a package to upgrade it, or -a/--all to upgrade everything that is not pinned. PACKAGE accepts the full name (owner/repo), the store key (github:owner/repo), or the bare repository name (repo). A package installed with a tag is pinned; it is listed separately, is never upgraded by --all, and must be named explicitly. Upgrading a pinned package re-pins it to the newer tag. The upgrade re-runs the download using options resolved from the global config section, then the matching "owner/repo" section, then the options stored at install time; tag and upgrade_only are never applied because either would prevent the newer release from being downloaded, and both are left untouched in the installed metadata store.</maml:para>
+      <maml:para>A package tracked in more than one install location is listed once per location, and every out-of-date location is upgraded. --to=DIR restricts the upgrade to the copy installed in that tracked location; xget fails with package owner/repo is not installed to DIR when no record matches. -t, --tag= or the inline PACKAGE@TAG form installs that exact release instead of the newest one, which allows downgrading and reinstalling; the up-to-date check is skipped for an explicit tag, and --tag requires a package name. Example: xget upgrade jgm/pandoc@3.10 --to '~/.local/bin'.</maml:para>
+      <maml:para>xget list [TARGET]</maml:para>
+      <maml:para>Show up to ten recent releases for TARGET, including their name, tag, and publication date. Add --pre-release to include prereleases. With no TARGET, list the repositories defined in the configuration file. With --installed, show stored package metadata without checking for updates, including the last install or upgrade date. Add --check to refresh the latest available versions first; rows with a newer available version are yellow unless --no-color is set. A package tracked in more than one install location is shown once per location.</maml:para>
+      <maml:para>xget config &lt;SUBCOMMAND&gt;</maml:para>
+      <maml:para>Get, set, and edit configuration values, in the same spirit as git config. See the CONFIGURATION section below.</maml:para>
+      <maml:para>xget version</maml:para>
+      <maml:para>Print the xget version, commit, and build date.</maml:para>
+      <maml:para>xget completion &lt;SHELL&gt;</maml:para>
+      <maml:para>Generate a shell completion script for bash, zsh, fish, or powershell.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="0">
+        <maml:name>TARGET</maml:name>
+        <maml:description>
+          <maml:para>Repository owner/repo, owner/repo@TAG, PROFILE:repository, a direct URL, or a local archive. GitLab supports nested namespaces. Optional when using --rate, --download-all, or a subcommand.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="1">
+        <maml:name>COMMAND</maml:name>
+        <maml:description>
+          <maml:para>install, uninstall (remove), upgrade (update), self-update, list, rate, config, version, completion, or help. Use Get-Help xget-COMMAND -Full for a command topic; config subcommands use xget-config-SUBCOMMAND.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>tag</maml:name>
+        <maml:description>
+          <maml:para>-t, --tag=</maml:para>
+          <maml:para>Use the given tagged release instead of the latest release. user/repo@TAG is equivalent. Use latest to explicitly select the latest stable release; with --pre-release, it selects the newest release whether stable or prerelease. If the project does not have a tag that matches exactly, xget will look for a tag that contains the given string, and use the latest one. Example: xget -t nightly zyedidia/micro.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>pre-release</maml:name>
+        <maml:description>
+          <maml:para>--pre-release</maml:para>
+          <maml:para>Include pre-releases when fetching the latest version. This will get the latest overall release, even if it is a pre-release.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>source</maml:name>
+        <maml:description>
+          <maml:para>--source</maml:para>
+          <maml:para>Download the source code for the repository rather than a release. Downloads from the "master" branch by default. Use --tag to download a different tag or branch.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>provider</maml:name>
+        <maml:description>
+          <maml:para>--provider value is an error.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>to</maml:name>
+        <maml:description>
+          <maml:para>--to=</maml:para>
+          <maml:para>Move the executable to the given name after extraction. If the name is -, it the data will be written to stdout. Example: xget zyedidia/micro --to /usr/local/bin. Example: xget --asset nvim.appimage --to nvim neovim/neovim.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>binary</maml:name>
+        <maml:description>
+          <maml:para>--binary=, --name=</maml:para>
+          <maml:para>Rename a single extracted file to the given name, keeping the original extension if it has one. Ignored when multiple files are extracted or when --to names a file. Example: xget antonmedv/fx --binary fx --to ~/.local/bin installs fx_windows_amd64.exe as fx.exe.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>name</maml:name>
+        <maml:description>
+          <maml:para>--binary=, --name=</maml:para>
+          <maml:para>Rename a single extracted file to the given name, keeping the original extension if it has one. Ignored when multiple files are extracted or when --to names a file. Example: xget antonmedv/fx --binary fx --to ~/.local/bin installs fx_windows_amd64.exe as fx.exe.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>system</maml:name>
+        <maml:description>
+          <maml:para>--system OS/Arch (-s): Select a target OS and architecture, such as linux/amd64, linux/arm64, or linux/armv7. linux/armv6 selects ARMv6 assets; linux/arm matches generic 32-bit ARM assets. Use all to consider all assets. Default detection on an ARM build uses its GOARM level. xget releases currently include Linux ARMv7, but not ARMv6.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>file</maml:name>
+        <maml:description>
+          <maml:para>-f, --file=</maml:para>
+          <maml:para>Extract the file that matches the given glob. You may want use this option to extract non-binary files. Example: xget -f LICENSE zyedidia/micro.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>all</maml:name>
+        <maml:description>
+          <maml:para>--all</maml:para>
+          <maml:para>Extract all candidate files.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>quiet</maml:name>
+        <maml:description>
+          <maml:para>-q, --quiet</maml:para>
+          <maml:para>Only print essential output.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>download-only</maml:name>
+        <maml:description>
+          <maml:para>--download-only</maml:para>
+          <maml:para>Stop after downloading the asset. This prevents xget from performing extraction, allowing you to perform manual installation after the asset is downloaded.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>download-all</maml:name>
+        <maml:description>
+          <maml:para>--download-all</maml:para>
+          <maml:para>Download all projects defined in the configuration file.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>upgrade-only</maml:name>
+        <maml:description>
+          <maml:para>--upgrade-only</maml:para>
+          <maml:para>Only download the asset if the release is more recent than an existing asset with the same name in $XGET_BIN, or the current directory if $XGET_BIN is not defined.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>untracked</maml:name>
+        <maml:description>
+          <maml:para>--untracked</maml:para>
+          <maml:para>Do not record this install in the installed package store (~/.config/xget/.xget.installed.yml). Only the current run is untracked: any entry that already exists for the target is left exactly as it is, so xget list --installed, xget upgrade, and xget uninstall continue to see the previously tracked install. Example: xget install jgm/pandoc --untracked.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>asset</maml:name>
+        <maml:description>
+          <maml:para>-a, --asset=</maml:para>
+          <maml:para>Filter assets by matcher. Literal values prefer exact basename match first, then contains matching. Regex prefixes: ~, =~, and re:. Negative prefixes: ^ and not:. Use ~~ or ^^ to escape a leading ~ or ^, or use text: to force literal mode. This option can be specified multiple times for additional filtering. Example: xget --asset nvim.appimage neovim/neovim. Example: xget --asset '~^tool_.*\.zip$' --asset 'not:re:.*\.sbom\.json$' owner/repo. If the assets are filterable using the --system detector (i.e., if applying the detector does not remove all candidates), the system detector is applied. Use --system all to always consider all assets.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>ignore</maml:name>
+        <maml:description>
+          <maml:para>--ignore=</maml:para>
+          <maml:para>Exclude assets by matcher. Accepts literal contains matching and regex matching via ~, =~, or re:. Negative prefixes ^ and not: are also supported and invert the ignore behavior. Use ~~ or text: when a literal begins with ~. This option can be specified multiple times. Example: xget --asset '~\.zip$' --ignore '~\.zip\.sbom\.json$' tacocontent/ironstate.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>clobber_global.ignore</maml:name>
+        <maml:description>
+          <maml:para>--clobber_global.ignore=true|false</maml:para>
+          <maml:para>Replace inherited ignore values (default true). Set to false to merge CLI, repository, and global ignores, in that order, removing duplicates. Overrides repository and global clobber_global.ignore settings.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>clobber_global.asset_filters</maml:name>
+        <maml:description>
+          <maml:para>--clobber_global.asset_filters=true|false</maml:para>
+          <maml:para>Replace inherited asset filters (default true). Set to false to merge --asset with repository and global asset_filters, in that order, removing duplicates. Overrides repository and global clobber_global.asset_filters settings.</maml:para>
+          <maml:para>Patterns beginning with ~ are parsed as regex, and patterns beginning with ^ are parsed as negative by default. Use ~~, ^^, or text: for literal prefixes.</maml:para>
+          <maml:para>Always quote matchers starting with ~ (for example --ignore '~\.sha512$'). Unquoted, shells such as PowerShell, bash, and zsh expand a leading ~ to the home directory before xget receives the argument, silently disabling the filter.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>sha256</maml:name>
+        <maml:description>
+          <maml:para>--sha256</maml:para>
+          <maml:para>Show the SHA-256 hash of the downloaded asset. This can be used to verify that the asset is not corrupted.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>verify</maml:name>
+        <maml:description>
+          <maml:para>--verify, --verify-sha256=</maml:para>
+          <maml:para>Verify the SHA-256 hash of the downloaded asset against the one provided as an argument. Similar to --sha256, but xget will do the verification for you.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>verify-sha256</maml:name>
+        <maml:description>
+          <maml:para>--verify, --verify-sha256=</maml:para>
+          <maml:para>Verify the SHA-256 hash of the downloaded asset against the one provided as an argument. Similar to --sha256, but xget will do the verification for you.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>rate</maml:name>
+        <maml:description>
+          <maml:para>--rate</maml:para>
+          <maml:para>Show GitHub API rate limiting information.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>remove</maml:name>
+        <maml:description>
+          <maml:para>--remove</maml:para>
+          <maml:para>Uninstall the target package. This is equivalent to xget uninstall TARGET.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>from</maml:name>
+        <maml:description>
+          <maml:para>--from=DIR</maml:para>
+          <maml:para>Select the tracked install location to uninstall from when a package is installed to more than one place. When no installed package matches, remove the target basename from DIR instead of $XGET_BIN or the current directory.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>disable-ssl</maml:name>
+        <maml:description>
+          <maml:para>-k, --disable-ssl</maml:para>
+          <maml:para>Disable SSL certificate verification for GET requests. Cannot be used in combination with a GITHUB_TOKEN.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>version</maml:name>
+        <maml:description>
+          <maml:para>-v, --version</maml:para>
+          <maml:para>Print the xget version. Equivalent to xget version.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget install jgm/pandoc --to ~/.local/bin</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+        <maml:para>ENVIRONMENT
+XGET_BIN
+
+Directory to place extracted executables in when --to is not given. EGET_BIN is also honored for compatibility.
+
+XGET_GITHUB_TOKEN, GITHUB_TOKEN, EGET_GITHUB_TOKEN
+
+Default GitHub profile token variables, checked in the listed order. A value of @/path/to/file reads the token from that file.
+
+XGET_GITLAB_TOKEN, GITLAB_TOKEN
+
+Default GitLab profile token variables, checked in the listed order.
+
+XGET_CONFIG, EGET_CONFIG
+
+Path to the configuration file, overriding the default search locations.
+
+XGET_EDITOR, VISUAL, EDITOR
+
+Editor used by xget config edit, checked in that order. Falls back to nano, and to notepad on Windows when nano is not on PATH. The value may include arguments, which are passed before the file path.
+
+XDG_CONFIG_HOME
+
+Base directory for the OS configuration path. Defaults to ~/.config when unset.</maml:para>
+        <maml:para>EXIT STATUS
+0
+
+Success.
+
+1
+
+General error.
+
+16
+
+An interactive action was required while running with --non-interactive.</maml:para>
+        <maml:para>CONFIGURATION
+xget checks for configuration in this order:
+
+1. --config if specified.
+2. XGET_CONFIG if set.
+3. EGET_CONFIG if set for compatibility with original eget.
+4. ./.xget.toml, ./.xget.yml, and ./.xget.yaml.
+5. ~/.xget.toml, ~/.xget.yml, and ~/.xget.yaml.
+6. ~/.config/xget/.xget.toml, ~/.config/xget/.xget.yml, and ~/.config/xget/.xget.yaml.
+7. On Windows, %LOCALAPPDATA%/xget/.xget.toml, %LOCALAPPDATA%/xget/.xget.yml, and %LOCALAPPDATA%/xget/.xget.yaml.
+
+xget also supports the legacy eget-compatible filename .eget.toml in those same locations, and accepts .eget.yml / .eget.yaml if present.
+
+Global settings can be configured, as well as settings on a per-repository basis and named source profiles under sources.
+
+Sections can be named either global or "owner/repo", where owner and repo
+are the owner and repository name of the target repository (note that the owner/repo
+format is quoted).
+
+A repository section inherits any setting it does not define from the global
+section. The only exceptions are binary, pre_release, tag, and
+verify_sha256, which are repository-only and are never inherited.
+
+Values are resolved in this order, with each layer overriding the one before it:
+
+1. Built-in defaults.
+2. The global section.
+3. The matching "owner/repo" section.
+4. Command-line flags.
+
+Arrays (ignore and asset_filters) replace inherited arrays by default.
+Set their individual clobber_global controls to false to merge instead.
+Each control follows CLI, repository, global, then built-in precedence, with
+a built-in default of true. Strings and other primitive values always replace.
+
+  global:
+    ignore:
+      - .sbom.json
+    clobber_global:
+      ignore: false
+      asset_filters: false
+  foo/bar:
+    ignore:
+      - musl
+    clobber_global:
+      asset_filters: true
+
+
+This gives foo/bar the ignores [musl, .sbom.json].
+xget install foo/bar --ignore debug uses [debug, musl, .sbom.json].
+Add --clobber_global.ignore=true to use only [debug].
+With merging enabled, an empty array retains inherited values; use an empty
+repository array with its control set to true to clear inherited values.
+Omitted arrays still inherit globals. Higher-priority entries come first and
+duplicates are removed. Source-profile token_env arrays are unaffected.
+These controls do not change cross-file merging (global.config_merge).
+
+TOML uses [global.clobber_global] and ["foo/bar".clobber_global]
+tables, each containing ignore = false or asset_filters = false as needed.
+
+For example, the following configuration file will set the --to flag to ~/bin for
+all repositories, and will set the --to flag to ~/.local/bin for the zyedidia/micro
+repository.
+
+[global]
+source = "github"
+target = "~/bin"
+
+[sources.work]
+type = "github"
+host = "github.example.com"
+token_env = ["WORK_GITHUB_TOKEN"]
+
+["zyedidia/micro"]
+target = "~/.local/bin"
+
+
+More complete example configuration:
+
+[global]
+quiet = false
+show_hash = false
+upgrade_only = true
+target = "./test"
+
+["zyedidia/micro"]
+upgrade_only = false
+show_hash = true
+asset_filters = [ "static", ".tar.gz" ]
+target = "~/.local/bin/micro"
+
+
+By using the configuration above, you could run the following command to download
+the latest release of micro:
+xget zyedidia/micro
+
+Without the configuration, you would need to run the following command instead:
+xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar.gz
+
+Available settings
+
+Unless noted otherwise, a setting may appear in the global section, in a
+"owner/repo" section, or both.
+
+all
+
+Whether to extract all candidate files.
+
+asset_filters
+
+An array of asset matchers. Literal values prefer exact basename match then contains matching. Regex prefixes: ~, =~, and re:. Negative prefixes: ^ and not:. Use ~~/^^ or text: to force literal matching. Supported in global and repository sections.
+
+clobber_global.ignore, clobber_global.asset_filters
+
+Boolean controls for replacing inherited arrays (default true). Set to false to merge the corresponding array across global, repository, and CLI settings. Supported in global and repository sections; CLI controls override both. Use xget config set global clobber_global.ignore=false to enable ignore merging globally.
+
+disable_ssl
+
+Whether to disable SSL certificate verification for download requests.
+
+binary
+
+Output file name for a single extracted file; the original extension is kept. Repository sections only.
+
+download_only
+
+Whether to stop after downloading the asset (no extraction).
+
+download_source
+
+Whether to download the repository source code instead of a release asset.
+
+file
+
+The glob to select files for extraction.
+
+github_token
+
+GitHub API token to use for requests. Global section only and retained for compatibility. A value beginning with @ reads the token from that file without producing a plaintext-storage warning.
+
+disable_token_warning
+
+In the global section, disable warnings for every plaintext token stored in the config. In a source profile, disable the warning only for that profile.
+
+xget_update_check
+
+Whether to check for a newer xget release and print a notice to stderr when one is available. Checks at most once every 24 hours, and on every xget upgrade and xget list --installed --check. Global section only. Defaults to true. Does not affect xget self-update.
+
+ignore
+
+An array of asset matchers to exclude. Supports the same matcher syntax as asset_filters.
+
+pre_release
+
+Whether to include pre-releases when fetching the latest version. Repository sections only.
+
+quiet
+
+Whether to only print essential output.
+
+show_hash
+
+Whether to show the SHA-256 hash of the downloaded asset.
+
+source
+
+The named release source profile for the target. Defaults to github and is overridden by --provider.
+
+Source profile settings
+
+Source profiles are addressed as sources.NAME by xget config and support:
+
+type
+
+Provider implementation, either github or gitlab.
+
+host, api_url
+
+Repository host and API base URL. Conventional public or enterprise defaults are derived when omitted.
+
+token_env
+
+Environment variable names checked in order for a token.
+
+token
+
+Token fallback. A value beginning with @ reads the token from that file without producing a plaintext-storage warning. Other values are plaintext and produce a warning because config files may be committed or read by other users.
+
+disable_token_warning
+
+Disable the plaintext-token warning for this profile.
+
+system
+
+The target system to download for, in OS/Arch notation, or all.
+
+tag
+
+Pin the repository to a specific tagged release. Repository sections only. A package installed with a tag is not upgraded by xget upgrade --all.
+
+target
+
+The directory to move the downloaded file to after extraction.
+
+upgrade_only
+
+Whether to only download if release is more recent than current version.
+
+verify_sha256
+
+Verify the downloaded asset checksum against the given hash. Repository sections only.
+
+Template variables
+
+--file, --asset, and --binary (alias --name), their configuration
+equivalents (file, asset_filters, binary), and configured ignore
+entries support {{.OS}} and {{.Arch}}. These are replaced with the
+effective target OS and Go architecture from --system or configuration,
+falling back to the runtime system when unset or all. Substitution is
+applied before matching or binary-name validation, including during upgrades.
+Command-line --ignore values do not expand templates.
+
+Example: xget install gerardog/gsudo --file="{{.Arch}}/*.exe".
+Add --all to extract every match without prompting when multiple files match.
+Architecture names must match the archive paths (amd64, arm64, 386;
+not x64 or x86).
+
+The config command
+
+xget config reads and writes configuration values, in the same spirit as
+git config. Every subcommand accepts -c/--config to operate on a
+specific file.
+
+When --config is not given, the file is resolved using the search order
+above. If no configuration file exists anywhere, a new one is created at
+$XDG_CONFIG_HOME/xget/.xget.yml, or ~/.config/xget/.xget.yml when
+XDG_CONFIG_HOME is empty or unset. This applies on all platforms.
+
+The format is determined by the file extension: .toml files are written as
+TOML, .yml and .yaml files as YAML. Any other extension is rejected.
+Writing rewrites the file, so comments and the original key ordering are not
+preserved.
+
+xget config get &lt;global|owner/repo&gt; &lt;key&gt;
+
+Print the value of a key. List values print one entry per line. If the section or key is not set, nothing is printed and xget exits with status 1.
+
+xget config set &lt;global|owner/repo&gt; &lt;key&gt;=&lt;value&gt;
+
+Set a value. Scalar keys are replaced. List keys (ignore, asset_filters) append the value; repeat the command to add more entries, and appending a value that is already present is a no-op. Booleans accept true, false, t, f, 1, and 0.
+
+xget config clear &lt;global|owner/repo&gt; &lt;key&gt;
+
+Remove a key entirely, including every entry of a list key. Exits with status 1 and prints nothing when the key was not set. Empty repository sections are kept, because a section with no keys is still meaningful for --download-all.
+
+xget config pop &lt;global|owner/repo&gt; &lt;key&gt;=&lt;value&gt;
+
+Remove a single entry from a list key; the key itself is removed when its last entry is removed. For scalar keys this behaves like clear when the current value matches, and otherwise exits with status 1.
+
+xget config list
+
+Print every value in the resolved file as section.key=value, with global first and remaining sections sorted alphabetically. List keys produce one line per entry.
+
+xget config path
+
+Print the configuration file path that would be read from or written to, whether or not it exists.
+
+xget config edit
+
+Open the configuration file in an editor, creating it and its parent directories first if needed. After the editor exits, xget re-reads the file and reports a parse error if the edit made it invalid. See the ENVIRONMENT section for editor selection.</maml:para>
+        <maml:para>FOR MAINTAINERS
+To guarantee compatibility of your software's pre-built binaries with xget, you
+can follow these rules.
+
+- Provide your pre-built binaries as GitHub release assets.
+- Format the system name as OS_Arch and include it in every pre-built binary
+name. Supported OSes are darwin/macos, windows, linux, netbsd, openbsd,
+freebsd, android, illumos, solaris, plan9. Supported architectures
+are amd64, i386, arm, arm64, riscv64.
+- If desired, include *.sha256 files for each asset, containing the SHA-256
+checksum of each asset. These checksums will be automatically verified by
+xget.
+- Include only a single executable or appimage per system in each release archive.
+- Use .tar.gz, .tar.bz2, .tar.xz, .tar, or .zip for archives. You may
+also directly upload the executable without an archive, or a compressed
+executable ending in .gz, .bz2, or .xz.
+
+If you don't follow these rules, xget may still work well with your software.
+xget's auto-detection is much more relaxed than what is required by these
+rules, but if you follow these rules your software is guaranteed to be
+compatible with xget.</maml:para>
+        <maml:para>AUTHOR
+- Ryan Conrad &lt;camalot@gmail.com&gt; xget
+- Zachary Yedidia &lt;zyedidia@gmail.com&gt; eget (https://github.com/zyedidia/eget)</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetInstall</command:name>
+      <maml:description>
+        <maml:para>Download and install a prebuilt binary.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget install TARGET [OPTIONS]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Download and install a pre-built binary from GitHub or GitLab releases. This is equivalent to the backwards-compatible xget TARGET form and accepts the same options.</maml:para>
+      <maml:para>xget is a tool for downloading and extracting prebuilt binaries from releases
+on GitHub or GitLab. To use it, provide a repository and xget will search through the
+assets from the latest release in an attempt to find a suitable prebuilt
+binary for your system. If one is found, the asset will be downloaded and
+xget will extract the binary to the current directory. xget should only be
+used for installing simple, static prebuilt binaries, where the extracted
+binary is all that is needed for installation. For more complex installation,
+you may use the --download-only option, and perform extraction manually.</maml:para>
+      <maml:para>The PROJECT argument passed to xget should either be a GitHub or GitLab
+repository, formatted as user/repo or user/repo@TAG (GitLab may
+also use nested namespaces), in which
+case xget will search the release assets, a direct URL, in which case xget will directly download and
+extract from the given URL, or a local file, in which case xget will extract
+directly from the local file.</maml:para>
+      <maml:para>If xget downloads an asset called xxx and there also exists an asset called
+xxx.sha256 or xxx.sha256sum, xget will automatically verify that the
+SHA-256 checksum of the downloaded asset matches the one contained in that
+file, and abort installation if a mismatch occurs.</maml:para>
+      <maml:para>When installing an executable, xget will place it in the current directory by
+default. If the environment variable XGET_BIN is non-empty, xget will
+place the executable in that directory. The --to flag may also be used to
+customize the install location.</maml:para>
+      <maml:para>Leading ~ is expanded in output paths, including XGET_BIN,
+EGET_BIN, and stored output paths used for upgrades.</maml:para>
+      <maml:para>Directories can also be specified as files to extract, and all files within
+them will be extracted. For example:</maml:para>
+      <maml:para>xget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz --file go --to ~/go1.17.5</maml:para>
+      <maml:para>GitHub limits API requests to 60 per hour for unauthenticated users. Use
+xget rate or xget --rate to inspect the active limit. Set a personal
+access token in GITHUB_TOKEN, EGET_GITHUB_TOKEN, or
+XGET_GITHUB_TOKEN to make more requests; XGET_GITHUB_TOKEN takes
+precedence. xget prints this setup guidance when no token is configured for a
+rate check and after a GitHub API rate-limit response.</maml:para>
+      <maml:para>xget loads environment files from the current directory in descending
+priority: .secrets, alphabetically sorted *.secrets, .env, then
+alphabetically sorted *.env. Earlier file values win; variables already set
+in the parent shell have the highest priority.</maml:para>
+      <maml:para>Successful installs are recorded in ~/.config/xget/.xget.installed.yml. Each
+record includes the repository or URL, source type, install location,
+timestamps, selected asset, download URL, extracted files, effective install
+options, SHA-256, and the installed and latest known tags. Records are keyed as
+&lt;source&gt;:&lt;repo-or-url&gt;, such as github:nektos/act. Reinstalling a package
+refreshes its existing record. This store is what xget list --installed and
+xget upgrade read from. Use --untracked to skip recording a single install
+without disturbing an existing record for that target.</maml:para>
+      <maml:para>A package may be installed to several locations. Each install location is
+tracked separately, so installing to a new directory adds a record instead of
+replacing the existing one, while reinstalling to an already tracked directory
+updates that record in place. xget upgrade and xget uninstall act on every
+tracked location unless one is selected with --to or --from.</maml:para>
+      <maml:para>Legacy executable-path install locations are normalized to their containing
+directory. Duplicate records for the same package and directory are merged
+when loading the store, retaining the newest install record.</maml:para>
+      <maml:para>The behavior of xget is configurable in a number of ways via options.
+Documentation for these options is provided below.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="true" position="0">
+        <maml:name>TARGET</maml:name>
+        <maml:description>
+          <maml:para>Required repository, repository@TAG, PROFILE:repository, direct URL, or local archive. A conflicting PROFILE: prefix and --provider is an error.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>tag</maml:name>
+        <maml:description>
+          <maml:para>-t, --tag=</maml:para>
+          <maml:para>Use the given tagged release instead of the latest release. user/repo@TAG is equivalent. Use latest to explicitly select the latest stable release; with --pre-release, it selects the newest release whether stable or prerelease. If the project does not have a tag that matches exactly, xget will look for a tag that contains the given string, and use the latest one. Example: xget -t nightly zyedidia/micro.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>pre-release</maml:name>
+        <maml:description>
+          <maml:para>--pre-release</maml:para>
+          <maml:para>Include pre-releases when fetching the latest version. This will get the latest overall release, even if it is a pre-release.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>source</maml:name>
+        <maml:description>
+          <maml:para>--source</maml:para>
+          <maml:para>Download the source code for the repository rather than a release. Downloads from the "master" branch by default. Use --tag to download a different tag or branch.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>provider</maml:name>
+        <maml:description>
+          <maml:para>--provider value is an error.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>to</maml:name>
+        <maml:description>
+          <maml:para>--to=</maml:para>
+          <maml:para>Move the executable to the given name after extraction. If the name is -, it the data will be written to stdout. Example: xget zyedidia/micro --to /usr/local/bin. Example: xget --asset nvim.appimage --to nvim neovim/neovim.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>binary</maml:name>
+        <maml:description>
+          <maml:para>--binary=, --name=</maml:para>
+          <maml:para>Rename a single extracted file to the given name, keeping the original extension if it has one. Ignored when multiple files are extracted or when --to names a file. Example: xget antonmedv/fx --binary fx --to ~/.local/bin installs fx_windows_amd64.exe as fx.exe.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>name</maml:name>
+        <maml:description>
+          <maml:para>--binary=, --name=</maml:para>
+          <maml:para>Rename a single extracted file to the given name, keeping the original extension if it has one. Ignored when multiple files are extracted or when --to names a file. Example: xget antonmedv/fx --binary fx --to ~/.local/bin installs fx_windows_amd64.exe as fx.exe.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>system</maml:name>
+        <maml:description>
+          <maml:para>--system OS/Arch (-s): Select a target OS and architecture, such as linux/amd64, linux/arm64, or linux/armv7. linux/armv6 selects ARMv6 assets; linux/arm matches generic 32-bit ARM assets. Use all to consider all assets. Default detection on an ARM build uses its GOARM level. xget releases currently include Linux ARMv7, but not ARMv6.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>file</maml:name>
+        <maml:description>
+          <maml:para>-f, --file=</maml:para>
+          <maml:para>Extract the file that matches the given glob. You may want use this option to extract non-binary files. Example: xget -f LICENSE zyedidia/micro.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>all</maml:name>
+        <maml:description>
+          <maml:para>--all</maml:para>
+          <maml:para>Extract all candidate files.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>quiet</maml:name>
+        <maml:description>
+          <maml:para>-q, --quiet</maml:para>
+          <maml:para>Only print essential output.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>download-only</maml:name>
+        <maml:description>
+          <maml:para>--download-only</maml:para>
+          <maml:para>Stop after downloading the asset. This prevents xget from performing extraction, allowing you to perform manual installation after the asset is downloaded.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>download-all</maml:name>
+        <maml:description>
+          <maml:para>--download-all</maml:para>
+          <maml:para>Download all projects defined in the configuration file.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>upgrade-only</maml:name>
+        <maml:description>
+          <maml:para>--upgrade-only</maml:para>
+          <maml:para>Only download the asset if the release is more recent than an existing asset with the same name in $XGET_BIN, or the current directory if $XGET_BIN is not defined.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>untracked</maml:name>
+        <maml:description>
+          <maml:para>--untracked</maml:para>
+          <maml:para>Do not record this install in the installed package store (~/.config/xget/.xget.installed.yml). Only the current run is untracked: any entry that already exists for the target is left exactly as it is, so xget list --installed, xget upgrade, and xget uninstall continue to see the previously tracked install. Example: xget install jgm/pandoc --untracked.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>asset</maml:name>
+        <maml:description>
+          <maml:para>-a, --asset=</maml:para>
+          <maml:para>Filter assets by matcher. Literal values prefer exact basename match first, then contains matching. Regex prefixes: ~, =~, and re:. Negative prefixes: ^ and not:. Use ~~ or ^^ to escape a leading ~ or ^, or use text: to force literal mode. This option can be specified multiple times for additional filtering. Example: xget --asset nvim.appimage neovim/neovim. Example: xget --asset '~^tool_.*\.zip$' --asset 'not:re:.*\.sbom\.json$' owner/repo. If the assets are filterable using the --system detector (i.e., if applying the detector does not remove all candidates), the system detector is applied. Use --system all to always consider all assets.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>ignore</maml:name>
+        <maml:description>
+          <maml:para>--ignore=</maml:para>
+          <maml:para>Exclude assets by matcher. Accepts literal contains matching and regex matching via ~, =~, or re:. Negative prefixes ^ and not: are also supported and invert the ignore behavior. Use ~~ or text: when a literal begins with ~. This option can be specified multiple times. Example: xget --asset '~\.zip$' --ignore '~\.zip\.sbom\.json$' tacocontent/ironstate.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>clobber_global.ignore</maml:name>
+        <maml:description>
+          <maml:para>--clobber_global.ignore=true|false</maml:para>
+          <maml:para>Replace inherited ignore values (default true). Set to false to merge CLI, repository, and global ignores, in that order, removing duplicates. Overrides repository and global clobber_global.ignore settings.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>clobber_global.asset_filters</maml:name>
+        <maml:description>
+          <maml:para>--clobber_global.asset_filters=true|false</maml:para>
+          <maml:para>Replace inherited asset filters (default true). Set to false to merge --asset with repository and global asset_filters, in that order, removing duplicates. Overrides repository and global clobber_global.asset_filters settings.</maml:para>
+          <maml:para>Patterns beginning with ~ are parsed as regex, and patterns beginning with ^ are parsed as negative by default. Use ~~, ^^, or text: for literal prefixes.</maml:para>
+          <maml:para>Always quote matchers starting with ~ (for example --ignore '~\.sha512$'). Unquoted, shells such as PowerShell, bash, and zsh expand a leading ~ to the home directory before xget receives the argument, silently disabling the filter.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>sha256</maml:name>
+        <maml:description>
+          <maml:para>--sha256</maml:para>
+          <maml:para>Show the SHA-256 hash of the downloaded asset. This can be used to verify that the asset is not corrupted.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>verify</maml:name>
+        <maml:description>
+          <maml:para>--verify, --verify-sha256=</maml:para>
+          <maml:para>Verify the SHA-256 hash of the downloaded asset against the one provided as an argument. Similar to --sha256, but xget will do the verification for you.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>verify-sha256</maml:name>
+        <maml:description>
+          <maml:para>--verify, --verify-sha256=</maml:para>
+          <maml:para>Verify the SHA-256 hash of the downloaded asset against the one provided as an argument. Similar to --sha256, but xget will do the verification for you.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>rate</maml:name>
+        <maml:description>
+          <maml:para>--rate</maml:para>
+          <maml:para>Show GitHub API rate limiting information.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>remove</maml:name>
+        <maml:description>
+          <maml:para>--remove</maml:para>
+          <maml:para>Uninstall the target package. This is equivalent to xget uninstall TARGET.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>from</maml:name>
+        <maml:description>
+          <maml:para>--from=DIR</maml:para>
+          <maml:para>Select the tracked install location to uninstall from when a package is installed to more than one place. When no installed package matches, remove the target basename from DIR instead of $XGET_BIN or the current directory.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>disable-ssl</maml:name>
+        <maml:description>
+          <maml:para>-k, --disable-ssl</maml:para>
+          <maml:para>Disable SSL certificate verification for GET requests. Cannot be used in combination with a GITHUB_TOKEN.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget install gerardog/gsudo --file '{{.Arch}}/*.exe' --all</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetUninstall</command:name>
+      <maml:description>
+        <maml:para>Remove installed files and tracking records.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget uninstall PACKAGE [--from DIR | --all]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Remove a tracked package's extracted files and its installed metadata record. When the package is tracked in more than one install location, the tracked locations are listed and one must be selected with --from, or all of them removed with -a/--all. When no installed package matches, remove the target basename from $XGET_BIN, the current directory, or the directory selected with --from. xget TARGET --remove is retained as a backwards-compatible equivalent.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="true" position="0">
+        <maml:name>PACKAGE</maml:name>
+        <maml:description>
+          <maml:para>Required package name, owner/repo, or tracking key (github:owner/repo). If untracked, its basename is removed from --from, XGET_BIN, or the current directory. remove is an alias for uninstall.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>from</maml:name>
+        <maml:description>
+          <maml:para>--from=DIR</maml:para>
+          <maml:para>Select the tracked install location to uninstall from when a package is installed to more than one place. When no installed package matches, remove the target basename from DIR instead of $XGET_BIN or the current directory.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>all</maml:name>
+        <maml:description>
+          <maml:para>--all (-a): Remove the package from every tracked install location. Otherwise select one of multiple locations with --from.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget uninstall jgm/pandoc --from ~/.local/bin</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetUpgrade</command:name>
+      <maml:description>
+        <maml:para>List and apply upgrades for tracked packages.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget upgrade [PACKAGE[@TAG]] [--all] [--to DIR] [--tag TAG] [--no-color] [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>List and apply available upgrades for installed packages. With no arguments, the newest release of every installed package is looked up, the installed metadata store is refreshed, and packages with a newer release are listed in yellow. Pass --no-color for plain output. An upgrade is available only when the newest release is newer than the installed one; tags are compared as semantic versions, including prerelease ordering, falling back to a plain difference check for tags that are not semver-shaped. Packages installed from a direct URL or local file are skipped, since there is no release list to query. Pass a package to upgrade it, or -a/--all to upgrade everything that is not pinned. PACKAGE accepts the full name (owner/repo), the store key (github:owner/repo), or the bare repository name (repo). A package installed with a tag is pinned; it is listed separately, is never upgraded by --all, and must be named explicitly. Upgrading a pinned package re-pins it to the newer tag. The upgrade re-runs the download using options resolved from the global config section, then the matching "owner/repo" section, then the options stored at install time; tag and upgrade_only are never applied because either would prevent the newer release from being downloaded, and both are left untouched in the installed metadata store.</maml:para>
+      <maml:para>A package tracked in more than one install location is listed once per location, and every out-of-date location is upgraded. --to=DIR restricts the upgrade to the copy installed in that tracked location; xget fails with package owner/repo is not installed to DIR when no record matches. -t, --tag= or the inline PACKAGE@TAG form installs that exact release instead of the newest one, which allows downgrading and reinstalling; the up-to-date check is skipped for an explicit tag, and --tag requires a package name. Example: xget upgrade jgm/pandoc@3.10 --to '~/.local/bin'.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="0">
+        <maml:name>PACKAGE</maml:name>
+        <maml:description>
+          <maml:para>Optional owner/repo, tracking key (github:owner/repo), or bare repository name. Without PACKAGE or --all, refresh metadata and list upgrades. update is an alias for upgrade.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>all</maml:name>
+        <maml:description>
+          <maml:para>--all (-a): Upgrade all out-of-date packages except pinned packages.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>to</maml:name>
+        <maml:description>
+          <maml:para>--to DIR: Only upgrade the copy installed to this tracked directory. Fail if no matching location exists.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>tag</maml:name>
+        <maml:description>
+          <maml:para>--tag TAG (-t): Install an exact release, allowing a downgrade or reinstall. Requires PACKAGE. PACKAGE@TAG is equivalent. An explicitly upgraded pinned package is re-pinned to the newer tag.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>no-color</maml:name>
+        <maml:description>
+          <maml:para>--no-color: Disable colored output; newer available versions would otherwise be yellow.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget upgrade jgm/pandoc@3.10 --to '~/.local/bin'</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetSelfUpdate</command:name>
+      <maml:description>
+        <maml:para>Update xget itself.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget self-update [--to DIR] [--tag TAG] [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Update tracked camalot/xget installations. If no tracked installation exists and --to is absent, update the running executable instead. The global xget_update_check setting controls update notices, not this command.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>to</maml:name>
+        <maml:description>
+          <maml:para>--to DIR: Update only the xget copy tracked in this location.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>tag</maml:name>
+        <maml:description>
+          <maml:para>--tag TAG (-t): Install this exact xget release instead of the latest; allows downgrades.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget self-update</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetList</command:name>
+      <maml:description>
+        <maml:para>List releases, configured repositories, or installed packages.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget list [TARGET] [--installed] [--check] [--pre-release] [--no-color] [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Show up to ten recent releases for TARGET, including their name, tag, and publication date. Add --pre-release to include prereleases. With no TARGET, list the repositories defined in the configuration file. With --installed, show stored package metadata without checking for updates, including the last install or upgrade date. Add --check to refresh the latest available versions first; rows with a newer available version are yellow unless --no-color is set. A package tracked in more than one install location is shown once per location.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="0">
+        <maml:name>TARGET</maml:name>
+        <maml:description>
+          <maml:para>Optional release repository. Without TARGET, list configured repositories, or use --installed to list the tracking store.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>installed</maml:name>
+        <maml:description>
+          <maml:para>--installed: Show stored installed-package metadata without checking for updates. Includes the last install or upgrade date and one row per install location.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>check</maml:name>
+        <maml:description>
+          <maml:para>--check: Refresh the latest available versions before listing installed packages. Use with --installed.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>pre-release</maml:name>
+        <maml:description>
+          <maml:para>--pre-release</maml:para>
+          <maml:para>Include pre-releases when fetching the latest version. This will get the latest overall release, even if it is a pre-release.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>no-color</maml:name>
+        <maml:description>
+          <maml:para>--no-color: Disable colored output; newer available versions would otherwise be yellow.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget list --installed --check --no-color</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetRate</command:name>
+      <maml:description>
+        <maml:para>Show GitHub API rate limiting information.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget rate [--disable-ssl] [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Show GitHub API rate limiting information. This is equivalent to the backwards-compatible xget --rate form. When no token is configured, setup guidance is written to standard error while rate information remains on standard output. xget also provides this guidance after a GitHub API response with status 429.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>disable-ssl</maml:name>
+        <maml:description>
+          <maml:para>-k, --disable-ssl</maml:para>
+          <maml:para>Disable SSL certificate verification for GET requests. Cannot be used in combination with a GITHUB_TOKEN.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget rate</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetVersion</command:name>
+      <maml:description>
+        <maml:para>Print the xget version, commit, and build date.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget version</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Print the xget version, commit, and build date.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget version</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetConfig</command:name>
+      <maml:description>
+        <maml:para>Read, write, and edit xget configuration.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget config SUBCOMMAND [ARGS] [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>xget checks for configuration in this order:</maml:para>
+      <maml:para>1. --config if specified.
+2. XGET_CONFIG if set.
+3. EGET_CONFIG if set for compatibility with original eget.
+4. ./.xget.toml, ./.xget.yml, and ./.xget.yaml.
+5. ~/.xget.toml, ~/.xget.yml, and ~/.xget.yaml.
+6. ~/.config/xget/.xget.toml, ~/.config/xget/.xget.yml, and ~/.config/xget/.xget.yaml.
+7. On Windows, %LOCALAPPDATA%/xget/.xget.toml, %LOCALAPPDATA%/xget/.xget.yml, and %LOCALAPPDATA%/xget/.xget.yaml.</maml:para>
+      <maml:para>xget also supports the legacy eget-compatible filename .eget.toml in those same locations, and accepts .eget.yml / .eget.yaml if present.</maml:para>
+      <maml:para>Global settings can be configured, as well as settings on a per-repository basis and named source profiles under sources.</maml:para>
+      <maml:para>Sections can be named either global or "owner/repo", where owner and repo
+are the owner and repository name of the target repository (note that the owner/repo
+format is quoted).</maml:para>
+      <maml:para>A repository section inherits any setting it does not define from the global
+section. The only exceptions are binary, pre_release, tag, and
+verify_sha256, which are repository-only and are never inherited.</maml:para>
+      <maml:para>Values are resolved in this order, with each layer overriding the one before it:</maml:para>
+      <maml:para>1. Built-in defaults.
+2. The global section.
+3. The matching "owner/repo" section.
+4. Command-line flags.</maml:para>
+      <maml:para>Arrays (ignore and asset_filters) replace inherited arrays by default.
+Set their individual clobber_global controls to false to merge instead.
+Each control follows CLI, repository, global, then built-in precedence, with
+a built-in default of true. Strings and other primitive values always replace.</maml:para>
+      <maml:para>global:
+    ignore:
+      - .sbom.json
+    clobber_global:
+      ignore: false
+      asset_filters: false
+  foo/bar:
+    ignore:
+      - musl
+    clobber_global:
+      asset_filters: true</maml:para>
+      <maml:para>This gives foo/bar the ignores [musl, .sbom.json].
+xget install foo/bar --ignore debug uses [debug, musl, .sbom.json].
+Add --clobber_global.ignore=true to use only [debug].
+With merging enabled, an empty array retains inherited values; use an empty
+repository array with its control set to true to clear inherited values.
+Omitted arrays still inherit globals. Higher-priority entries come first and
+duplicates are removed. Source-profile token_env arrays are unaffected.
+These controls do not change cross-file merging (global.config_merge).</maml:para>
+      <maml:para>TOML uses [global.clobber_global] and ["foo/bar".clobber_global]
+tables, each containing ignore = false or asset_filters = false as needed.</maml:para>
+      <maml:para>For example, the following configuration file will set the --to flag to ~/bin for
+all repositories, and will set the --to flag to ~/.local/bin for the zyedidia/micro
+repository.</maml:para>
+      <maml:para>[global]
+source = "github"
+target = "~/bin"</maml:para>
+      <maml:para>[sources.work]
+type = "github"
+host = "github.example.com"
+token_env = ["WORK_GITHUB_TOKEN"]</maml:para>
+      <maml:para>["zyedidia/micro"]
+target = "~/.local/bin"</maml:para>
+      <maml:para>More complete example configuration:</maml:para>
+      <maml:para>[global]
+quiet = false
+show_hash = false
+upgrade_only = true
+target = "./test"</maml:para>
+      <maml:para>["zyedidia/micro"]
+upgrade_only = false
+show_hash = true
+asset_filters = [ "static", ".tar.gz" ]
+target = "~/.local/bin/micro"</maml:para>
+      <maml:para>By using the configuration above, you could run the following command to download
+the latest release of micro:
+xget zyedidia/micro</maml:para>
+      <maml:para>Without the configuration, you would need to run the following command instead:
+xget zyedidia/micro --to ~/.local/bin/micro --sha256 --asset static --asset .tar.gz</maml:para>
+      <maml:para>Available settings</maml:para>
+      <maml:para>Unless noted otherwise, a setting may appear in the global section, in a
+"owner/repo" section, or both.</maml:para>
+      <maml:para>all</maml:para>
+      <maml:para>Whether to extract all candidate files.</maml:para>
+      <maml:para>asset_filters</maml:para>
+      <maml:para>An array of asset matchers. Literal values prefer exact basename match then contains matching. Regex prefixes: ~, =~, and re:. Negative prefixes: ^ and not:. Use ~~/^^ or text: to force literal matching. Supported in global and repository sections.</maml:para>
+      <maml:para>clobber_global.ignore, clobber_global.asset_filters</maml:para>
+      <maml:para>Boolean controls for replacing inherited arrays (default true). Set to false to merge the corresponding array across global, repository, and CLI settings. Supported in global and repository sections; CLI controls override both. Use xget config set global clobber_global.ignore=false to enable ignore merging globally.</maml:para>
+      <maml:para>disable_ssl</maml:para>
+      <maml:para>Whether to disable SSL certificate verification for download requests.</maml:para>
+      <maml:para>binary</maml:para>
+      <maml:para>Output file name for a single extracted file; the original extension is kept. Repository sections only.</maml:para>
+      <maml:para>download_only</maml:para>
+      <maml:para>Whether to stop after downloading the asset (no extraction).</maml:para>
+      <maml:para>download_source</maml:para>
+      <maml:para>Whether to download the repository source code instead of a release asset.</maml:para>
+      <maml:para>file</maml:para>
+      <maml:para>The glob to select files for extraction.</maml:para>
+      <maml:para>github_token</maml:para>
+      <maml:para>GitHub API token to use for requests. Global section only and retained for compatibility. A value beginning with @ reads the token from that file without producing a plaintext-storage warning.</maml:para>
+      <maml:para>disable_token_warning</maml:para>
+      <maml:para>In the global section, disable warnings for every plaintext token stored in the config. In a source profile, disable the warning only for that profile.</maml:para>
+      <maml:para>xget_update_check</maml:para>
+      <maml:para>Whether to check for a newer xget release and print a notice to stderr when one is available. Checks at most once every 24 hours, and on every xget upgrade and xget list --installed --check. Global section only. Defaults to true. Does not affect xget self-update.</maml:para>
+      <maml:para>ignore</maml:para>
+      <maml:para>An array of asset matchers to exclude. Supports the same matcher syntax as asset_filters.</maml:para>
+      <maml:para>pre_release</maml:para>
+      <maml:para>Whether to include pre-releases when fetching the latest version. Repository sections only.</maml:para>
+      <maml:para>quiet</maml:para>
+      <maml:para>Whether to only print essential output.</maml:para>
+      <maml:para>show_hash</maml:para>
+      <maml:para>Whether to show the SHA-256 hash of the downloaded asset.</maml:para>
+      <maml:para>source</maml:para>
+      <maml:para>The named release source profile for the target. Defaults to github and is overridden by --provider.</maml:para>
+      <maml:para>Source profile settings</maml:para>
+      <maml:para>Source profiles are addressed as sources.NAME by xget config and support:</maml:para>
+      <maml:para>type</maml:para>
+      <maml:para>Provider implementation, either github or gitlab.</maml:para>
+      <maml:para>host, api_url</maml:para>
+      <maml:para>Repository host and API base URL. Conventional public or enterprise defaults are derived when omitted.</maml:para>
+      <maml:para>token_env</maml:para>
+      <maml:para>Environment variable names checked in order for a token.</maml:para>
+      <maml:para>token</maml:para>
+      <maml:para>Token fallback. A value beginning with @ reads the token from that file without producing a plaintext-storage warning. Other values are plaintext and produce a warning because config files may be committed or read by other users.</maml:para>
+      <maml:para>disable_token_warning</maml:para>
+      <maml:para>Disable the plaintext-token warning for this profile.</maml:para>
+      <maml:para>system</maml:para>
+      <maml:para>The target system to download for, in OS/Arch notation, or all.</maml:para>
+      <maml:para>tag</maml:para>
+      <maml:para>Pin the repository to a specific tagged release. Repository sections only. A package installed with a tag is not upgraded by xget upgrade --all.</maml:para>
+      <maml:para>target</maml:para>
+      <maml:para>The directory to move the downloaded file to after extraction.</maml:para>
+      <maml:para>upgrade_only</maml:para>
+      <maml:para>Whether to only download if release is more recent than current version.</maml:para>
+      <maml:para>verify_sha256</maml:para>
+      <maml:para>Verify the downloaded asset checksum against the given hash. Repository sections only.</maml:para>
+      <maml:para>Template variables</maml:para>
+      <maml:para>--file, --asset, and --binary (alias --name), their configuration
+equivalents (file, asset_filters, binary), and configured ignore
+entries support {{.OS}} and {{.Arch}}. These are replaced with the
+effective target OS and Go architecture from --system or configuration,
+falling back to the runtime system when unset or all. Substitution is
+applied before matching or binary-name validation, including during upgrades.
+Command-line --ignore values do not expand templates.</maml:para>
+      <maml:para>Example: xget install gerardog/gsudo --file="{{.Arch}}/*.exe".
+Add --all to extract every match without prompting when multiple files match.
+Architecture names must match the archive paths (amd64, arm64, 386;
+not x64 or x86).</maml:para>
+      <maml:para>The config command</maml:para>
+      <maml:para>xget config reads and writes configuration values, in the same spirit as
+git config. Every subcommand accepts -c/--config to operate on a
+specific file.</maml:para>
+      <maml:para>When --config is not given, the file is resolved using the search order
+above. If no configuration file exists anywhere, a new one is created at
+$XDG_CONFIG_HOME/xget/.xget.yml, or ~/.config/xget/.xget.yml when
+XDG_CONFIG_HOME is empty or unset. This applies on all platforms.</maml:para>
+      <maml:para>The format is determined by the file extension: .toml files are written as
+TOML, .yml and .yaml files as YAML. Any other extension is rejected.
+Writing rewrites the file, so comments and the original key ordering are not
+preserved.</maml:para>
+      <maml:para>xget config get &lt;global|owner/repo&gt; &lt;key&gt;</maml:para>
+      <maml:para>Print the value of a key. List values print one entry per line. If the section or key is not set, nothing is printed and xget exits with status 1.</maml:para>
+      <maml:para>xget config set &lt;global|owner/repo&gt; &lt;key&gt;=&lt;value&gt;</maml:para>
+      <maml:para>Set a value. Scalar keys are replaced. List keys (ignore, asset_filters) append the value; repeat the command to add more entries, and appending a value that is already present is a no-op. Booleans accept true, false, t, f, 1, and 0.</maml:para>
+      <maml:para>xget config clear &lt;global|owner/repo&gt; &lt;key&gt;</maml:para>
+      <maml:para>Remove a key entirely, including every entry of a list key. Exits with status 1 and prints nothing when the key was not set. Empty repository sections are kept, because a section with no keys is still meaningful for --download-all.</maml:para>
+      <maml:para>xget config pop &lt;global|owner/repo&gt; &lt;key&gt;=&lt;value&gt;</maml:para>
+      <maml:para>Remove a single entry from a list key; the key itself is removed when its last entry is removed. For scalar keys this behaves like clear when the current value matches, and otherwise exits with status 1.</maml:para>
+      <maml:para>xget config list</maml:para>
+      <maml:para>Print every value in the resolved file as section.key=value, with global first and remaining sections sorted alphabetically. List keys produce one line per entry.</maml:para>
+      <maml:para>xget config path</maml:para>
+      <maml:para>Print the configuration file path that would be read from or written to, whether or not it exists.</maml:para>
+      <maml:para>xget config edit</maml:para>
+      <maml:para>Open the configuration file in an editor, creating it and its parent directories first if needed. After the editor exits, xget re-reads the file and reports a parse error if the edit made it invalid. See the ENVIRONMENT section for editor selection.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="0">
+        <maml:name>SUBCOMMAND</maml:name>
+        <maml:description>
+          <maml:para>get, set, clear, pop, list, path, or edit. Use Get-Help xget-config-SUBCOMMAND -Full for individual help. Without a subcommand, show CLI help.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget config set global target=~/.local/bin</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetCompletion</command:name>
+      <maml:description>
+        <maml:para>Generate a shell completion script.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget completion SHELL [OPTIONS]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Generate a shell completion script for bash, zsh, fish, or powershell.</maml:para>
+      <maml:para>Each shell is a subcommand: completion bash, completion zsh, completion fish, and completion powershell. All accept --no-descriptions, --help, and --non-interactive. The generated script is written to stdout. Dot-source a saved PowerShell completion script to register native completion.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="true" position="0">
+        <maml:name>SHELL</maml:name>
+        <maml:description>
+          <maml:para>Required completion subcommand: bash, zsh, fish, or powershell. Run xget completion SHELL --help for shell-specific loading instructions.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget completion powershell | Out-String | Invoke-Expression</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetHelp</command:name>
+      <maml:description>
+        <maml:para>Show the executable help for a command.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget help [COMMAND [SUBCOMMAND]]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Display Cobra CLI help, distinct from the PowerShell Get-Help topics. Use xget help config set for a nested command, or add --help to any command.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="0">
+        <maml:name>COMMAND</maml:name>
+        <maml:description>
+          <maml:para>Optional command and subcommand path. With no arguments, show root CLI help.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget help config set</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetCompletionBash</command:name>
+      <maml:description>
+        <maml:para>Generate bash shell completions.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget completion bash [--no-descriptions]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Write the bash completion script to stdout. Requires the bash-completion package. In bash, run: source &lt;(xget completion bash)</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>no-descriptions</maml:name>
+        <maml:description>
+          <maml:para>--no-descriptions: Generate completion candidates without descriptions. Available on completion shell subcommands.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget completion bash</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetCompletionZsh</command:name>
+      <maml:description>
+        <maml:para>Generate zsh shell completions.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget completion zsh [--no-descriptions]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Write the zsh completion script to stdout. Enable compinit first (autoload -U compinit; compinit). In zsh, run: source &lt;(xget completion zsh)</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>no-descriptions</maml:name>
+        <maml:description>
+          <maml:para>--no-descriptions: Generate completion candidates without descriptions. Available on completion shell subcommands.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget completion zsh</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetCompletionFish</command:name>
+      <maml:description>
+        <maml:para>Generate fish shell completions.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget completion fish [--no-descriptions]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Write the fish completion script to stdout. In fish, run: xget completion fish | source. For persistent completion, save the output to ~/.config/fish/completions/xget.fish.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>no-descriptions</maml:name>
+        <maml:description>
+          <maml:para>--no-descriptions: Generate completion candidates without descriptions. Available on completion shell subcommands.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget completion fish</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetCompletionPowershell</command:name>
+      <maml:description>
+        <maml:para>Generate powershell shell completions.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget completion powershell [--no-descriptions]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Write the powershell completion script to stdout. In PowerShell, run: xget completion powershell | Out-String | Invoke-Expression. Save the generated script and dot-source it from your PowerShell profile for persistent completion.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>no-descriptions</maml:name>
+        <maml:description>
+          <maml:para>--no-descriptions: Generate completion candidates without descriptions. Available on completion shell subcommands.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget completion powershell</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetConfigGet</command:name>
+      <maml:description>
+        <maml:para>Configuration get subcommand.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget config get SECTION KEY [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Print the value of a key. List values print one entry per line. If the section or key is not set, nothing is printed and xget exits with status 1.</maml:para>
+      <maml:para>Operate on one resolved TOML or YAML file. Use --config to select it explicitly. See Get-Help xget-config -Full for settings, search paths, inheritance, and source profiles.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="true" position="0">
+        <maml:name>SECTION</maml:name>
+        <maml:description>
+          <maml:para>Required global, owner/repo, or sources.NAME section. Unknown settings are rejected. Source profiles support type, host, api_url, token_env, token, and disable_token_warning.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="true" position="1">
+        <maml:name>KEY</maml:name>
+        <maml:description>
+          <maml:para>Required configuration key, for example target, ignore, asset_filters, or clobber_global.ignore.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget config get global target</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetConfigSet</command:name>
+      <maml:description>
+        <maml:para>Configuration set subcommand.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget config set SECTION KEY=VALUE [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Set a value. Scalar keys are replaced. List keys (ignore, asset_filters) append the value; repeat the command to add more entries, and appending a value that is already present is a no-op. Booleans accept true, false, t, f, 1, and 0.</maml:para>
+      <maml:para>Operate on one resolved TOML or YAML file. Use --config to select it explicitly. See Get-Help xget-config -Full for settings, search paths, inheritance, and source profiles.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="true" position="0">
+        <maml:name>SECTION</maml:name>
+        <maml:description>
+          <maml:para>Required global, owner/repo, or sources.NAME section. Unknown settings are rejected. Source profiles support type, host, api_url, token_env, token, and disable_token_warning.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="true" position="1">
+        <maml:name>ASSIGNMENT</maml:name>
+        <maml:description>
+          <maml:para>Required key=value argument. Quote the entire argument when it contains spaces or PowerShell metacharacters. Boolean values accept true, false, t, f, 1, and 0.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget config set global clobber_global.ignore=false</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetConfigClear</command:name>
+      <maml:description>
+        <maml:para>Configuration clear subcommand.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget config clear SECTION KEY [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Remove a key entirely, including every entry of a list key. Exits with status 1 and prints nothing when the key was not set. Empty repository sections are kept, because a section with no keys is still meaningful for --download-all.</maml:para>
+      <maml:para>Operate on one resolved TOML or YAML file. Use --config to select it explicitly. See Get-Help xget-config -Full for settings, search paths, inheritance, and source profiles.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="true" position="0">
+        <maml:name>SECTION</maml:name>
+        <maml:description>
+          <maml:para>Required global, owner/repo, or sources.NAME section. Unknown settings are rejected. Source profiles support type, host, api_url, token_env, token, and disable_token_warning.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="true" position="1">
+        <maml:name>KEY</maml:name>
+        <maml:description>
+          <maml:para>Required configuration key, for example target, ignore, asset_filters, or clobber_global.ignore.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget config clear jgm/pandoc ignore</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetConfigPop</command:name>
+      <maml:description>
+        <maml:para>Configuration pop subcommand.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget config pop SECTION KEY=VALUE [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Remove a single entry from a list key; the key itself is removed when its last entry is removed. For scalar keys this behaves like clear when the current value matches, and otherwise exits with status 1.</maml:para>
+      <maml:para>Operate on one resolved TOML or YAML file. Use --config to select it explicitly. See Get-Help xget-config -Full for settings, search paths, inheritance, and source profiles.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="true" position="0">
+        <maml:name>SECTION</maml:name>
+        <maml:description>
+          <maml:para>Required global, owner/repo, or sources.NAME section. Unknown settings are rejected. Source profiles support type, host, api_url, token_env, token, and disable_token_warning.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="true" position="1">
+        <maml:name>ASSIGNMENT</maml:name>
+        <maml:description>
+          <maml:para>Required key=value argument. Quote the entire argument when it contains spaces or PowerShell metacharacters. Boolean values accept true, false, t, f, 1, and 0.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget config pop jgm/pandoc ignore=musl</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetConfigList</command:name>
+      <maml:description>
+        <maml:para>Configuration list subcommand.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget config list [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Print every value in the resolved file as section.key=value, with global first and remaining sections sorted alphabetically. List keys produce one line per entry.</maml:para>
+      <maml:para>Operate on one resolved TOML or YAML file. Use --config to select it explicitly. See Get-Help xget-config -Full for settings, search paths, inheritance, and source profiles.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget config list</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetConfigPath</command:name>
+      <maml:description>
+        <maml:para>Configuration path subcommand.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget config path [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Print the configuration file path that would be read from or written to, whether or not it exists.</maml:para>
+      <maml:para>Operate on one resolved TOML or YAML file. Use --config to select it explicitly. See Get-Help xget-config -Full for settings, search paths, inheritance, and source profiles.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget config path</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-XGetConfigEdit</command:name>
+      <maml:description>
+        <maml:para>Configuration edit subcommand.</maml:para>
+      </maml:description>
+    </command:details>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>xget config edit [--config FILE]</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <maml:description>
+      <maml:para>Open the configuration file in an editor, creating it and its parent directories first if needed. After the editor exits, xget re-reads the file and reports a parse error if the edit made it invalid. See the ENVIRONMENT section for editor selection.</maml:para>
+      <maml:para>Operate on one resolved TOML or YAML file. Use --config to select it explicitly. See Get-Help xget-config -Full for settings, search paths, inheritance, and source profiles.</maml:para>
+    </maml:description>
+    <command:parameters>
+      <command:parameter required="false" position="named">
+        <maml:name>config</maml:name>
+        <maml:description>
+          <maml:para>-c, --config=</maml:para>
+          <maml:para>Use the given configuration file instead of searching the default locations. Example: xget -c ./project.xget.toml owner/repo.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>help</maml:name>
+        <maml:description>
+          <maml:para>-h, --help</maml:para>
+          <maml:para>Show a help message.</maml:para>
+        </maml:description>
+      </command:parameter>
+      <command:parameter required="false" position="named">
+        <maml:name>non-interactive</maml:name>
+        <maml:description>
+          <maml:para>--non-interactive</maml:para>
+          <maml:para>Never prompt for input. Available for every command. If a run would require the user to choose an asset or file, xget writes Interactive user request while execution is in non-interactive mode to stderr and exits with code 16. Non-interactive mode is enabled automatically when stdin is not a terminal (TTY).</maml:para>
+        </maml:description>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>xget config edit</dev:code>
+      </command:example>
+    </command:examples>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This is native CLI syntax, not PowerShell parameter binding. Pass --long-options and -short-options exactly as shown. Get-Help parameter names omit the leading dashes. Arguments, stdout, and stderr are forwarded to xget on PATH. LASTEXITCODE is preserved: 0 success, 1 general error, 16 input required in non-interactive mode. Quote regex matchers beginning with ~ using single quotes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online manual</maml:linkText>
+        <maml:uri>https://camalot.github.io/xget/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Source and issues</maml:linkText>
+        <maml:uri>https://github.com/camalot/xget</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+</helpItems>

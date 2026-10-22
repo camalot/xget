@@ -12,6 +12,36 @@ on:
 permissions: {}
 
 jobs:
+  platforms:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      debian: ${{ steps.debian.outputs.matrix }}
+      rpm: ${{ steps.rpm.outputs.matrix }}
+      alpine: ${{ steps.alpine.outputs.matrix }}
+      aur: ${{ steps.aur.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: debian
+        uses: ./.github/actions/package-platforms
+        with:
+          format: debian
+      - id: rpm
+        uses: ./.github/actions/package-platforms
+        with:
+          format: rpm
+      - id: alpine
+        uses: ./.github/actions/package-platforms
+        with:
+          format: alpine
+      - id: aur
+        uses: ./.github/actions/package-platforms
+        with:
+          format: aur
+
   verify:
     permissions:
       contents: read
@@ -23,6 +53,12 @@ jobs:
           persist-credentials: false # avoid exposing GITHUB_TOKEN to submodules
 
       - uses: ./.github/actions/verify-sha256
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Verify release platform mappings
+        run: go test ./scripts
 
 
   version:
@@ -218,8 +254,7 @@ jobs:
         with:
           name: release-archives
           path: |
-            dist/xget_*_linux_amd64.tar.gz
-            dist/xget_*_linux_arm64.tar.gz
+            dist/xget_*_linux_*.tar.gz
             dist/checksums.txt
           if-no-files-found: error
 
@@ -288,6 +323,10 @@ jobs:
           if-no-files-found: error
 
   aur:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.platforms.outputs.aur) }}
     permissions:
       # attach the built packages/checksums/SBOMs to the release
       contents: write
@@ -298,6 +337,7 @@ jobs:
     needs:
       - version
       - release
+      - platforms
     steps:
       - uses: actions/checkout@v7
         with:
@@ -308,13 +348,26 @@ jobs:
         with:
           # AUR pkgver can't have a "v" prefix, unlike the git tag
           version: ${{ needs.version.outputs.ver_major_minor_patch }}
+          architecture: ${{ matrix.platform.release }}
           dry-run: ${{ inputs.dry-run }}
           artifact: ${{ inputs.dry-run && 'release-archives' || '' }}
           aur-username: ${{ secrets.AUR_USERNAME }}
           aur-email: ${{ secrets.AUR_EMAIL }}
           aur-ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
 
+      - name: Upload pacman packages
+        if: ${{ inputs.dry-run == true }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: aur-packages-${{ matrix.platform.release }}
+          path: ${{ runner.temp }}/aur/dist/*
+          if-no-files-found: error
+
   debian:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.platforms.outputs.debian) }}
     permissions:
       # attach the built packages/checksums/SBOMs to the release
       contents: write
@@ -325,6 +378,7 @@ jobs:
     needs:
       - version
       - release
+      - platforms
     steps:
       - uses: actions/checkout@v7
         with:
@@ -336,6 +390,7 @@ jobs:
         with:
           # deb versions can't have a "v" prefix, unlike the git tag
           version: ${{ needs.version.outputs.ver_major_minor_patch }}
+          architecture: ${{ matrix.platform.release }}
           dry-run: ${{ inputs.dry-run }}
           artifact: ${{ inputs.dry-run && 'release-archives' || '' }}
 
@@ -343,13 +398,15 @@ jobs:
         if: ${{ inputs.dry-run == true }}
         uses: actions/upload-artifact@v7
         with:
-          name: debian-packages
-          path: |
-            ${{ steps.debian.outputs.outdir }}/*.deb
-            ${{ steps.debian.outputs.outdir }}/debian-checksums.txt
+          name: debian-packages-${{ matrix.platform.release }}
+          path: ${{ steps.debian.outputs.outdir }}/*
           if-no-files-found: error
 
   alpine:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.platforms.outputs.alpine) }}
     permissions:
       # attach the built packages/checksums/SBOMs to the release
       contents: write
@@ -360,6 +417,7 @@ jobs:
     needs:
       - version
       - release
+      - platforms
     steps:
       - uses: actions/checkout@v7
         with:
@@ -371,6 +429,7 @@ jobs:
         with:
           # apk pkgver can't have a "v" prefix, unlike the git tag
           version: ${{ needs.version.outputs.ver_major_minor_patch }}
+          architecture: ${{ matrix.platform.release }}
           dry-run: ${{ inputs.dry-run }}
           artifact: ${{ inputs.dry-run && 'release-archives' || '' }}
           signing-private-key: ${{ secrets.RSA_PRIVATE_KEY }}
@@ -380,13 +439,15 @@ jobs:
         if: ${{ inputs.dry-run == true }}
         uses: actions/upload-artifact@v7
         with:
-          name: alpine-packages
-          path: |
-            ${{ steps.alpine.outputs.outdir }}/*.apk
-            ${{ steps.alpine.outputs.outdir }}/alpine-checksums.txt
+          name: alpine-packages-${{ matrix.platform.release }}
+          path: ${{ steps.alpine.outputs.outdir }}/*
           if-no-files-found: error
 
   rpm:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.platforms.outputs.rpm) }}
     permissions:
       # attach the built packages/checksums/SBOMs to the release
       contents: write
@@ -397,6 +458,7 @@ jobs:
     needs:
       - version
       - release
+      - platforms
     steps:
       - uses: actions/checkout@v7
         with:
@@ -408,6 +470,7 @@ jobs:
         with:
           # rpm versions can't have a "v" prefix, unlike the git tag
           version: ${{ needs.version.outputs.ver_major_minor_patch }}
+          architecture: ${{ matrix.platform.release }}
           dry-run: ${{ inputs.dry-run }}
           artifact: ${{ inputs.dry-run && 'release-archives' || '' }}
 
@@ -415,10 +478,8 @@ jobs:
         if: ${{ inputs.dry-run == true }}
         uses: actions/upload-artifact@v7
         with:
-          name: rpm-packages
-          path: |
-            ${{ steps.rpm.outputs.outdir }}/*.rpm
-            ${{ steps.rpm.outputs.outdir }}/rpm-checksums.txt
+          name: rpm-packages-${{ matrix.platform.release }}
+          path: ${{ steps.rpm.outputs.outdir }}/*
           if-no-files-found: error
 
   publish-documentation:

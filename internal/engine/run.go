@@ -296,7 +296,7 @@ func getDetector(opts *options.Flags) (detector Detector, err error) {
 		}
 		system, err = NewSystemDetector(split[0], split[1])
 	default:
-		system, err = NewSystemDetector(runtime.GOOS, runtime.GOARCH)
+		system, err = NewSystemDetector(runtime.GOOS, runtimeSystemArch())
 	}
 	if err != nil {
 		return nil, err

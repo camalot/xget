@@ -55,6 +55,11 @@ xget uninstall jgm/pandoc --from ~/.local/bin
 xget uninstall jgm/pandoc --all
 ```
 
+For 32-bit ARM assets, `--system linux/armv7` and `--system linux/armv6`
+select a specific ARM level; `linux/arm` matches generic 32-bit ARM assets.
+Default detection on an ARM build uses its `GOARM` level, including during
+self-update. xget itself currently publishes ARMv7 builds, not ARMv6 builds.
+
 ## Basic command syntax
 
 Use `xget install TARGET` to install a package. The original `xget TARGET`
