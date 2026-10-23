@@ -31,6 +31,10 @@ inputs:
       linux archives; when set, it is used instead of downloading from the GitHub release
     required: false
     default: ""
+  architecture:
+    description: Release architecture from .packages/platforms.json; empty selects all
+    required: false
+    default: ""
 outputs:
   path:
     description: "Directory containing the verified archives and checksums.txt"
@@ -50,6 +54,12 @@ outputs:
   arm64-sha256:
     description: "Released sha256 of the linux/arm64 archive"
     value: ${{ steps.download.outputs.arm64_sha256 }}
+  archive:
+    description: Verified archive when one architecture is selected
+    value: ${{ steps.download.outputs.archive }}
+  sha256:
+    description: Archive checksum when one architecture is selected
+    value: ${{ steps.download.outputs.sha256 }}
 
 runs:
   using: "composite"
@@ -75,22 +85,26 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+        mapfile -t architectures < <(jq -r --arg arch "$ARCHITECTURE" '.[] | select($arch == "" or .release == $arch) | .release' .packages/platforms.json | tr -d '\r')
+        test "${#architectures[@]}" -gt 0
         if [ -z "$ARTIFACT" ]; then
           patterns=(--pattern checksums.txt)
           if [ "$ARCHIVES" = "true" ]; then
-            patterns+=(
-              --pattern "xget_${VERSION}_linux_amd64.tar.gz"
-              --pattern "xget_${VERSION}_linux_arm64.tar.gz"
-            )
+            for arch in "${architectures[@]}"; do
+              patterns+=(--pattern "xget_${VERSION}_linux_${arch}.tar.gz")
+            done
           fi
           gh release download "v${VERSION}" --repo "$REPO" "${patterns[@]}" --dir "$DEST" --clobber
         fi
 
         cd "$DEST"
-        # only consider the two archives the packages are built from - the anchored
-        # pattern keeps the matching .sbom.json entries out of the checksum list
-        grep -E "xget_${VERSION}_linux_(amd64|arm64)\.tar\.gz$" checksums.txt > expected.txt
-        test "$(wc -l < expected.txt)" -eq 2
+        : > expected.txt
+        for arch in "${architectures[@]}"; do
+          archive="xget_${VERSION}_linux_${arch}.tar.gz"
+          sha256=$(awk -v archive="$archive" '$2 == archive { print $1 }' checksums.txt)
+          [[ "$sha256" =~ ^[[:xdigit:]]{64}$ ]]
+          printf '%s  %s\n' "$sha256" "$archive" >> expected.txt
+        done
         if [ "$ARCHIVES" = "true" ]; then
           sha256sum --check --strict expected.txt
         fi
@@ -98,11 +112,17 @@ runs:
         {
           echo "path=$DEST"
           echo "checksums=$DEST/checksums.txt"
-          for arch in amd64 arm64; do
+          for arch in "${architectures[@]}"; do
             archive="xget_${VERSION}_linux_${arch}.tar.gz"
             echo "${arch}_sha256=$(awk -v f="$archive" '$2 == f { print $1 }' expected.txt)"
             if [ "$ARCHIVES" = "true" ]; then
               echo "${arch}_archive=$DEST/$archive"
+            fi
+            if [ -n "$ARCHITECTURE" ]; then
+              echo "sha256=$(awk -v f="$archive" '$2 == f { print $1 }' expected.txt)"
+              if [ "$ARCHIVES" = "true" ]; then
+                echo "archive=$DEST/$archive"
+              fi
             fi
           done
         } >> "$GITHUB_OUTPUT"
@@ -113,3 +133,4 @@ runs:
         DEST: ${{ inputs.path }}
         ARCHIVES: ${{ inputs.archives }}
         ARTIFACT: ${{ inputs.artifact }}
+        ARCHITECTURE: ${{ inputs.architecture }}

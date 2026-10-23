@@ -210,6 +210,13 @@ arch_raw="$(uname -m)"
 case "$arch_raw" in
 x86_64 | amd64) arch="amd64" ;;
 aarch64 | arm64) arch="arm64" ;;
+armv7l | armv7 | armhf)
+	if [ "$os" = "linux" ]; then
+		arch="armv7"
+	else
+		arch=""
+	fi
+	;;
 *) arch="" ;;
 esac
 

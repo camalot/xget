@@ -29,6 +29,8 @@ configuration files keep working, so switching is usually a matter of replacing
 ### Release sources
 
 - GitHub and GitLab releases, direct URLs, and local archives.
+- Linux release archives and Debian, RPM, Alpine, and Arch Linux ARM packages
+  support ARMv7 alongside x86-64 and ARM64. ARMv6 releases are not available yet.
 - Named [source profiles](configuration) for self-hosted or alternate hosts, with
   per-profile `host`, `api_url`, `token_env`, and `token` settings.
 - `PROFILE:owner/repo` shorthand, for example `xget install gitlab:gitlab-org/cli`.

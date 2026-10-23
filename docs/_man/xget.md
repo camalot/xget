@@ -156,6 +156,8 @@ header: xget Manual
 
   `-s, --system=`
 
+:    Select a target OS and architecture, such as `linux/amd64`, `linux/arm64`, or `linux/armv7`. `linux/armv6` selects ARMv6 assets; `linux/arm` matches generic 32-bit ARM assets. Use `all` to consider all assets. Default detection on an ARM build uses its `GOARM` level.
+
   `-f, --file=`
 
 :    Extract the file that matches the given glob. You may want use this option to extract non-binary files. Example: **`xget -f LICENSE zyedidia/micro`**.
@@ -561,16 +563,16 @@ header: xget Manual
 To guarantee compatibility of your software's pre-built binaries with xget, you
 can follow these rules.
 
-* Provide your pre-built binaries as GitHub release assets.
-* Format the system name as `OS_Arch` and include it in every pre-built binary
+- Provide your pre-built binaries as GitHub release assets.
+- Format the system name as `OS_Arch` and include it in every pre-built binary
   name. Supported OSes are `darwin`/`macos`, `windows`, `linux`, `netbsd`, `openbsd`,
   `freebsd`, `android`, `illumos`, `solaris`, `plan9`. Supported architectures
   are `amd64`, `i386`, `arm`, `arm64`, `riscv64`.
-* If desired, include `*.sha256` files for each asset, containing the SHA-256
+- If desired, include `*.sha256` files for each asset, containing the SHA-256
   checksum of each asset. These checksums will be automatically verified by
   xget.
-* Include only a single executable or appimage per system in each release archive.
-* Use `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.tar`, or `.zip` for archives. You may
+- Include only a single executable or appimage per system in each release archive.
+- Use `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.tar`, or `.zip` for archives. You may
   also directly upload the executable without an archive, or a compressed
   executable ending in `.gz`, `.bz2`, or `.xz`.
 
@@ -585,5 +587,5 @@ See GitHub Issues: <https://github.com/camalot/xget/issues>
 
 # AUTHOR
 
-* Ryan Conrad <camalot@gmail.com> xget
-* Zachary Yedidia <zyedidia@gmail.com> [eget](https://github.com/zyedidia/eget)
+- Ryan Conrad <camalot@gmail.com> xget
+- Zachary Yedidia <zyedidia@gmail.com> [eget](https://github.com/zyedidia/eget)

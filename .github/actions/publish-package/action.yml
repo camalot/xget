@@ -1,0 +1,57 @@
+---
+name: Publish package
+description: Checksum, generate an SBOM, attest, and publish one verified package
+inputs:
+  package:
+    description: Absolute path to the verified package
+    required: true
+  version:
+    description: Plain release version
+    required: true
+  dry-run:
+    description: Build checksums without publishing or requesting attestations
+    default: "true"
+  token:
+    description: GitHub token used to upload release assets
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - name: Checksum package
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "$(dirname "$PACKAGE")"
+        sha256sum "$(basename "$PACKAGE")" > "${PACKAGE}.sha256"
+      env:
+        PACKAGE: ${{ inputs.package }}
+    - name: Generate SPDX SBOM
+      if: inputs.dry-run == 'false'
+      uses: anchore/sbom-action@v0
+      with:
+        file: ${{ inputs.package }}
+        format: spdx-json
+        output-file: ${{ inputs.package }}.sbom.json
+        upload-artifact: false
+        upload-release-assets: false
+    - name: Attest build provenance
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ inputs.package }}
+    - name: Attest SBOM
+      if: inputs.dry-run == 'false'
+      uses: actions/attest@v4
+      with:
+        subject-path: ${{ inputs.package }}
+        sbom-path: ${{ inputs.package }}.sbom.json
+    - name: Upload package, checksum, and SBOM
+      if: inputs.dry-run == 'false'
+      shell: bash
+      run: |
+        set -euo pipefail
+        gh release upload "v${VERSION}" "$PACKAGE" "${PACKAGE}.sha256" "${PACKAGE}.sbom.json" --clobber
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        VERSION: ${{ inputs.version }}
+        PACKAGE: ${{ inputs.package }}

@@ -2,7 +2,7 @@
 # Packaging definition for the xget .deb, consumed by .packages/debian/build-deb.sh
 # (driven by .github/actions/debian). __VERSION__ and __ARCH__ are substituted at
 # build time with the plain (no "v" prefix) release version and the Debian
-# architecture name (amd64 / arm64).
+# architecture name from .packages/platforms.json (amd64 / arm64 / armhf).
 #
 # Field reference: https://www.debian.org/doc/debian-policy/ch-controlfields.html
 

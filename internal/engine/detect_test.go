@@ -7,6 +7,35 @@ import (
 	"github.com/camalot/xget/internal/options"
 )
 
+func TestARMReleaseDetection(t *testing.T) {
+	for _, arch := range []string{"armv6", "armv7"} {
+		t.Run(arch, func(t *testing.T) {
+			detector, err := NewSystemDetector("linux", arch)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assets := []string{
+				"xget_1.0.0_linux_amd64.tar.gz",
+				"xget_1.0.0_linux_arm64.tar.gz",
+				"xget_1.0.0_linux_armv6.tar.gz",
+				"xget_1.0.0_linux_armv7.tar.gz",
+			}
+			choice, candidates, err := detector.Detect(assets)
+			if err != nil || len(candidates) != 0 || choice != "xget_1.0.0_linux_"+arch+".tar.gz" {
+				t.Fatalf("Detect: choice=%q candidates=%v err=%v", choice, candidates, err)
+			}
+		})
+	}
+	for _, name := range []string{"tool_linux_armv7.tar.gz", "tool_linux_armv6.tar.gz", "tool_linux_armhf.tar.gz"} {
+		if !ArchArm.Match(name) || ArchArm64.Match(name) {
+			t.Errorf("incorrect 32-bit ARM matching for %s", name)
+		}
+	}
+	if ArchArm.Match("tool_linux_arm64.tar.gz") || ArchArm.Match("tool_linux_armv8.tar.gz") {
+		t.Error("32-bit ARM must not match ARM64")
+	}
+}
+
 func TestGetDetector_IgnoreLiteralWithAssetFilter(t *testing.T) {
 	opts := &options.Flags{
 		System: "all",

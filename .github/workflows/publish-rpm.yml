@@ -32,7 +32,27 @@ on:
 permissions: {}
 
 jobs:
+  platforms:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.platforms.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: platforms
+        uses: ./.github/actions/package-platforms
+        with:
+          format: rpm
+
   rpm:
+    needs: platforms
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.platforms.outputs.matrix) }}
     permissions:
       contents: write
       id-token: write
@@ -50,11 +70,10 @@ jobs:
           token: ${{ github.token }}
           tag: ${{ inputs.tag }}
           platform: linux
-          architecture: |
-            amd64
-            arm64
+          architecture: ${{ matrix.platform.release }}
       - name: Build, verify, attest, and publish the RPM packages
         uses: ./.github/actions/rpm
         with:
           version: ${{ steps.verify-release-asset.outputs.version }}
-          dry-run: ${{ inputs.dry-run || 'false' }}
+          architecture: ${{ matrix.platform.release }}
+          dry-run: ${{ inputs.dry-run }}

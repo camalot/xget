@@ -156,7 +156,7 @@ curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget_<V
 sudo dpkg --install xget_<VERSION>_amd64.deb
 ```
 
-Also available: `xget_<VERSION>_arm64.deb`.
+Also available: `xget_<VERSION>_arm64.deb` and `xget_<VERSION>_armhf.deb` (ARMv7).
 
 ### Fedora / RHEL / AlmaLinux (`.rpm`)
 
@@ -165,7 +165,9 @@ curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-<V
 sudo dnf install ./xget-<VERSION>-1.el9.x86_64.rpm
 ```
 
-Also available: `xget-<VERSION>-1.el9.aarch64.rpm`.
+Also available: `xget-<VERSION>-1.el9.aarch64.rpm` and
+`xget-<VERSION>-1.armv7hl.rpm` (ARMv7, built and install-tested on openSUSE Tumbleweed).
+AlmaLinux 9 itself does not support 32-bit ARM.
 
 ### Alpine (`.apk`)
 
@@ -174,7 +176,7 @@ curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-<V
 sudo apk add --allow-untrusted xget-<VERSION>-r0-x86_64.apk
 ```
 
-Also available: `xget-<VERSION>-r0-aarch64.apk`.
+Also available: `xget-<VERSION>-r0-aarch64.apk` and `xget-<VERSION>-r0-armv7.apk`.
 
 ### Arch Linux (`.pkg.tar.zst`)
 
@@ -183,7 +185,8 @@ curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-bi
 sudo pacman -U xget-bin-<VERSION>-1-x86_64.pkg.tar.zst
 ```
 
-Also available: `xget-bin-<VERSION>-1-aarch64.pkg.tar.zst`.
+Also available: `xget-bin-<VERSION>-1-aarch64.pkg.tar.zst` and
+`xget-bin-<VERSION>-1-armv7h.pkg.tar.zst`.
 
 ### Homebrew
 
@@ -197,6 +200,12 @@ brew install camalot/scoop/xget
 | --- | --- |
 | `xget_<VERSION>_linux_amd64.tar.gz` | x86_64 |
 | `xget_<VERSION>_linux_arm64.tar.gz` | aarch64 |
+| `xget_<VERSION>_linux_armv7.tar.gz` | ARMv7, hard-float |
+
+Linux ARMv7 requires an ARMv7-capable CPU with hardware floating point.
+The Bash installer recognizes `armv7l`; Windows, macOS, and Android releases
+retain their existing architecture support. ARMv6 releases are not available yet.
+See [release platform maintenance](.packages/README.md) for adding platforms.
 
 </details>
 

@@ -25,6 +25,11 @@ on:
         description: Existing release tag to publish the Alpine package for (e.g. v2.2.0)
         required: true
         type: string
+      dry-run:
+        description: Build and test-install without publishing
+        required: false
+        type: boolean
+        default: true
     secrets:
       RSA_PRIVATE_KEY:
         required: true
@@ -32,7 +37,27 @@ on:
 permissions: {}
 
 jobs:
+  platforms:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.platforms.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: platforms
+        uses: ./.github/actions/package-platforms
+        with:
+          format: alpine
+
   alpine:
+    needs: platforms
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.platforms.outputs.matrix) }}
     permissions:
       # attach the built packages/checksums/SBOMs to the release
       contents: write
@@ -53,15 +78,14 @@ jobs:
         with:
           tag: ${{ inputs.tag }}
           platform: linux
-          architecture: |
-            amd64
-            arm64
+          architecture: ${{ matrix.platform.release }}
           token: ${{ github.token }}
 
       - name: Build, verify, attest, and publish the Alpine packages
         uses: ./.github/actions/alpine
         with:
           version: ${{ steps.verify-release-asset.outputs.version }}
-          dry-run: ${{ inputs.dry-run || 'false' }}
+          architecture: ${{ matrix.platform.release }}
+          dry-run: ${{ inputs.dry-run }}
           signing-private-key: ${{ secrets.RSA_PRIVATE_KEY }}
           signing-public-key: ${{ vars.RSA_PUBLIC_KEY }}

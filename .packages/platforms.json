@@ -1,0 +1,35 @@
+[
+  {
+    "release": "amd64",
+    "goarch": "amd64",
+    "goarm": "",
+    "container": "linux/amd64",
+    "debian": "amd64",
+    "rpm": "x86_64",
+    "rpm_image": "almalinux:9",
+    "alpine": "x86_64",
+    "aur": "x86_64"
+  },
+  {
+    "release": "arm64",
+    "goarch": "arm64",
+    "goarm": "",
+    "container": "linux/arm64",
+    "debian": "arm64",
+    "rpm": "aarch64",
+    "rpm_image": "almalinux:9",
+    "alpine": "aarch64",
+    "aur": "aarch64"
+  },
+  {
+    "release": "armv7",
+    "goarch": "arm",
+    "goarm": "7",
+    "container": "linux/arm/v7",
+    "debian": "armhf",
+    "rpm": "armv7hl",
+    "rpm_image": "opensuse/tumbleweed:latest",
+    "alpine": "armv7",
+    "aur": "armv7h"
+  }
+]

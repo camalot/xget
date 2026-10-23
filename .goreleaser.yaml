@@ -56,6 +56,24 @@ builds:
       - -X github.com/camalot/xget/internal/cli.version={{.Version}}
       - -X github.com/camalot/xget/internal/cli.commit={{.ShortCommit}}
       - -X github.com/camalot/xget/internal/cli.date={{.Date}}
+
+  - id: xget-linux-arm
+    main: ./cmd/xget
+    binary: xget
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm
+    goarm:
+      - "7"
+    ldflags:
+      - -s -w
+      - -X github.com/camalot/xget/internal/cli.version={{.Version}}
+      - -X github.com/camalot/xget/internal/cli.commit={{.ShortCommit}}
+      - -X github.com/camalot/xget/internal/cli.date={{.Date}}
+
   - id: xget-android
     main: ./cmd/xget
     binary: xget
@@ -76,6 +94,7 @@ builds:
 
 archives:
   - id: xget
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
     formats: [zip]
     format_overrides:
       - goos: android
