@@ -1,4 +1,78 @@
 
+## [v2.8.0](https://github.com/camalot/xget/releases/tag/v2.8.0) - 2026-10-23
+
+### 🚀 FEATURES
+
+#### _GENERAL_
+
+- Support for ARMv7 -[@camalot](https://github.com/camalot)
+
+
+### 💼 OTHER
+
+#### _GENERAL_
+
+- Merge branch 'main' of github.com:camalot/xget -[@camalot](https://github.com/camalot)
+
+- Main' of github.com:camalot/xget: -[@camalot](https://github.com/camalot)
+
+- Merge pull request  from camalot/armv7-support[#26](https://github.com/camalot/xget/issues/26)  [#26](https://github.com/camalot/xget/pull/26) -[@camalot](https://github.com/camalot)
+
+- Armv7 support [#26](https://github.com/camalot/xget/pull/26) -[@camalot](https://github.com/camalot)
+
+
+### 📚 DOCUMENTATION
+
+#### _GENERAL_
+
+- Some updates to lint rules and content in the man page -[@camalot](https://github.com/camalot)
+
+- docs: update changelog for v2.7.0 -[@camalot](https://github.com/camalot)
+
+- Update docs to remove xget arm support from man page. not needed there -[@camalot](https://github.com/camalot)
+
+
+### ⚙️ MISCELLANEOUS TASKS
+
+
+#### _ACTION_
+- Ensure all files have to the blank line at the end to follow editorconfig spec -[@camalot](https://github.com/camalot)
+
+
+#### _ACTIONS_
+- Refactor to suppport adding new platforms easily -[@camalot](https://github.com/camalot)
+
+#### _GENERAL_
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot) in
+[#26](https://github.com/camalot/xget/pull/26)
+
+## 📈 Commit Statistics
+
+
+- `10` commits contributed to the release.
+- `1` day has passed between the first and last commit.
+- `5` commits parsed as conventional.
+- `1` linked issue detected in commits.
+  - [#26](https://github.com/camalot/xget/issues/26) (referenced 1 time)
+- `2` days  have passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[10,1,1,5,1,2]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.7.0...v2.8.0
+
 ## [v2.7.0](https://github.com/camalot/xget/releases/tag/v2.7.0) - 2026-10-21
 
 ### 🚀 FEATURES
