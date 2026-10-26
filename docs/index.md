@@ -8,6 +8,8 @@ nav_order: 1
 # xget
 {: .no_toc }
 
+[Install](./installation){: .btn .fs-5 .mb-4 .mb-md-0 }
+
 xget is a forked codebase of [zyedidia/eget](https://github.com/zyedidia/eget) focusing on some additional features and improvements. The original project does not seem to be actively maintained. The version of xget is starting at v2.0.0 to avoid confusion with the original project.
 
 [![Release](https://img.shields.io/github/release/camalot/xget.svg?label=Release&style=for-the-badge)](https://github.com/camalot/xget/releases)

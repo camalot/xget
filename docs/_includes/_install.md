@@ -1,10 +1,9 @@
-
-## Windows
+<!-- markdownlint-disable MD033 MD041 MD024 MD022 -->
 
 <details markdown="block">
-<summary markdown="span"><b>Windows install options</b></summary>
+<summary markdown="span"><b>Windows</b></summary>
 
-### Bash (Git Bash / WSL)
+## Bash
 
 ```shell
 curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
@@ -17,7 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh |
 curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh && bash xget.sh -d /usr/local/bin
 ```
 
-### PowerShell
+## PowerShell
 
 > [!NOTE]
 > When run from a downloaded file, the quick-install scripts will download and verify the sha256 checksum of the install script before continuing. When piped directly to `bash` or `iex`, script checksum verification is skipped because there is no local script file to hash. Release asset checksums are still verified.
@@ -26,7 +25,7 @@ curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/instal
 iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
 ```
 
-### Scoop
+## Scoop
 
 ```shell
 scoop bucket add camalot https://github.com/camalot/scoop
@@ -34,20 +33,20 @@ scoop install camalot/xget
 ```
 
 <!-- NOT YET AVAILABLE 
-### WinGet
+## WinGet
 
 ```shell
 winget install camalot.xget
 ```
 
-### Chocolatey
+## Chocolatey
 
 ```shell
 choco install xget
 ```
 -->
 
-### Archive
+## Archive
 
 | Asset | Architecture |
 | --- | --- |
@@ -56,12 +55,10 @@ choco install xget
 
 </details>
 
-## Linux
-
 <details markdown="block">
-<summary markdown="span"><b>Linux install options</b></summary>
+<summary markdown="span"><b>Linux</b></summary>
 
-### Bash
+## Bash
 
 ```shell
 curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
@@ -74,13 +71,13 @@ curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh |
 curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh && bash xget.sh -d /usr/local/bin
 ```
 
-### PowerShell
+## PowerShell
 
 ```powershell
 iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
 ```
 
-### Debian / Ubuntu (`.deb`)
+## Debian / Ubuntu (`.deb`)
 
 ```shell
 curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget_<VERSION>_amd64.deb
@@ -89,7 +86,7 @@ sudo dpkg --install xget_<VERSION>_amd64.deb
 
 Also available: `xget_<VERSION>_arm64.deb` and `xget_<VERSION>_armhf.deb` (ARMv7).
 
-### Fedora / RHEL / AlmaLinux (`.rpm`)
+## Fedora / RHEL / AlmaLinux (`.rpm`)
 
 ```shell
 curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-<VERSION>-1.el9.x86_64.rpm
@@ -100,7 +97,7 @@ Also available: `xget-<VERSION>-1.el9.aarch64.rpm` and
 `xget-<VERSION>-1.armv7hl.rpm` (ARMv7, built and install-tested on openSUSE Tumbleweed).
 AlmaLinux 9 itself does not support 32-bit ARM.
 
-### Alpine (`.apk`)
+## Alpine (`.apk`)
 
 ```shell
 curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-<VERSION>-r0-x86_64.apk
@@ -109,7 +106,7 @@ sudo apk add --allow-untrusted xget-<VERSION>-r0-x86_64.apk
 
 Also available: `xget-<VERSION>-r0-aarch64.apk` and `xget-<VERSION>-r0-armv7.apk`.
 
-### Arch Linux (`.pkg.tar.zst`)
+## Arch Linux (`.pkg.tar.zst`)
 
 ```shell
 curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget-bin-<VERSION>-1-x86_64.pkg.tar.zst
@@ -119,13 +116,13 @@ sudo pacman -U xget-bin-<VERSION>-1-x86_64.pkg.tar.zst
 Also available: `xget-bin-<VERSION>-1-aarch64.pkg.tar.zst` and
 `xget-bin-<VERSION>-1-armv7h.pkg.tar.zst`.
 
-### Homebrew
+## Homebrew
 
 ```shell
 brew install camalot/scoop/xget
 ```
 
-### Archive
+## Archive
 
 | Asset | Architecture |
 | --- | --- |
@@ -138,12 +135,10 @@ Windows, macOS, and Android retain their existing architecture support.
 
 </details>
 
-## macOS
-
 <details markdown="block">
-<summary markdown="span"><b>macOS install options</b></summary>
+<summary markdown="span"><b>macOS</b></summary>
 
-### Bash
+## Bash
 
 ```shell
 curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
@@ -156,19 +151,19 @@ curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh |
 curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh && bash xget.sh -d /usr/local/bin
 ```
 
-### PowerShell
+## PowerShell
 
 ```powershell
 iwr https://raw.githubusercontent.com/camalot/xget/main/install/xget.ps1 | iex
 ```
 
-### Homebrew
+## Homebrew
 
 ```shell
 brew install camalot/scoop/xget
 ```
 
-### Archive
+## Archive
 
 | Asset | Architecture |
 | --- | --- |
@@ -177,12 +172,11 @@ brew install camalot/scoop/xget
 
 </details>
 
-## Android (Termux)
 
 <details markdown="block">
-<summary markdown="span"><b>Android install options</b></summary>
+<summary markdown="span"><b>Android</b></summary>
 
-### Bash
+## Bash
 
 ```shell
 curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh | bash
@@ -195,7 +189,7 @@ curl -fsSL https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh |
 curl -fsSL -o xget.sh https://raw.githubusercontent.com/camalot/xget/main/install/xget.sh && bash xget.sh -d /usr/local/bin
 ```
 
-### Archive
+## Archive
 
 ```shell
 curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/xget_<VERSION>_android_arm64.tar.gz
@@ -209,27 +203,12 @@ install -Dm755 xget "$PREFIX/bin/xget"
 
 </details>
 
-## Verify a download
-
 <details markdown="block">
-<summary markdown="span"><b>Checksum verification</b></summary>
+<summary markdown="span"><b>Checksum Verification</b></summary>
 
 ```shell
 curl -fsSLO https://github.com/camalot/xget/releases/download/v<VERSION>/checksums.txt
 sha256sum --check --ignore-missing checksums.txt
-```
-
-</details>
-
-## zyedidia/eget
-
-<details markdown="block">
-<summary markdown="span"><b>Install with eget</b></summary>
-
-If you already have eget, you can use it to install xget by running:
-
-```shell
-eget camalot/xget --asset "^.sbom.json"
 ```
 
 </details>
