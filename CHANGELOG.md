@@ -1,4 +1,46 @@
 
+## [v2.8.1](https://github.com/camalot/xget/releases/tag/v2.8.1) - 2026-11-11
+
+### 🐛 BUG FIXES
+
+#### _GENERAL_
+
+- Security codeql scan [#5](https://github.com/camalot/xget/issues/5)  -[@camalot](https://github.com/camalot)
+
+
+### 📚 DOCUMENTATION
+
+#### _GENERAL_
+
+- Added documentation for command usage -[@camalot](https://github.com/camalot)
+
+
+## GitHub
+
+### 💛 Contributors
+
+
+- [@camalot](https://github.com/camalot)
+## 📈 Commit Statistics
+
+
+- `2` commits contributed to the release.
+- `16` days have passed between the first and last commit.
+- `2` commits parsed as conventional.
+- `1` linked issue detected in commits.
+  - [#5](https://github.com/camalot/xget/issues/5) (referenced 1 time)
+- `19` days  have passed between releases.
+
+
+![Statistics](https://quickchart.io/chart?c={type:'bar',data:{labels:['Commits','Contributors','Days%20Between%20Commits','Conventional%20Commits','Referenced%20Links','Days%20Since%20Last%20Release'],datasets:[{label:'Release',data:[2,1,16,2,1,19]}]}})
+
+
+
+---
+
+
+**Full Changelog**: https://github.com/camalot/xget/compare/v2.8.0...v2.8.1
+
 ## [v2.8.0](https://github.com/camalot/xget/releases/tag/v2.8.0) - 2026-10-23
 
 ### 🚀 FEATURES
