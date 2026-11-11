@@ -243,28 +243,37 @@ func safeMkdirAll(base, target string) error {
 }
 
 func (l link) Write() error {
-	// reject link targets that would resolve outside the extraction root
-	if filepath.IsAbs(l.oldname) {
-		return fmt.Errorf("unsafe archive link target %q", l.oldname)
-	}
-	resolved := filepath.Join(filepath.Dir(l.newname), l.oldname)
-	if err := requireWithinBase(l.base, resolved); err != nil {
+	if _, err := validateArchiveEntryName(l.oldname); err != nil {
 		return fmt.Errorf("unsafe archive link target %q: %w", l.oldname, err)
 	}
+	if err := requireWithinBase(l.base, l.newname); err != nil {
+		return err
+	}
+	newname, err := filepath.Rel(l.base, l.newname)
+	if err != nil {
+		return err
+	}
 
-	// create parent directories, refusing to follow a symlinked ancestor
 	if err := safeMkdirAll(l.base, filepath.Dir(l.newname)); err != nil {
 		return err
 	}
-	// remove file if it exists already
-	if err := os.Remove(l.newname); err != nil && !os.IsNotExist(err) {
+	root, err := os.OpenRoot(l.base)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := root.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, "extract: close root:", err)
+		}
+	}()
+	if err := root.Remove(newname); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
 	if l.sym {
-		return os.Symlink(l.oldname, l.newname)
+		return root.Symlink(l.oldname, newname)
 	}
-	return os.Link(l.oldname, l.newname)
+	return root.Link(filepath.FromSlash(l.oldname), newname)
 }
 
 // Extract selects matching entries from the archive in data.
@@ -344,6 +353,16 @@ func (a *ArchiveExtractor) Extract(data []byte, multiple bool) (ExtractedFile, [
 								return fmt.Errorf("extract: %w", err)
 							}
 							oldname := subf.LinkName
+							if subf.Type == TypeLink {
+								if _, err := validateArchiveEntryName(oldname); err != nil {
+									return fmt.Errorf("extract: unsafe archive link target %q: %w", oldname, err)
+								}
+								prefix := strings.TrimSuffix(f.Name, "/") + "/"
+								if !strings.HasPrefix(oldname, prefix) || len(oldname) == len(prefix) {
+									return fmt.Errorf("extract: hard link target %q is outside selected directory %q", oldname, f.Name)
+								}
+								oldname = oldname[len(prefix):]
+							}
 							links = append(links, link{
 								base:    to,
 								newname: newname,

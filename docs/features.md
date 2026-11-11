@@ -65,7 +65,9 @@ configuration files keep working, so switching is usually a matter of replacing
 ### Verification and safety
 
 - TAR and ZIP entry names must stay within the archive root; absolute paths and
-  traversal outside that root (including backslash-separated paths) are rejected.
+  any name containing `..` are rejected, including backslash-separated paths.
+- TAR link targets must also be relative and contain no `..`; hard links must
+  refer to a file within the selected directory.
 - Automatic verification of `*.sha256` / `*.sha256sum` sibling assets.
 - `--verify` uses GitHub's published SHA-256 when available; `--verify-sha256`
   checks against a value you provide; `--sha256` prints the hash.

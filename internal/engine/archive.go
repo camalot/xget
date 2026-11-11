@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -60,10 +59,9 @@ type Archive interface {
 
 func validateArchiveEntryName(name string) (string, error) {
 	normalized := strings.ReplaceAll(name, "\\", "/")
-	cleaned := path.Clean(normalized)
 	if !filepath.IsLocal(name) || strings.ContainsRune(name, '\x00') ||
+		strings.Contains(name, "..") ||
 		strings.HasPrefix(normalized, "/") ||
-		cleaned == ".." || strings.HasPrefix(cleaned, "../") ||
 		isWindowsDrivePath(normalized) {
 		return "", fmt.Errorf("unsafe archive path %q", name)
 	}
