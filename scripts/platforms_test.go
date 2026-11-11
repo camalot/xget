@@ -112,6 +112,7 @@ func TestPackagingWorkflowPlatforms(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var workflow struct {
 				Jobs map[string]struct {
+					RunsOn   string `yaml:"runs-on"`
 					Strategy struct {
 						Matrix map[string]string
 					}
@@ -131,6 +132,9 @@ func TestPackagingWorkflowPlatforms(t *testing.T) {
 				}
 				if !strings.Contains(job.Strategy.Matrix["platform"], "fromJSON(needs.platforms.outputs.") {
 					t.Errorf("%s must use the manifest-generated matrix", format)
+				}
+				if format == "alpine" && job.RunsOn != "ubuntu-24.04" {
+					t.Errorf("alpine must use ubuntu-24.04 until setup-alpine supports Ubuntu 26.04, got %q", job.RunsOn)
 				}
 				found := false
 				for _, step := range job.Steps {

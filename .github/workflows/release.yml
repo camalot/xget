@@ -413,7 +413,9 @@ jobs:
       # sign and publish the build provenance and SBOM attestations
       id-token: write
       attestations: write
-    runs-on: ubuntu-latest
+    # setup-alpine v1.4.1 requires sudo -E, which sudo-rs on Ubuntu 26.04 ignores.
+    # Revisit when https://github.com/jirutka/setup-alpine/pull/35 is released.
+    runs-on: ubuntu-24.04
     needs:
       - version
       - release
